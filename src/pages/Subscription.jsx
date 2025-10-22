@@ -1,0 +1,230 @@
+import React, { useState } from 'react'
+import { Layout, Card, Row, Col, Button, Typography, List, Tag, Space, Modal, message } from 'antd'
+import { CrownOutlined, CheckOutlined, StarOutlined, WalletOutlined } from '@ant-design/icons'
+import { useAuth } from '../contexts/AuthContext'
+import { mockSubscriptionPlans } from '../services/mockApi'
+import Header from '../components/Layout/Header'
+
+const { Content } = Layout
+const { Title, Text } = Typography
+
+const Subscription = () => {
+  const { user, updateCredits } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [selectedPlan, setSelectedPlan] = useState(null)
+
+  const handleSubscribe = async (plan) => {
+    if (!user) {
+      message.warning('请先登录')
+      return
+    }
+
+    setSelectedPlan(plan)
+    setLoading(true)
+
+    try {
+      // 模拟支付过程
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      // 模拟支付成功，更新用户状态
+      message.success(`成功订阅${plan.name}！`)
+      
+      // 这里应该调用真实的API更新用户会员状态
+      console.log('订阅成功:', plan)
+      
+    } catch (error) {
+      message.error('订阅失败，请重试')
+    } finally {
+      setLoading(false)
+      setSelectedPlan(null)
+    }
+  }
+
+  const creditPackages = [
+    { credits: 100, price: 10, bonus: 0 },
+    { credits: 300, price: 25, bonus: 50 },
+    { credits: 500, price: 40, bonus: 100 },
+    { credits: 1000, price: 70, bonus: 300 }
+  ]
+
+  const handleBuyCredits = async (pkg) => {
+    if (!user) {
+      message.warning('请先登录')
+      return
+    }
+
+    setLoading(true)
+    try {
+      // 模拟支付过程
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      const totalCredits = pkg.credits + pkg.bonus
+      updateCredits(user.credits + totalCredits)
+      message.success(`成功充值${totalCredits}积分！`)
+      
+    } catch (error) {
+      message.error('充值失败，请重试')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Layout className="app-layout">
+      <Header />
+      <Content style={{ padding: '24px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          {/* 会员套餐 */}
+          <div style={{ marginBottom: '48px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <Title level={2}>
+                <CrownOutlined style={{ color: '#faad14', marginRight: '8px' }} />
+                会员套餐
+              </Title>
+              <Text type="secondary">升级VIP，享受更多特权</Text>
+            </div>
+
+            <Row gutter={[24, 24]} justify="center">
+              {mockSubscriptionPlans.map((plan) => (
+                <Col key={plan.id} xs={24} sm={12} lg={8}>
+                  <Card
+                    className={plan.popular ? 'popular-plan' : ''}
+                    style={{ 
+                      position: 'relative',
+                      border: plan.popular ? '2px solid #1890ff' : '1px solid #d9d9d9'
+                    }}
+                  >
+                    {plan.popular && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '-10px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: '#1890ff',
+                        color: 'white',
+                        padding: '4px 16px',
+                        borderRadius: '12px',
+                        fontSize: '12px'
+                      }}>
+                        <StarOutlined /> 推荐
+                      </div>
+                    )}
+
+                    <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+                      <Title level={4}>{plan.name}</Title>
+                      <div style={{ marginBottom: '8px' }}>
+                        <Text delete type="secondary" style={{ fontSize: '14px' }}>
+                          ¥{plan.originalPrice}
+                        </Text>
+                      </div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <span style={{ fontSize: '32px', fontWeight: 'bold', color: '#1890ff' }}>
+                          ¥{plan.price}
+                        </span>
+                        <Text type="secondary">/{plan.duration}</Text>
+                      </div>
+                      <Tag color="red">
+                        立省 ¥{plan.originalPrice - plan.price}
+                      </Tag>
+                    </div>
+
+                    <List
+                      size="small"
+                      dataSource={plan.benefits}
+                      renderItem={(benefit) => (
+                        <List.Item>
+                          <Space>
+                            <CheckOutlined style={{ color: '#52c41a' }} />
+                            <Text>{benefit}</Text>
+                          </Space>
+                        </List.Item>
+                      )}
+                      style={{ marginBottom: '24px' }}
+                    />
+
+                    <Button
+                      type={plan.popular ? 'primary' : 'default'}
+                      size="large"
+                      block
+                      loading={loading && selectedPlan?.id === plan.id}
+                      onClick={() => handleSubscribe(plan)}
+                      disabled={user?.membershipType === 'vip'}
+                    >
+                      {user?.membershipType === 'vip' ? '已是VIP会员' : '立即订阅'}
+                    </Button>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </div>
+
+          {/* 积分充值 */}
+          <div>
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <Title level={2}>
+                <WalletOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
+                积分充值
+              </Title>
+              <Text type="secondary">购买积分，畅享AI生成服务</Text>
+            </div>
+
+            <Row gutter={[16, 16]} justify="center">
+              {creditPackages.map((pkg, index) => (
+                <Col key={index} xs={12} sm={8} lg={6}>
+                  <Card 
+                    size="small"
+                    style={{ textAlign: 'center' }}
+                    hoverable
+                  >
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
+                        {pkg.credits}
+                      </div>
+                      <Text type="secondary">积分</Text>
+                      {pkg.bonus > 0 && (
+                        <div>
+                          <Tag color="orange" size="small">
+                            +{pkg.bonus} 赠送
+                          </Tag>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div style={{ marginBottom: '16px' }}>
+                      <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                        ¥{pkg.price}
+                      </Text>
+                    </div>
+
+                    <Button
+                      type="primary"
+                      size="small"
+                      block
+                      loading={loading}
+                      onClick={() => handleBuyCredits(pkg)}
+                    >
+                      立即充值
+                    </Button>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </div>
+
+          {/* 说明信息 */}
+          <Card style={{ marginTop: '32px', background: '#fafafa' }}>
+            <Title level={5}>购买说明</Title>
+            <List size="small">
+              <List.Item>• 积分永久有效，不会过期</List.Item>
+              <List.Item>• VIP会员享受生成费用折扣优惠</List.Item>
+              <List.Item>• 支持支付宝、微信支付</List.Item>
+              <List.Item>• 如有问题，请联系客服</List.Item>
+            </List>
+          </Card>
+        </div>
+      </Content>
+    </Layout>
+  )
+}
+
+export default Subscription
