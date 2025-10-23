@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { Layout, Button, Avatar, Dropdown, Space, Badge, Input } from 'antd'
-import { UserOutlined, CrownOutlined, WalletOutlined, LogoutOutlined, WechatOutlined, SearchOutlined } from '@ant-design/icons'
+import { Layout, Button, Avatar, Dropdown, Space, Badge, Menu } from 'antd'
+import { UserOutlined, CrownOutlined, WalletOutlined, LogoutOutlined, WechatOutlined, ShoppingOutlined, ToolOutlined, PictureOutlined } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import LoginModal from '../User/LoginModal'
@@ -13,7 +13,6 @@ const Header = () => {
   const navigate = useNavigate()
   const [loginModalVisible, setLoginModalVisible] = useState(false)
   const [subscriptionModalVisible, setSubscriptionModalVisible] = useState(false)
-  const [searchValue, setSearchValue] = useState('')
 
   const handleLogin = () => {
     setLoginModalVisible(true)
@@ -23,17 +22,38 @@ const Header = () => {
     logout()
   }
 
-  const handleSearch = (value) => {
-    if (value.trim()) {
-      console.log('搜索商品素材:', value)
-      // 这里可以添加实际的搜索逻辑
-      // 例如：navigate(`/search?q=${encodeURIComponent(value)}`)
+  // 导航菜单项
+  const navigationItems = [
+    {
+      key: 'materials',
+      label: 'AI商品素材',
+      icon: <ShoppingOutlined />,
+      onClick: () => {
+        console.log('导航到AI商品素材')
+        // 这里可以添加实际的导航逻辑
+        // navigate('/materials')
+      }
     }
-  }
-
-  const handleSearchChange = (e) => {
-    setSearchValue(e.target.value)
-  }
+    // 隐藏工具中心和素材库导航项
+    // {
+    //   key: 'tools',
+    //   label: '工具中心',
+    //   icon: <ToolOutlined />,
+    //   onClick: () => {
+    //     console.log('导航到工具中心')
+    //     // navigate('/tools')
+    //   }
+    // },
+    // {
+    //   key: 'gallery',
+    //   label: '素材库',
+    //   icon: <PictureOutlined />,
+    //   onClick: () => {
+    //     console.log('导航到素材库')
+    //     // navigate('/gallery')
+    //   }
+    // }
+  ]
 
   const userMenuItems = [
     {
@@ -79,19 +99,21 @@ const Header = () => {
             脑洞AI
           </div>
           
-          {/* 搜索导航栏 */}
+          {/* 导航栏 */}
           <div style={{ display: 'flex', alignItems: 'center' }}>
-            <Input.Search
-              placeholder="搜索商品素材..."
-              value={searchValue}
-              onChange={handleSearchChange}
-              onSearch={handleSearch}
-              style={{ 
-                width: '300px',
-                borderRadius: '20px'
+            <Menu
+              mode="horizontal"
+              items={navigationItems}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                fontSize: '14px'
               }}
-              size="middle"
-              enterButton={<SearchOutlined />}
+              onClick={({ key, item }) => {
+                if (item.props.onClick) {
+                  item.props.onClick()
+                }
+              }}
             />
           </div>
         </div>

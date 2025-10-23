@@ -41,11 +41,20 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  const updateUserInfo = (userInfo) => {
+    if (user) {
+      const updatedUser = { ...user, ...userInfo }
+      setUser(updatedUser)
+      localStorage.setItem('naodong_user', JSON.stringify(updatedUser))
+    }
+  }
+
   const value = {
     user,
     login,
     logout,
     updateCredits,
+    updateUserInfo,
     loading,
     isAuthenticated: !!user
   }

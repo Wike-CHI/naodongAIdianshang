@@ -10,6 +10,7 @@ import UsersPage from './pages/UsersPage'
 import ApisPage from './pages/ApisPage'
 import CreditsPage from './pages/CreditsPage'
 import SettingsPage from './pages/SettingsPage'
+import ReferralAdminPage from './pages/ReferralAdminPage'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
             <Route path="users" element={<UsersPage />} />
             <Route path="apis" element={<ApisPage />} />
             <Route path="credits" element={<CreditsPage />} />
+            <Route path="referral" element={<ReferralAdminPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
           <Route path="/" element={<Navigate to="/admin" replace />} />

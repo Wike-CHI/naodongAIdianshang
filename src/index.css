@@ -38,7 +38,7 @@ body {
 }
 
 .work-area {
-  width: calc(40% - 70px);
+  width: calc(25% - 70px);
   background: white;
   overflow-y: auto;
   display: flex;
@@ -46,7 +46,7 @@ body {
 }
 
 .result-panel {
-  width: 60%;
+  width: 75%;
   background: white;
   border-left: 1px solid #e8e9ea;
   overflow-y: auto;

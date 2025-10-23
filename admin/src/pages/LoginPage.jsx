@@ -23,11 +23,18 @@ const LoginPage = () => {
 
   const handleSubmit = async (values) => {
     setLoading(true)
-    const result = await login(values)
-    setLoading(false)
-    
-    if (result.success) {
-      navigate(from, { replace: true })
+    try {
+      const result = await login(values)
+      if (result.success) {
+        // 延迟跳转，确保认证状态完全更新
+        setTimeout(() => {
+          navigate(from, { replace: true })
+        }, 300)
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+    } finally {
+      setLoading(false)
     }
   }
 

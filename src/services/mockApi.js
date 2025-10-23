@@ -6,7 +6,7 @@ export const mockTools = [
     name: 'AI模特',
 
     category: 'fashion',
-    description: '将服装图片生成真人模特试穿效果',
+    description: '',
     creditCost: 10,
     parameters: [
       {
@@ -52,7 +52,7 @@ export const mockTools = [
     name: '试衣',
 
     category: 'fashion',
-    description: '将服装穿在指定人物身上',
+    description: '',
     creditCost: 8,
     parameters: [
       {
@@ -83,7 +83,7 @@ export const mockTools = [
     name: '鞋子上脚',
     icon: '👟',
     category: 'fashion',
-    description: '将鞋子穿在脚上的效果展示',
+    description: '',
     creditCost: 5,
     parameters: [
       {
@@ -107,7 +107,7 @@ export const mockTools = [
     name: '眼镜试戴',
 
     category: 'fashion',
-    description: '虚拟试戴眼镜效果',
+    description: '',
     creditCost: 4,
     parameters: [
       {
@@ -131,7 +131,7 @@ export const mockTools = [
     name: '姿势裂变',
 
     category: 'fashion',
-    description: '生成模特的不同姿势变化',
+    description: '',
     creditCost: 12,
     parameters: [
       {
@@ -164,7 +164,7 @@ export const mockTools = [
     name: '模特视频',
     icon: '🎬',
     category: 'fashion',
-    description: '将静态模特图片生成动态视频',
+    description: '',
     creditCost: 20,
     parameters: [
       {
@@ -195,7 +195,7 @@ export const mockTools = [
     name: '场景更换',
 
     category: 'product',
-    description: '更换商品图片的背景场景',
+    description: '',
     creditCost: 6,
     parameters: [
       {
@@ -233,7 +233,7 @@ export const mockTools = [
     name: '商品换色',
 
     category: 'product',
-    description: '更换商品的颜色',
+    description: '',
     creditCost: 4,
     parameters: [
       {
@@ -268,7 +268,13 @@ export const mockUser = {
   credits: 100,
   membershipType: 'free',
   membershipExpiry: null,
-  loginMethod: 'wechat'
+  loginMethod: 'wechat',
+  phone: '',
+  wechat: '',
+  shopName: '',
+  businessCategory: '',
+  shopAddress: '',
+  email: ''
 }
 
 export const mockSubscriptionPlans = [
@@ -315,6 +321,38 @@ export const mockApi = {
     }
   },
 
+  // 用户注册
+  register: async (registerData) => {
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    // 生成新用户ID
+    const newUserId = `user_${Date.now()}`
+    
+    // 创建新用户对象
+    const newUser = {
+      id: newUserId,
+      username: registerData.username,
+      email: registerData.email,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${newUserId}`,
+      credits: 50, // 新用户赠送50积分
+      membershipType: 'free',
+      membershipExpiry: null,
+      loginMethod: 'email',
+      phone: '',
+      wechat: '',
+      shopName: '',
+      businessCategory: '',
+      shopAddress: '',
+      createdAt: new Date().toISOString()
+    }
+    
+    return {
+      success: true,
+      data: newUser,
+      message: '注册成功！已赠送50积分'
+    }
+  },
+
   // 获取用户信息
   getUserInfo: async () => {
     await new Promise(resolve => setTimeout(resolve, 500))
@@ -350,9 +388,18 @@ export const mockApi = {
   // 获取订阅计划
   getSubscriptionPlans: async () => {
     await new Promise(resolve => setTimeout(resolve, 300))
+    return mockSubscriptionPlans
+  },
+
+  // 更新用户信息
+  updateUserInfo: async (userInfo) => {
+    await new Promise(resolve => setTimeout(resolve, 500))
+    // 模拟更新用户信息
+    Object.assign(mockUser, userInfo)
     return {
       success: true,
-      data: mockSubscriptionPlans
+      message: '用户信息更新成功',
+      data: mockUser
     }
   }
 }

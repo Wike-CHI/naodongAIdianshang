@@ -44,41 +44,30 @@ export const authService = {
   login: async (credentials) => {
     try {
       const response = await apiClient.post('/admin/auth/login', credentials)
-      return response
-    } catch (error) {
-      // 模拟登录逻辑，实际项目中应该连接真实API
-      if (credentials.username === 'admin' && credentials.password === 'admin123') {
-        const mockResponse = {
-          token: 'mock-jwt-token-' + Date.now(),
-          user: {
-            id: '1',
-            username: 'admin',
-            role: 'super_admin',
-            name: '超级管理员'
-          }
-        }
-        return mockResponse
+      if (response.success && response.data) {
+        return response.data // 返回 data 对象，包含 token 和 user
       } else {
-        throw new Error('用户名或密码错误')
+        throw new Error(response.message || '登录失败')
       }
+    } catch (error) {
+      throw new Error(error.message || '登录失败')
     }
   },
 
   // 验证token
   verifyToken: async (token) => {
     try {
-      const response = await apiClient.get('/admin/auth/verify')
-      return response.user
-    } catch (error) {
-      // 模拟token验证
-      if (token && token.startsWith('mock-jwt-token-')) {
-        return {
-          id: '1',
-          username: 'admin',
-          role: 'super_admin',
-          name: '超级管理员'
+      const response = await apiClient.get('/admin/auth/verify', {
+        headers: {
+          Authorization: `Bearer ${token}`
         }
+      })
+      if (response.success && response.data) {
+        return response.data.user
+      } else {
+        throw new Error('Token无效')
       }
+    } catch (error) {
       throw new Error('Token无效')
     }
   },
@@ -88,7 +77,6 @@ export const authService = {
     try {
       await apiClient.post('/admin/auth/logout')
     } catch (error) {
-      // 忽略退出登录的错误
       console.log('Logout error:', error)
     }
   }

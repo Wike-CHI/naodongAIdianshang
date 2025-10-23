@@ -49,50 +49,14 @@ const WorkArea = () => {
     }
   }
 
-  const renderFormItem = (param) => {
-    const commonProps = {
-      name: param.name,
-      label: param.label,
-      rules: param.required ? [{ required: true, message: `请${param.label}` }] : []
-    }
-
-    switch (param.type) {
-      case 'upload':
-        return (
-          <Form.Item key={param.name} {...commonProps}>
-            <ImageUpload 
-              placeholder={param.placeholder} 
-              multiple={param.multiple || false}
-              maxCount={param.maxCount || 1}
-            />
-          </Form.Item>
-        )
-      
-      case 'text':
-        return (
-          <Form.Item key={param.name} {...commonProps}>
-            <PromptInput placeholder={param.placeholder} />
-          </Form.Item>
-        )
-      
-      case 'select':
-        return (
-          <Form.Item key={param.name} {...commonProps}>
-            <SelectInput options={param.options} placeholder={`请选择${param.label}`} />
-          </Form.Item>
-        )
-      
-      case 'colorPicker':
-        return (
-          <Form.Item key={param.name} {...commonProps}>
-            <ColorPicker placeholder={param.placeholder} />
-          </Form.Item>
-        )
-      
-      default:
-        return null
-    }
-  }
+  // 分辨率选项
+  const resolutionOptions = [
+    { label: '512x512', value: '512x512' },
+    { label: '768x768', value: '768x768' },
+    { label: '1024x1024', value: '1024x1024' },
+    { label: '1024x768', value: '1024x768' },
+    { label: '768x1024', value: '768x1024' }
+  ]
 
   if (!selectedTool) {
     return (
@@ -118,9 +82,12 @@ const WorkArea = () => {
         <Title level={4} style={{ margin: 0, color: '#1890ff' }}>
           {selectedTool.name}
         </Title>
-        <Text type="secondary" style={{ fontSize: '13px' }}>
-          {selectedTool.description}
-        </Text>
+        {/* 隐藏工具描述 */}
+        {selectedTool.description && selectedTool.description.trim() && (
+          <Text type="secondary" style={{ fontSize: '13px' }}>
+            {selectedTool.description}
+          </Text>
+        )}
       </div>
 
       {/* 参数配置区域 */}
@@ -136,7 +103,84 @@ const WorkArea = () => {
           onValuesChange={handleFormChange}
           autoComplete="off"
         >
-          {selectedTool.parameters.map(renderFormItem)}
+          {/* 主图片上传 - 必填 */}
+          <Form.Item
+            name="mainImage"
+            label="主图片上传"
+            rules={[{ required: true, message: '请上传主图片' }]}
+          >
+            <ImageUpload 
+              placeholder="请上传主图片" 
+              multiple={false}
+              maxCount={1}
+            />
+          </Form.Item>
+
+          {/* 参考图片上传 - 必填 */}
+          <Form.Item
+            name="referenceImage"
+            label="参考图片上传"
+            rules={[{ required: true, message: '请上传参考图片' }]}
+          >
+            <ImageUpload 
+              placeholder="请上传参考图片" 
+              multiple={false}
+              maxCount={1}
+            />
+          </Form.Item>
+
+          {/* 辅助图片上传 - 可选 */}
+          <Form.Item
+            name="auxiliaryImage"
+            label="辅助图片上传"
+          >
+            <ImageUpload 
+              placeholder="请上传辅助图片（可选）" 
+              multiple={false}
+              maxCount={1}
+            />
+          </Form.Item>
+
+          {/* 扩展图片上传 - 可选 */}
+          <Form.Item
+            name="extendedImage"
+            label="扩展图片上传"
+          >
+            <ImageUpload 
+              placeholder="请上传扩展图片（可选）" 
+              multiple={false}
+              maxCount={1}
+            />
+          </Form.Item>
+
+          {/* 分辨率选择 */}
+          <Form.Item
+            name="resolution"
+            label="分辨率"
+            rules={[{ required: true, message: '请选择分辨率' }]}
+          >
+            <SelectInput 
+              options={resolutionOptions} 
+              placeholder="请选择分辨率" 
+            />
+          </Form.Item>
+
+          {/* 正向提示词 - 必填 */}
+          <Form.Item
+            name="positivePrompt"
+            label="正向提示词"
+            rules={[{ required: true, message: '请输入正向提示词' }]}
+          >
+            <PromptInput placeholder="请输入正向提示词，描述您想要生成的内容" />
+          </Form.Item>
+
+          {/* 负向提示词 - 可选 */}
+          <Form.Item
+            name="negativePrompt"
+            label="负向提示词"
+          >
+            <PromptInput placeholder="请输入负向提示词，描述您不想要的内容（可选）" />
+          </Form.Item>
 
           <Form.Item style={{ marginTop: '32px', marginBottom: 0 }}>
             <Button

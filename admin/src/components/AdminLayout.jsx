@@ -66,6 +66,12 @@ const AdminLayout = () => {
       title: '积分与会员管理'
     },
     {
+      key: '/admin/referral',
+      icon: <UserOutlined />,
+      label: '推广管理',
+      title: '推广管理'
+    },
+    {
       key: '/admin/settings',
       icon: <SettingOutlined />,
       label: '系统设置',
