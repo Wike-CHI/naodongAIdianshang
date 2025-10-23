@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Modal, Form, Input, Select, Button, message } from 'antd'
 import { UserOutlined, PhoneOutlined, WechatOutlined, ShopOutlined, MailOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { mockApi } from '../../services/mockApi'
+import { usersApi } from '../../services/api'
 
 const { Option } = Select
 
@@ -50,9 +50,9 @@ const UserInfoForm = ({ visible, onCancel }) => {
   const handleSubmit = async (values) => {
     setLoading(true)
     try {
-      const response = await mockApi.updateUserInfo(values)
+      const response = await usersApi.updateProfile(values)
       if (response.success) {
-        updateUserInfo(values)
+        updateUserInfo(response.data)
         message.success('用户信息更新成功！')
         onCancel()
       } else {

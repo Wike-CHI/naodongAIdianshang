@@ -24,6 +24,7 @@
 - **VS Code**: 代码编辑器
 - **Postman**: API测试工具
 - **Git**: 版本控制
+- **React DevTools**: React开发调试工具 - [安装链接](https://reactjs.org/link/react-devtools)
 
 ## 🚀 快速启动
 
@@ -119,7 +120,19 @@ npm run dev
 }
 ```
 
-## 🛠️ 开发调试
+## 🔧 开发调试
+
+### React Developer Tools
+为了更好的开发体验，强烈建议安装 React Developer Tools 浏览器扩展：
+
+- **Chrome**: [安装 React DevTools](https://chrome.google.com/webstore/detail/react-developer-tools/fmkadmapgofadopljbjfkapdkoienihi)
+- **Firefox**: [安装 React DevTools](https://addons.mozilla.org/en-US/firefox/addon/react-devtools/)
+- **Edge**: [安装 React DevTools](https://microsoftedge.microsoft.com/addons/detail/react-developer-tools/gpphkfbcpidddadnkolkpfckpihlkkil)
+
+安装后，在开发者工具中会出现 `Components` 和 `Profiler` 标签页，可以：
+- 检查 React 组件树和 props/state
+- 调试组件渲染性能
+- 查看 Hook 状态变化
 
 ### 浏览器开发者工具
 1. 按 `F12` 打开开发者工具

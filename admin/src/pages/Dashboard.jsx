@@ -13,6 +13,7 @@ import {
   TeamOutlined
 } from '@ant-design/icons'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
+import { AvatarWithFallback } from '../utils/avatarUtils'
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true)
@@ -56,28 +57,28 @@ const Dashboard = () => {
       user: '用户001',
       action: '使用了模特图裂变工具',
       time: '2分钟前',
-      avatar: 'https://api.dicebear.com/7.x/miniavs/svg?seed=1'
+      avatarSeed: '1'
     },
     {
       id: 2,
       user: '用户002',
       action: '购买了高级会员',
       time: '5分钟前',
-      avatar: 'https://api.dicebear.com/7.x/miniavs/svg?seed=2'
+      avatarSeed: '2'
     },
     {
       id: 3,
       user: '用户003',
       action: '使用了商品图场景更换',
       time: '8分钟前',
-      avatar: 'https://api.dicebear.com/7.x/miniavs/svg?seed=3'
+      avatarSeed: '3'
     },
     {
       id: 4,
       user: '用户004',
       action: '充值了1000积分',
       time: '12分钟前',
-      avatar: 'https://api.dicebear.com/7.x/miniavs/svg?seed=4'
+      avatarSeed: '4'
     }
   ]
 
@@ -273,7 +274,7 @@ const Dashboard = () => {
               renderItem={(item) => (
                 <List.Item>
                   <List.Item.Meta
-                    avatar={<Avatar src={item.avatar} />}
+                    avatar={<AvatarWithFallback seed={item.avatarSeed} size={32} />}
                     title={
                       <Space>
                         <span>{item.user}</span>

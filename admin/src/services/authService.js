@@ -57,7 +57,7 @@ export const authService = {
   // 验证token
   verifyToken: async (token) => {
     try {
-      const response = await apiClient.get('/admin/auth/verify', {
+      const response = await apiClient.post('/admin/auth/verify', {}, {
         headers: {
           Authorization: `Bearer ${token}`
         }

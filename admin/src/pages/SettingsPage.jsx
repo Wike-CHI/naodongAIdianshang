@@ -12,7 +12,9 @@ const SettingsPage = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingAdmin, setEditingAdmin] = useState(null)
   const [activeTab, setActiveTab] = useState('system')
-  const [form] = Form.useForm()
+  const [systemForm] = Form.useForm()
+  const [switchForm] = Form.useForm()
+  const [emailForm] = Form.useForm()
   const [adminForm] = Form.useForm()
 
   // 模拟数据
@@ -297,6 +299,7 @@ const SettingsPage = () => {
         <>
           <Card title="基本设置" style={{ marginBottom: 16 }}>
             <Form
+              form={systemForm}
               layout="vertical"
               initialValues={systemConfig}
               onFinish={handleSystemConfigSave}
@@ -367,6 +370,7 @@ const SettingsPage = () => {
 
           <Card title="功能开关" style={{ marginBottom: 16 }}>
             <Form
+              form={switchForm}
               layout="vertical"
               initialValues={systemConfig}
               onFinish={handleSystemConfigSave}
@@ -409,6 +413,7 @@ const SettingsPage = () => {
 
           <Card title="邮件配置">
             <Form
+              form={emailForm}
               layout="vertical"
               initialValues={systemConfig}
               onFinish={handleSystemConfigSave}
@@ -537,7 +542,7 @@ const SettingsPage = () => {
         open={modalVisible}
         onCancel={() => setModalVisible(false)}
         onOk={() => adminForm.submit()}
-        width={500}
+        width={600}
       >
         <Form
           form={adminForm}

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Modal, Card, Row, Col, Button, Typography, List, Tag, Space, message } from 'antd'
 import { CrownOutlined, CheckOutlined, StarOutlined, WalletOutlined } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { mockSubscriptionPlans } from '../../services/mockApi'
+import { subscriptionsApi } from '../../services/api'
 
 const { Title, Text } = Typography
 
@@ -10,6 +10,42 @@ const SubscriptionModal = ({ visible, onClose }) => {
   const { user, updateCredits } = useAuth()
   const [loading, setLoading] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState(null)
+  const [subscriptionPlans, setSubscriptionPlans] = useState([])
+  const [creditPackages, setCreditPackages] = useState([])
+
+  // 获取订阅套餐和积分套餐
+  React.useEffect(() => {
+    if (visible) {
+      loadSubscriptionPlans()
+      loadCreditPackages()
+    }
+  }, [visible])
+
+  const loadSubscriptionPlans = async () => {
+    try {
+      const response = await subscriptionsApi.getPlans()
+      if (response.success) {
+        setSubscriptionPlans(response.data)
+      }
+    } catch (error) {
+      console.error('获取订阅套餐失败:', error)
+    }
+  }
+
+  const loadCreditPackages = async () => {
+    try {
+      // 这里应该调用积分套餐API，暂时使用模拟数据
+      const mockPackages = [
+        { id: 1, credits: 100, price: 10, bonus: 0 },
+        { id: 2, credits: 300, price: 25, bonus: 50 },
+        { id: 3, credits: 500, price: 40, bonus: 100 },
+        { id: 4, credits: 1000, price: 70, bonus: 300 }
+      ]
+      setCreditPackages(mockPackages)
+    } catch (error) {
+      console.error('获取积分套餐失败:', error)
+    }
+  }
 
   const handleSubscribe = async (plan) => {
     if (!user) {
@@ -21,15 +57,14 @@ const SubscriptionModal = ({ visible, onClose }) => {
     setLoading(true)
 
     try {
-      // 模拟支付过程
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // 模拟支付成功，更新用户状态
-      message.success(`成功订阅${plan.name}！`)
-      
-      // 这里应该调用真实的API更新用户会员状态
-      console.log('订阅成功:', plan)
-      
+      const response = await subscriptionsApi.createSubscription(plan.id)
+      if (response.success) {
+        message.success(`成功订阅${plan.name}！`)
+        // 这里可以更新用户状态或刷新页面
+        onClose()
+      } else {
+        message.error(response.message || '订阅失败，请重试')
+      }
     } catch (error) {
       message.error('订阅失败，请重试')
     } finally {
@@ -37,13 +72,6 @@ const SubscriptionModal = ({ visible, onClose }) => {
       setSelectedPlan(null)
     }
   }
-
-  const creditPackages = [
-    { credits: 100, price: 10, bonus: 0 },
-    { credits: 300, price: 25, bonus: 50 },
-    { credits: 500, price: 40, bonus: 100 },
-    { credits: 1000, price: 70, bonus: 300 }
-  ]
 
   const handleBuyCredits = async (pkg) => {
     if (!user) {
@@ -53,7 +81,9 @@ const SubscriptionModal = ({ visible, onClose }) => {
 
     setLoading(true)
     try {
-      // 模拟支付过程
+      // 这里应该调用积分充值API
+      // const response = await creditsApi.createOrder(pkg.id)
+      // 暂时使用模拟逻辑
       await new Promise(resolve => setTimeout(resolve, 1500))
       
       const totalCredits = pkg.credits + pkg.bonus
@@ -89,7 +119,7 @@ const SubscriptionModal = ({ visible, onClose }) => {
           </div>
 
           <Row gutter={[24, 24]} justify="center">
-            {mockSubscriptionPlans.map((plan) => (
+            {subscriptionPlans.map((plan) => (
               <Col key={plan.id} xs={24} sm={12} lg={8}>
                 <Card
                   className={plan.popular ? 'popular-plan' : ''}

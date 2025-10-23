@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Modal, Tabs, Form, Input, Button, message, Space, Card, Avatar, Typography } from 'antd'
 import { WechatOutlined, MobileOutlined, GiftOutlined } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { mockApi } from '../../services/mockApi'
+import { authApi } from '../../services/api'
 import { referralCodeApi, referralRelationshipApi } from '../../services/referralApi'
 
 const { Text } = Typography
@@ -198,7 +198,7 @@ const LoginModal = ({ visible, onCancel }) => {
     try {
       // 模拟微信登录
       await new Promise(resolve => setTimeout(resolve, 2000))
-      const response = await mockApi.login({ type: 'wechat' })
+      const response = await authApi.login({ type: 'wechat' })
       
       if (response.success) {
         // 保存用户数据，等待手机验证
@@ -216,7 +216,7 @@ const LoginModal = ({ visible, onCancel }) => {
   const handlePhoneLogin = async (values) => {
     setLoading(true)
     try {
-      const response = await mockApi.login({ 
+      const response = await authApi.login({ 
         type: 'phone', 
         phone: values.phone, 
         code: values.code 

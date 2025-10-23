@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Button, Space, Tag, Modal, Form, Input, InputNumber, message, Avatar, Tabs, Card, Statistic } from 'antd'
 import { UserOutlined, EditOutlined, EyeOutlined, PlusOutlined, MinusOutlined, SearchOutlined } from '@ant-design/icons'
+import { AvatarWithFallback } from '../utils/avatarUtils'
 
 const { Search } = Input
 
@@ -22,7 +23,7 @@ const UsersPage = () => {
           id: '1',
           username: 'user001',
           wechatId: 'wx_user001',
-          avatar: 'https://api.dicebear.com/7.x/miniavs/svg?seed=1',
+          avatarSeed: '1',
           credits: 1250,
           membershipLevel: 'premium',
           registeredAt: '2024-01-15',
@@ -34,7 +35,7 @@ const UsersPage = () => {
           id: '2',
           username: 'user002',
           wechatId: 'wx_user002',
-          avatar: 'https://api.dicebear.com/7.x/miniavs/svg?seed=2',
+          avatarSeed: '2',
           credits: 580,
           membershipLevel: 'basic',
           registeredAt: '2024-01-12',
@@ -46,7 +47,7 @@ const UsersPage = () => {
           id: '3',
           username: 'user003',
           wechatId: 'wx_user003',
-          avatar: 'https://api.dicebear.com/7.x/miniavs/svg?seed=3',
+          avatarSeed: '3',
           credits: 0,
           membershipLevel: 'free',
           registeredAt: '2024-01-10',
@@ -67,7 +68,7 @@ const UsersPage = () => {
       width: 200,
       render: (_, record) => (
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <Avatar src={record.avatar} size={40} style={{ marginRight: 12 }} />
+          <AvatarWithFallback seed={record.avatarSeed} size={40} style={{ marginRight: 12 }} />
           <div>
             <div style={{ fontWeight: 600 }}>{record.username}</div>
             <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
@@ -333,7 +334,7 @@ const UsersPage = () => {
         >
           <div style={{ marginBottom: 16, padding: 16, background: '#f5f5f5', borderRadius: 6 }}>
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-              <Avatar src={selectedUser?.avatar} size={32} style={{ marginRight: 8 }} />
+              <AvatarWithFallback seed={selectedUser?.avatarSeed} size={32} style={{ marginRight: 8 }} />
               <span style={{ fontWeight: 600 }}>{selectedUser?.username}</span>
             </div>
             <div style={{ color: '#8c8c8c' }}>
@@ -402,7 +403,7 @@ const UsersPage = () => {
       >
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-            <Avatar src={selectedUser?.avatar} size={40} style={{ marginRight: 12 }} />
+            <AvatarWithFallback seed={selectedUser?.avatarSeed} size={40} style={{ marginRight: 12 }} />
             <div>
               <div style={{ fontWeight: 600 }}>{selectedUser?.username}</div>
               <div style={{ fontSize: '12px', color: '#8c8c8c' }}>

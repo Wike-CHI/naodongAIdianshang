@@ -26,11 +26,19 @@ export const AuthProvider = ({ children }) => {
   const login = (userData) => {
     setUser(userData)
     localStorage.setItem('naodong_user', JSON.stringify(userData))
+    // 如果有token，也保存到localStorage
+    if (userData.token) {
+      localStorage.setItem('token', userData.token)
+    }
   }
 
   const logout = () => {
     setUser(null)
     localStorage.removeItem('naodong_user')
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    localStorage.removeItem('adminToken')
+    localStorage.removeItem('admin')
   }
 
   const updateCredits = (newCredits) => {

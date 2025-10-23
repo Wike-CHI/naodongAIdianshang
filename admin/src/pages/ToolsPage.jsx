@@ -12,6 +12,7 @@ const ToolsPage = () => {
   const [templateDrawerVisible, setTemplateDrawerVisible] = useState(false)
   const [editingTool, setEditingTool] = useState(null)
   const [form] = Form.useForm()
+  const [templateForm] = Form.useForm()
 
   // 模拟数据
   useEffect(() => {
@@ -244,6 +245,18 @@ const ToolsPage = () => {
     }
   }
 
+  // 处理模板保存
+  const handleTemplateSave = async (values) => {
+    try {
+      // 这里应该调用API保存模板
+      console.log('保存模板:', values)
+      message.success('模板保存成功')
+      setTemplateDrawerVisible(false)
+    } catch (error) {
+      message.error('保存失败')
+    }
+  }
+
   return (
     <div>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
@@ -352,8 +365,15 @@ const ToolsPage = () => {
           <p style={{ color: '#8c8c8c' }}>配置AI生成时使用的提示词模板，支持参数占位符如 {'{参数名}'}</p>
         </div>
         
-        <Form layout="vertical">
-          <Form.Item label="提示词模板">
+        <Form 
+          form={templateForm} 
+          layout="vertical"
+          onFinish={handleTemplateSave}
+        >
+          <Form.Item 
+            name="template"
+            label="提示词模板"
+          >
             <TextArea
               rows={10}
               placeholder="请输入提示词模板，例如：生成一张{style}风格的{subject}图片，要求{requirements}"
@@ -361,7 +381,10 @@ const ToolsPage = () => {
             />
           </Form.Item>
           
-          <Form.Item label="参数说明">
+          <Form.Item 
+            name="description"
+            label="参数说明"
+          >
             <TextArea
               rows={5}
               placeholder="请说明各参数的含义和用法"
@@ -371,9 +394,9 @@ const ToolsPage = () => {
           
           <Form.Item>
             <Space>
-              <Button type="primary">保存模板</Button>
+              <Button type="primary" onClick={() => templateForm.submit()}>保存模板</Button>
               <Button>预览效果</Button>
-              <Button>重置</Button>
+              <Button onClick={() => templateForm.resetFields()}>重置</Button>
             </Space>
           </Form.Item>
         </Form>
