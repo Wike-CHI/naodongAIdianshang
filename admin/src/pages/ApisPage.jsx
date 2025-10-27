@@ -1,523 +1,536 @@
 import React, { useState, useEffect } from 'react'
-import { Table, Button, Space, Tag, Modal, Form, Input, Select, message, Tabs, Card, Switch } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, KeyOutlined, SettingOutlined, EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons'
+import { Card, Table, Button, Space, Tag, Modal, Form, Input, Select, Switch, message, Tabs, Tooltip, Popconfirm, DatePicker } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined, KeyOutlined, ApiOutlined, EyeOutlined, CopyOutlined } from '@ant-design/icons'
+import { apiManagementAPI } from '../services/api'
 
-const { TextArea } = Input
 const { Option } = Select
+const { TextArea } = Input
 
 const ApisPage = () => {
   const [loading, setLoading] = useState(false)
-  const [apis, setApis] = useState([])
+  const [apiEndpoints, setApiEndpoints] = useState([])
   const [apiKeys, setApiKeys] = useState([])
   const [modalVisible, setModalVisible] = useState(false)
   const [keyModalVisible, setKeyModalVisible] = useState(false)
   const [editingApi, setEditingApi] = useState(null)
   const [editingKey, setEditingKey] = useState(null)
-  const [activeTab, setActiveTab] = useState('apis')
   const [form] = Form.useForm()
   const [keyForm] = Form.useForm()
 
-  // 模拟数据
   useEffect(() => {
-    setLoading(true)
-    setTimeout(() => {
-      setApis([
-        {
-          id: '1',
-          name: 'OpenAI DALL-E',
-          description: 'OpenAI图像生成API',
-          url: 'https://api.openai.com/v1/images/generations',
-          method: 'POST',
-          provider: 'OpenAI',
-          status: 'active',
-          responseTime: 1200,
-          successRate: 98.5,
-          createdAt: '2024-01-15',
-          parameterMapping: {
-            prompt: 'prompt',
-            size: 'size',
-            n: 'n'
-          }
-        },
-        {
-          id: '2',
-          name: 'Midjourney API',
-          description: 'Midjourney图像生成接口',
-          url: 'https://api.midjourney.com/v1/imagine',
-          method: 'POST',
-          provider: 'Midjourney',
-          status: 'active',
-          responseTime: 2500,
-          successRate: 95.2,
-          createdAt: '2024-01-12',
-          parameterMapping: {
-            prompt: 'prompt',
-            aspect_ratio: 'aspect'
-          }
-        },
-        {
-          id: '3',
-          name: 'Stable Diffusion',
-          description: 'Stability AI图像生成',
-          url: 'https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image',
-          method: 'POST',
-          provider: 'Stability AI',
-          status: 'inactive',
-          responseTime: 1800,
-          successRate: 92.8,
-          createdAt: '2024-01-10',
-          parameterMapping: {
-            text_prompts: 'prompts',
-            cfg_scale: 'cfg_scale',
-            steps: 'steps'
-          }
-        }
-      ])
-
-      setApiKeys([
-        {
-          id: '1',
-          name: 'OpenAI API Key',
-          provider: 'OpenAI',
-          keyType: 'Bearer Token',
-          status: 'active',
-          lastUsed: '2024-01-20 14:30:25',
-          createdAt: '2024-01-15',
-          masked: true
-        },
-        {
-          id: '2',
-          name: 'Midjourney API Key',
-          provider: 'Midjourney',
-          keyType: 'API Key',
-          status: 'active',
-          lastUsed: '2024-01-20 13:15:10',
-          createdAt: '2024-01-12',
-          masked: true
-        }
-      ])
-      setLoading(false)
-    }, 1000)
+    loadData()
   }, [])
 
-  // API接口表格列定义
-  const apiColumns = [
-    {
-      title: 'API名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 150,
-      render: (text, record) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{text}</div>
-          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-            {record.provider}
-          </div>
-        </div>
-      )
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true
-    },
-    {
-      title: '请求方法',
-      dataIndex: 'method',
-      key: 'method',
-      width: 80,
-      render: (method) => (
-        <Tag color={method === 'POST' ? 'blue' : method === 'GET' ? 'green' : 'orange'}>
-          {method}
-        </Tag>
-      )
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 80,
-      render: (status, record) => (
-        <div>
-          <Tag color={status === 'active' ? 'green' : 'red'}>
-            {status === 'active' ? '正常' : '停用'}
-          </Tag>
-          <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: 2 }}>
-            {record.successRate}%
-          </div>
-        </div>
-      )
-    },
-    {
-      title: '响应时间',
-      dataIndex: 'responseTime',
-      key: 'responseTime',
-      width: 100,
-      render: (time) => (
-        <span style={{ color: time > 2000 ? '#f5222d' : time > 1000 ? '#faad14' : '#52c41a' }}>
-          {time}ms
-        </span>
-      )
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 120
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 200,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEditApi(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<SettingOutlined />}
-            onClick={() => handleConfigMapping(record)}
-          >
-            参数映射
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteApi(record)}
-          >
-            删除
-          </Button>
-        </Space>
-      )
+  // 加载所有数据
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      await Promise.all([
+        loadApiEndpoints(),
+        loadApiKeys()
+      ])
+    } catch (error) {
+      console.error('加载数据失败:', error)
+      message.error('加载数据失败，请稍后重试')
+    } finally {
+      setLoading(false)
     }
-  ]
-
-  // API密钥表格列定义
-  const keyColumns = [
-    {
-      title: '密钥名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 150,
-      render: (text, record) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{text}</div>
-          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-            {record.provider}
-          </div>
-        </div>
-      )
-    },
-    {
-      title: '密钥类型',
-      dataIndex: 'keyType',
-      key: 'keyType',
-      width: 120,
-      render: (type) => <Tag color="blue">{type}</Tag>
-    },
-    {
-      title: '密钥值',
-      key: 'keyValue',
-      width: 200,
-      render: (_, record) => (
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ fontFamily: 'monospace', marginRight: 8 }}>
-            {record.masked ? 'sk-***************************' : 'sk-1234567890abcdef1234567890abcdef'}
-          </span>
-          <Button
-            type="text"
-            size="small"
-            icon={record.masked ? <EyeOutlined /> : <EyeInvisibleOutlined />}
-            onClick={() => toggleKeyVisibility(record.id)}
-          />
-        </div>
-      )
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 80,
-      render: (status) => (
-        <Tag color={status === 'active' ? 'green' : 'red'}>
-          {status === 'active' ? '正常' : '停用'}
-        </Tag>
-      )
-    },
-    {
-      title: '最后使用',
-      dataIndex: 'lastUsed',
-      key: 'lastUsed',
-      width: 150
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEditKey(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteKey(record)}
-          >
-            删除
-          </Button>
-        </Space>
-      )
-    }
-  ]
-
-  // 处理API编辑
-  const handleEditApi = (api) => {
-    setEditingApi(api)
-    form.setFieldsValue(api)
-    setModalVisible(true)
   }
 
-  // 处理API新增
+  // 加载API接口列表
+  const loadApiEndpoints = async () => {
+    try {
+      const result = await apiManagementAPI.getEndpoints()
+      
+      if (result.success) {
+        setApiEndpoints(result.data || [])
+      } else {
+        setApiEndpoints([])
+      }
+    } catch (error) {
+      console.error('加载API接口失败:', error)
+      setApiEndpoints([])
+    }
+  }
+
+  // 加载API密钥列表
+  const loadApiKeys = async () => {
+    try {
+      const result = await apiManagementAPI.getKeys()
+      
+      if (result.success) {
+        setApiKeys(result.data || [])
+      } else {
+        setApiKeys([])
+      }
+    } catch (error) {
+      console.error('加载API密钥失败:', error)
+      setApiKeys([])
+    }
+  }
+
+  // 添加API接口
   const handleAddApi = () => {
     setEditingApi(null)
     form.resetFields()
     setModalVisible(true)
   }
 
-  // 处理API删除
-  const handleDeleteApi = (api) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除API"${api.name}"吗？`,
-      onOk: () => {
-        setApis(apis.filter(a => a.id !== api.id))
-        message.success('删除成功')
+  // 编辑API接口
+  const handleEditApi = (api) => {
+    setEditingApi(api)
+    form.setFieldsValue(api)
+    setModalVisible(true)
+  }
+
+  // 保存API接口
+  const handleSaveApi = async () => {
+    try {
+      const values = await form.validateFields()
+      
+      let result
+      if (editingApi) {
+        result = await apiManagementAPI.updateEndpoint(editingApi._id, values)
+      } else {
+        result = await apiManagementAPI.createEndpoint(values)
       }
-    })
+      
+      if (result.success) {
+        message.success(editingApi ? 'API接口更新成功' : 'API接口创建成功')
+        setModalVisible(false)
+        setEditingApi(null)
+        form.resetFields()
+        loadApiEndpoints()
+      } else {
+        message.error(result.message || '保存API接口失败')
+      }
+    } catch (error) {
+      console.error('保存API接口失败:', error)
+      message.error('保存API接口失败，请稍后重试')
+    }
   }
 
-  // 处理参数映射配置
-  const handleConfigMapping = (api) => {
-    message.info('参数映射配置功能开发中...')
+  // 删除API接口
+  const handleDeleteApi = async (apiId) => {
+    try {
+      const result = await apiManagementAPI.deleteEndpoint(apiId)
+      
+      if (result.success) {
+        message.success('API接口删除成功')
+        loadApiEndpoints()
+      } else {
+        message.error(result.message || '删除API接口失败')
+      }
+    } catch (error) {
+      console.error('删除API接口失败:', error)
+      message.error('删除API接口失败，请稍后重试')
+    }
   }
 
-  // 处理密钥编辑
-  const handleEditKey = (key) => {
-    setEditingKey(key)
-    keyForm.setFieldsValue(key)
-    setKeyModalVisible(true)
+  // 切换API状态
+  const handleToggleApiStatus = async (apiId, enabled) => {
+    try {
+      const result = await apiManagementAPI.updateEndpoint(apiId, { enabled })
+      
+      if (result.success) {
+        message.success(`API接口已${enabled ? '启用' : '禁用'}`)
+        loadApiEndpoints()
+      } else {
+        message.error(result.message || '更新API状态失败')
+      }
+    } catch (error) {
+      console.error('更新API状态失败:', error)
+      message.error('更新API状态失败，请稍后重试')
+    }
   }
 
-  // 处理密钥新增
+  // 添加API密钥
   const handleAddKey = () => {
     setEditingKey(null)
     keyForm.resetFields()
     setKeyModalVisible(true)
   }
 
-  // 处理密钥删除
-  const handleDeleteKey = (key) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除密钥"${key.name}"吗？`,
-      onOk: () => {
-        setApiKeys(apiKeys.filter(k => k.id !== key.id))
-        message.success('删除成功')
+  // 编辑API密钥
+  const handleEditKey = (key) => {
+    setEditingKey(key)
+    keyForm.setFieldsValue(key)
+    setKeyModalVisible(true)
+  }
+
+  // 保存API密钥
+  const handleSaveKey = async () => {
+    try {
+      const values = await keyForm.validateFields()
+      
+      let result
+      if (editingKey) {
+        result = await apiManagementAPI.updateKey(editingKey._id, values)
+      } else {
+        result = await apiManagementAPI.createKey(values)
       }
+      
+      if (result.success) {
+        message.success(editingKey ? 'API密钥更新成功' : 'API密钥创建成功')
+        setKeyModalVisible(false)
+        setEditingKey(null)
+        keyForm.resetFields()
+        loadApiKeys()
+      } else {
+        message.error(result.message || '保存API密钥失败')
+      }
+    } catch (error) {
+      console.error('保存API密钥失败:', error)
+      message.error('保存API密钥失败，请稍后重试')
+    }
+  }
+
+  // 删除API密钥
+  const handleDeleteKey = async (keyId) => {
+    try {
+      const result = await apiManagementAPI.deleteKey(keyId)
+      
+      if (result.success) {
+        message.success('API密钥删除成功')
+        loadApiKeys()
+      } else {
+        message.error(result.message || '删除API密钥失败')
+      }
+    } catch (error) {
+      console.error('删除API密钥失败:', error)
+      message.error('删除API密钥失败，请稍后重试')
+    }
+  }
+
+  // 复制API密钥
+  const handleCopyKey = (key) => {
+    navigator.clipboard.writeText(key).then(() => {
+      message.success('API密钥已复制到剪贴板')
+    }).catch(() => {
+      message.error('复制失败，请手动复制')
     })
   }
 
-  // 切换密钥可见性
-  const toggleKeyVisibility = (keyId) => {
-    setApiKeys(apiKeys.map(key => 
-      key.id === keyId ? { ...key, masked: !key.masked } : key
-    ))
-  }
-
-  // 处理API表单提交
-  const handleApiSubmit = async (values) => {
-    try {
-      if (editingApi) {
-        setApis(apis.map(api => 
-          api.id === editingApi.id ? { ...api, ...values } : api
-        ))
-        message.success('更新成功')
-      } else {
-        const newApi = {
-          id: Date.now().toString(),
-          ...values,
-          status: 'active',
-          responseTime: 0,
-          successRate: 0,
-          createdAt: new Date().toISOString().split('T')[0]
+  // API接口表格列
+  const apiColumns = [
+    {
+      title: 'API信息',
+      key: 'apiInfo',
+      width: 250,
+      render: (_, record) => (
+        <div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+            <ApiOutlined style={{ marginRight: 8, color: '#1890ff' }} />
+            {record.name}
+          </div>
+          <div style={{ fontSize: '12px', color: '#8c8c8c', lineHeight: '1.4' }}>
+            {record.description}
+          </div>
+        </div>
+      )
+    },
+    {
+      title: '请求方法',
+      dataIndex: 'method',
+      key: 'method',
+      width: 100,
+      render: (method) => {
+        const methodConfig = {
+          GET: { color: 'green' },
+          POST: { color: 'blue' },
+          PUT: { color: 'orange' },
+          DELETE: { color: 'red' }
         }
-        setApis([...apis, newApi])
-        message.success('添加成功')
+        const config = methodConfig[method] || { color: 'default' }
+        return <Tag color={config.color}>{method}</Tag>
       }
-      setModalVisible(false)
-      form.resetFields()
-    } catch (error) {
-      message.error('操作失败')
+    },
+    {
+      title: 'API路径',
+      dataIndex: 'path',
+      key: 'path',
+      width: 200,
+      render: (path) => (
+        <code style={{ 
+          backgroundColor: '#f5f5f5', 
+          padding: '2px 6px', 
+          borderRadius: '4px',
+          fontSize: '12px'
+        }}>
+          {path}
+        </code>
+      )
+    },
+    {
+      title: '版本',
+      dataIndex: 'version',
+      key: 'version',
+      width: 80,
+      render: (version) => <Tag color="purple">v{version}</Tag>
+    },
+    {
+      title: '调用次数',
+      dataIndex: 'callCount',
+      key: 'callCount',
+      width: 100,
+      render: (count) => count?.toLocaleString() || 0
+    },
+    {
+      title: '状态',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      width: 100,
+      render: (enabled, record) => (
+        <Switch
+          checked={enabled}
+          onChange={(checked) => handleToggleApiStatus(record._id, checked)}
+          checkedChildren="启用"
+          unCheckedChildren="禁用"
+        />
+      )
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 120,
+      render: (date) => date ? new Date(date).toLocaleDateString() : '-'
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 150,
+      render: (_, record) => (
+        <Space size="small">
+          <Tooltip title="查看详情">
+            <Button type="text" size="small" icon={<EyeOutlined />} />
+          </Tooltip>
+          <Tooltip title="编辑">
+            <Button 
+              type="text" 
+              size="small" 
+              icon={<EditOutlined />}
+              onClick={() => handleEditApi(record)}
+            />
+          </Tooltip>
+          <Popconfirm
+            title="确定要删除这个API接口吗？"
+            onConfirm={() => handleDeleteApi(record._id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Tooltip title="删除">
+              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+            </Tooltip>
+          </Popconfirm>
+        </Space>
+      )
     }
-  }
+  ]
 
-  // 处理密钥表单提交
-  const handleKeySubmit = async (values) => {
-    try {
-      if (editingKey) {
-        setApiKeys(apiKeys.map(key => 
-          key.id === editingKey.id ? { ...key, ...values } : key
-        ))
-        message.success('更新成功')
-      } else {
-        const newKey = {
-          id: Date.now().toString(),
-          ...values,
-          status: 'active',
-          masked: true,
-          lastUsed: '-',
-          createdAt: new Date().toISOString().split('T')[0]
+  // API密钥表格列
+  const keyColumns = [
+    {
+      title: '密钥名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 150
+    },
+    {
+      title: '密钥值',
+      dataIndex: 'key',
+      key: 'key',
+      width: 300,
+      render: (key) => (
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <code style={{ 
+            backgroundColor: '#f5f5f5', 
+            padding: '4px 8px', 
+            borderRadius: '4px',
+            fontSize: '12px',
+            marginRight: 8,
+            flex: 1,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
+          }}>
+            {key ? `${key.substring(0, 20)}...` : ''}
+          </code>
+          <Button 
+            type="text" 
+            size="small" 
+            icon={<CopyOutlined />}
+            onClick={() => handleCopyKey(key)}
+          />
+        </div>
+      )
+    },
+    {
+      title: '权限级别',
+      dataIndex: 'permission',
+      key: 'permission',
+      width: 120,
+      render: (permission) => {
+        const permissionConfig = {
+          read: { color: 'green', text: '只读' },
+          write: { color: 'orange', text: '读写' },
+          admin: { color: 'red', text: '管理员' }
         }
-        setApiKeys([...apiKeys, newKey])
-        message.success('添加成功')
+        const config = permissionConfig[permission] || { color: 'default', text: permission }
+        return <Tag color={config.color}>{config.text}</Tag>
       }
-      setKeyModalVisible(false)
-      keyForm.resetFields()
-    } catch (error) {
-      message.error('操作失败')
+    },
+    {
+      title: '使用次数',
+      dataIndex: 'usageCount',
+      key: 'usageCount',
+      width: 100,
+      render: (count) => count?.toLocaleString() || 0
+    },
+    {
+      title: '过期时间',
+      dataIndex: 'expiresAt',
+      key: 'expiresAt',
+      width: 120,
+      render: (date) => {
+        if (!date) return '永不过期'
+        const expireDate = new Date(date)
+        const now = new Date()
+        const isExpired = expireDate < now
+        return (
+          <span style={{ color: isExpired ? '#ff4d4f' : '#52c41a' }}>
+            {expireDate.toLocaleDateString()}
+          </span>
+        )
+      }
+    },
+    {
+      title: '状态',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      width: 80,
+      render: (enabled) => (
+        <Tag color={enabled ? 'success' : 'default'}>
+          {enabled ? '启用' : '禁用'}
+        </Tag>
+      )
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 120,
+      render: (_, record) => (
+        <Space size="small">
+          <Button 
+            type="text" 
+            size="small" 
+            icon={<EditOutlined />}
+            onClick={() => handleEditKey(record)}
+          >
+            编辑
+          </Button>
+          <Popconfirm
+            title="确定要删除这个API密钥吗？"
+            onConfirm={() => handleDeleteKey(record._id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button type="text" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      )
     }
-  }
+  ]
 
   return (
     <div>
-      <Tabs 
-        activeKey={activeTab} 
-        onChange={setActiveTab}
-        items={[
-          {
-            key: 'apis',
-            label: 'API接口管理',
-            children: (
-              <>
-                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={handleAddApi}>
-                    添加API接口
-                  </Button>
-                  <Space>
-                    <Button>批量测试</Button>
-                    <Button>导出配置</Button>
-                  </Space>
-                </div>
+      <Card>
+        <Tabs 
+          defaultActiveKey="endpoints"
+          items={[
+            {
+              key: 'endpoints',
+              label: 'API接口',
+              children: (
+                <>
+                  <div style={{ marginBottom: 16 }}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={handleAddApi}>
+                      添加API接口
+                    </Button>
+                  </div>
+                  <Table
+                    columns={apiColumns}
+                    dataSource={apiEndpoints}
+                    rowKey="_id"
+                    loading={loading}
+                    pagination={{
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                      showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
+                    }}
+                    scroll={{ x: 1200 }}
+                  />
+                </>
+              )
+            },
+            {
+              key: 'keys',
+              label: 'API密钥',
+              children: (
+                <>
+                  <div style={{ marginBottom: 16 }}>
+                    <Button type="primary" icon={<KeyOutlined />} onClick={handleAddKey}>
+                      生成API密钥
+                    </Button>
+                  </div>
+                  <Table
+                    columns={keyColumns}
+                    dataSource={apiKeys}
+                    rowKey="_id"
+                    loading={loading}
+                    pagination={{
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                      showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`
+                    }}
+                    scroll={{ x: 1000 }}
+                  />
+                </>
+              )
+            }
+          ]}
+        />
+      </Card>
 
-                <Table
-                  columns={apiColumns}
-                  dataSource={apis}
-                  rowKey="id"
-                  loading={loading}
-                  pagination={{
-                    total: apis.length,
-                    pageSize: 10,
-                    showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条记录`
-                  }}
-                />
-              </>
-            )
-          },
-          {
-            key: 'keys',
-            label: '密钥管理',
-            children: (
-              <>
-                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                  <Button type="primary" icon={<KeyOutlined />} onClick={handleAddKey}>
-                    添加API密钥
-                  </Button>
-                  <Space>
-                    <Button>批量检测</Button>
-                    <Button>安全审计</Button>
-                  </Space>
-                </div>
-
-                <Table
-                  columns={keyColumns}
-                  dataSource={apiKeys}
-                  rowKey="id"
-                  loading={loading}
-                  pagination={{
-                    total: apiKeys.length,
-                    pageSize: 10,
-                    showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条记录`
-                  }}
-                />
-              </>
-            )
-          }
-        ]}
-      />
-
-      {/* API编辑/新增模态框 */}
+      {/* 添加/编辑API接口模态框 */}
       <Modal
         title={editingApi ? '编辑API接口' : '添加API接口'}
         open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        onOk={() => form.submit()}
-        width={600}
+        onOk={handleSaveApi}
+        onCancel={() => {
+          setModalVisible(false)
+          setEditingApi(null)
+          form.resetFields()
+        }}
+        width={700}
+        destroyOnHidden
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleApiSubmit}
-        >
+        <Form form={form} layout="vertical">
           <Form.Item
             name="name"
-            label="API名称"
-            rules={[{ required: true, message: '请输入API名称' }]}
+            label="接口名称"
+            rules={[{ required: true, message: '请输入接口名称' }]}
           >
-            <Input placeholder="请输入API名称" />
+            <Input placeholder="请输入接口名称" />
           </Form.Item>
           
           <Form.Item
             name="description"
-            label="API描述"
-            rules={[{ required: true, message: '请输入API描述' }]}
+            label="接口描述"
+            rules={[{ required: true, message: '请输入接口描述' }]}
           >
-            <TextArea rows={2} placeholder="请输入API描述" />
-          </Form.Item>
-          
-          <Form.Item
-            name="provider"
-            label="服务提供商"
-            rules={[{ required: true, message: '请输入服务提供商' }]}
-          >
-            <Input placeholder="如：OpenAI、Midjourney等" />
-          </Form.Item>
-          
-          <Form.Item
-            name="url"
-            label="API地址"
-            rules={[{ required: true, message: '请输入API地址' }]}
-          >
-            <Input placeholder="请输入完整的API地址" />
+            <TextArea rows={3} placeholder="请输入接口描述" />
           </Form.Item>
           
           <Form.Item
@@ -532,22 +545,43 @@ const ApisPage = () => {
               <Option value="DELETE">DELETE</Option>
             </Select>
           </Form.Item>
+          
+          <Form.Item
+            name="path"
+            label="API路径"
+            rules={[{ required: true, message: '请输入API路径' }]}
+          >
+            <Input placeholder="/api/v1/example" addonBefore="/api" />
+          </Form.Item>
+          
+          <Form.Item
+            name="version"
+            label="API版本"
+            rules={[{ required: true, message: '请输入API版本' }]}
+          >
+            <Input placeholder="1.0" addonBefore="v" />
+          </Form.Item>
+          
+          <Form.Item name="enabled" label="启用状态" valuePropName="checked">
+            <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+          </Form.Item>
         </Form>
       </Modal>
 
-      {/* 密钥编辑/新增模态框 */}
+      {/* 添加/编辑API密钥模态框 */}
       <Modal
-        title={editingKey ? '编辑API密钥' : '添加API密钥'}
+        title={editingKey ? '编辑API密钥' : '生成API密钥'}
         open={keyModalVisible}
-        onCancel={() => setKeyModalVisible(false)}
-        onOk={() => keyForm.submit()}
-        width={500}
+        onOk={handleSaveKey}
+        onCancel={() => {
+          setKeyModalVisible(false)
+          setEditingKey(null)
+          keyForm.resetFields()
+        }}
+        width={600}
+        destroyOnHidden
       >
-        <Form
-          form={keyForm}
-          layout="vertical"
-          onFinish={handleKeySubmit}
-        >
+        <Form form={keyForm} layout="vertical">
           <Form.Item
             name="name"
             label="密钥名称"
@@ -557,31 +591,29 @@ const ApisPage = () => {
           </Form.Item>
           
           <Form.Item
-            name="provider"
-            label="服务提供商"
-            rules={[{ required: true, message: '请输入服务提供商' }]}
+            name="permission"
+            label="权限级别"
+            rules={[{ required: true, message: '请选择权限级别' }]}
           >
-            <Input placeholder="如：OpenAI、Midjourney等" />
-          </Form.Item>
-          
-          <Form.Item
-            name="keyType"
-            label="密钥类型"
-            rules={[{ required: true, message: '请选择密钥类型' }]}
-          >
-            <Select placeholder="请选择密钥类型">
-              <Option value="API Key">API Key</Option>
-              <Option value="Bearer Token">Bearer Token</Option>
-              <Option value="OAuth Token">OAuth Token</Option>
+            <Select placeholder="请选择权限级别">
+              <Option value="read">只读权限</Option>
+              <Option value="write">读写权限</Option>
+              <Option value="admin">管理员权限</Option>
             </Select>
           </Form.Item>
           
           <Form.Item
-            name="keyValue"
-            label="密钥值"
-            rules={[{ required: true, message: '请输入密钥值' }]}
+            name="expiresAt"
+            label="过期时间"
           >
-            <Input.Password placeholder="请输入密钥值" />
+            <DatePicker 
+              style={{ width: '100%' }}
+              placeholder="选择过期时间（不选择则永不过期）"
+            />
+          </Form.Item>
+          
+          <Form.Item name="enabled" label="启用状态" valuePropName="checked">
+            <Switch checkedChildren="启用" unCheckedChildren="禁用" />
           </Form.Item>
         </Form>
       </Modal>

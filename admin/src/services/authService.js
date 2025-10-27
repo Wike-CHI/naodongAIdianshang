@@ -1,6 +1,9 @@
-import axios from 'axios'
+// 认证服务
+import axios from 'axios';
+import { API_ENDPOINTS, createApiUrl } from '../config/api.js';
 
-const API_BASE_URL = 'http://localhost:8080/api'
+// API基础配置
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 // 创建axios实例
 const apiClient = axios.create({
@@ -9,77 +12,72 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json'
   }
-})
+});
 
-// 请求拦截器
+// 请求拦截器 - 添加认证token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('admin_token')
+    const token = localStorage.getItem('admin_token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    return config
+    return config;
   },
   (error) => {
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
-)
+);
 
-// 响应拦截器
+// 响应拦截器 - 处理错误和token过期
 apiClient.interceptors.response.use(
   (response) => {
-    return response.data
+    return response.data;
   },
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('admin_token')
-      window.location.href = '/admin/login'
+      // Token过期，清除本地存储
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_user');
+      // 不在这里跳转，让组件处理
     }
-    return Promise.reject(error.response?.data || error)
+    return Promise.reject(error.response?.data || error);
   }
-)
+);
 
-export const authService = {
+// 认证服务
+const authService = {
   // 管理员登录
   login: async (credentials) => {
     try {
-      const response = await apiClient.post('/admin/auth/login', credentials)
-      if (response.success && response.data) {
-        return response.data // 返回 data 对象，包含 token 和 user
-      } else {
-        throw new Error(response.message || '登录失败')
-      }
+      const response = await apiClient.post(API_ENDPOINTS.LOGIN, credentials);
+      return response;
     } catch (error) {
-      throw new Error(error.message || '登录失败')
+      throw error;
     }
   },
 
   // 验证token
-  verifyToken: async (token) => {
+  verifyToken: async () => {
     try {
-      const response = await apiClient.post('/admin/auth/verify', {}, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-      if (response.success && response.data) {
-        return response.data.user
-      } else {
-        throw new Error('Token无效')
-      }
+      const response = await apiClient.post(API_ENDPOINTS.VERIFY_TOKEN);
+      return response;
     } catch (error) {
-      throw new Error('Token无效')
+      throw error;
     }
   },
 
-  // 退出登录
+  // 登出
   logout: async () => {
     try {
-      await apiClient.post('/admin/auth/logout')
+      const response = await apiClient.post(API_ENDPOINTS.LOGOUT);
+      return response;
     } catch (error) {
-      console.log('Logout error:', error)
+      // 即使登出失败也清除本地存储
+      localStorage.removeItem('admin_token');
+      localStorage.removeItem('admin_user');
+      throw error;
     }
   }
-}
+};
 
-export default apiClient
+export default authService;

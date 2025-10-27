@@ -4,12 +4,13 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5174",
+    "dev": "vite --port 5175",
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/charts": "^2.6.6",
     "@ant-design/icons": "^5.2.6",
     "antd": "^5.12.8",
     "axios": "^1.6.2",

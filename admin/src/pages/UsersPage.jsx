@@ -1,64 +1,158 @@
 import React, { useState, useEffect } from 'react'
-import { Table, Button, Space, Tag, Modal, Form, Input, InputNumber, message, Avatar, Tabs, Card, Statistic } from 'antd'
-import { UserOutlined, EditOutlined, EyeOutlined, PlusOutlined, MinusOutlined, SearchOutlined } from '@ant-design/icons'
+import { Table, Card, Button, Space, Tag, Avatar, Input, Select, DatePicker, Modal, Form, message, Popconfirm, Tooltip } from 'antd'
+import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, CrownOutlined } from '@ant-design/icons'
 import { AvatarWithFallback } from '../utils/avatarUtils'
+import { usersAPI } from '../services/api'
 
 const { Search } = Input
+const { Option } = Select
+const { RangePicker } = DatePicker
 
 const UsersPage = () => {
-  const [loading, setLoading] = useState(false)
   const [users, setUsers] = useState([])
-  const [creditModalVisible, setCreditModalVisible] = useState(false)
-  const [recordModalVisible, setRecordModalVisible] = useState(false)
-  const [selectedUser, setSelectedUser] = useState(null)
-  const [userRecords, setUserRecords] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [selectedRowKeys, setSelectedRowKeys] = useState([])
+  const [searchText, setSearchText] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [membershipFilter, setMembershipFilter] = useState('')
+  const [dateRange, setDateRange] = useState([])
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  })
+  const [editModalVisible, setEditModalVisible] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
   const [form] = Form.useForm()
 
-  // 模拟数据
   useEffect(() => {
-    setLoading(true)
-    setTimeout(() => {
-      setUsers([
-        {
-          id: '1',
-          username: 'user001',
-          wechatId: 'wx_user001',
-          avatarSeed: '1',
-          credits: 1250,
-          membershipLevel: 'premium',
-          registeredAt: '2024-01-15',
-          lastActiveAt: '2024-01-20',
-          totalGeneration: 156,
-          status: 'active'
-        },
-        {
-          id: '2',
-          username: 'user002',
-          wechatId: 'wx_user002',
-          avatarSeed: '2',
-          credits: 580,
-          membershipLevel: 'basic',
-          registeredAt: '2024-01-12',
-          lastActiveAt: '2024-01-19',
-          totalGeneration: 89,
-          status: 'active'
-        },
-        {
-          id: '3',
-          username: 'user003',
-          wechatId: 'wx_user003',
-          avatarSeed: '3',
-          credits: 0,
-          membershipLevel: 'free',
-          registeredAt: '2024-01-10',
-          lastActiveAt: '2024-01-18',
-          totalGeneration: 25,
-          status: 'inactive'
-        }
-      ])
+    loadUsers()
+  }, [pagination.current, pagination.pageSize, searchText, statusFilter, membershipFilter, dateRange])
+
+  // 加载用户数据
+  const loadUsers = async () => {
+    try {
+      setLoading(true)
+      const params = {
+        page: pagination.current,
+        limit: pagination.pageSize,
+        search: searchText,
+        status: statusFilter,
+        membership: membershipFilter,
+        startDate: dateRange[0]?.format('YYYY-MM-DD'),
+        endDate: dateRange[1]?.format('YYYY-MM-DD')
+      }
+
+      const result = await usersAPI.getUsers(params)
+      
+      if (result.success) {
+        setUsers(result.data.users || [])
+        setPagination(prev => ({
+          ...prev,
+          total: result.data.total || 0
+        }))
+      } else {
+        message.error(result.message || '加载用户数据失败')
+      }
+    } catch (error) {
+      console.error('加载用户数据失败:', error)
+      message.error('加载用户数据失败，请稍后重试')
+      
+      // 设置默认数据以防API失败
+      setUsers([])
+      setPagination(prev => ({ ...prev, total: 0 }))
+    } finally {
       setLoading(false)
-    }, 1000)
-  }, [])
+    }
+  }
+
+  // 搜索用户
+  const handleSearch = (value) => {
+    setSearchText(value)
+    setPagination(prev => ({ ...prev, current: 1 }))
+  }
+
+  // 筛选变化
+  const handleFilterChange = (type, value) => {
+    if (type === 'status') {
+      setStatusFilter(value)
+    } else if (type === 'membership') {
+      setMembershipFilter(value)
+    } else if (type === 'dateRange') {
+      setDateRange(value)
+    }
+    setPagination(prev => ({ ...prev, current: 1 }))
+  }
+
+  // 编辑用户
+  const handleEdit = (user) => {
+    setEditingUser(user)
+    form.setFieldsValue({
+      username: user.username,
+      email: user.email,
+      wechatId: user.wechatId,
+      credits: user.credits,
+      membership: user.membership,
+      status: user.status
+    })
+    setEditModalVisible(true)
+  }
+
+  // 保存用户编辑
+  const handleSaveEdit = async () => {
+    try {
+      const values = await form.validateFields()
+      const result = await usersAPI.updateUser(editingUser._id, values)
+      
+      if (result.success) {
+        message.success('用户信息更新成功')
+        setEditModalVisible(false)
+        setEditingUser(null)
+        form.resetFields()
+        loadUsers()
+      } else {
+        message.error(result.message || '更新用户信息失败')
+      }
+    } catch (error) {
+      console.error('更新用户信息失败:', error)
+      message.error('更新用户信息失败，请稍后重试')
+    }
+  }
+
+  // 删除用户
+  const handleDelete = async (userId) => {
+    try {
+      const result = await usersAPI.deleteUser(userId)
+      
+      if (result.success) {
+        message.success('用户删除成功')
+        loadUsers()
+      } else {
+        message.error(result.message || '删除用户失败')
+      }
+    } catch (error) {
+      console.error('删除用户失败:', error)
+      message.error('删除用户失败，请稍后重试')
+    }
+  }
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    try {
+      const result = await usersAPI.batchDeleteUsers(selectedRowKeys)
+      
+      if (result.success) {
+        message.success(`成功删除 ${selectedRowKeys.length} 个用户`)
+        setSelectedRowKeys([])
+        loadUsers()
+      } else {
+        message.error(result.message || '批量删除失败')
+      }
+    } catch (error) {
+      console.error('批量删除失败:', error)
+      message.error('批量删除失败，请稍后重试')
+    }
+  }
 
   // 表格列定义
   const columns = [
@@ -68,361 +162,264 @@ const UsersPage = () => {
       width: 200,
       render: (_, record) => (
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <AvatarWithFallback seed={record.avatarSeed} size={40} style={{ marginRight: 12 }} />
+          <AvatarWithFallback seed={record._id} size={40} style={{ marginRight: 12 }} />
           <div>
             <div style={{ fontWeight: 600 }}>{record.username}</div>
             <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-              {record.wechatId}
+              ID: {record._id?.slice(-8)}
             </div>
           </div>
         </div>
       )
     },
     {
-      title: '积分余额',
-      dataIndex: 'credits',
-      key: 'credits',
-      width: 120,
-      render: (credits) => (
-        <span style={{ 
-          color: credits > 0 ? '#52c41a' : '#f5222d', 
-          fontWeight: 600,
-          fontSize: '16px'
-        }}>
-          {credits}
-        </span>
-      ),
-      sorter: (a, b) => a.credits - b.credits
-    },
-    {
-      title: '会员等级',
-      dataIndex: 'membershipLevel',
-      key: 'membershipLevel',
-      width: 100,
-      render: (level) => {
-        const config = {
-          free: { color: 'default', text: '免费用户' },
-          basic: { color: 'blue', text: '基础会员' },
-          premium: { color: 'gold', text: '高级会员' },
-          vip: { color: 'purple', text: 'VIP会员' }
-        }
-        return <Tag color={config[level]?.color}>{config[level]?.text}</Tag>
-      }
-    },
-    {
-      title: '生成次数',
-      dataIndex: 'totalGeneration',
-      key: 'totalGeneration',
-      width: 100,
-      sorter: (a, b) => a.totalGeneration - b.totalGeneration
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 80,
-      render: (status) => (
-        <Tag color={status === 'active' ? 'green' : 'red'}>
-          {status === 'active' ? '活跃' : '非活跃'}
-        </Tag>
+      title: '联系方式',
+      key: 'contact',
+      width: 180,
+      render: (_, record) => (
+        <div>
+          <div>{record.email || '未设置'}</div>
+          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+            微信: {record.wechatId || '未绑定'}
+          </div>
+        </div>
       )
     },
     {
+      title: '积分',
+      dataIndex: 'credits',
+      key: 'credits',
+      width: 100,
+      render: (credits) => (
+        <span style={{ color: '#faad14', fontWeight: 600 }}>
+          {credits?.toLocaleString() || 0}
+        </span>
+      )
+    },
+    {
+      title: '会员等级',
+      dataIndex: 'membership',
+      key: 'membership',
+      width: 120,
+      render: (membership) => {
+        const membershipConfig = {
+          basic: { color: 'default', icon: <UserOutlined />, text: '基础版' },
+          premium: { color: 'gold', icon: <CrownOutlined />, text: '高级版' },
+          enterprise: { color: 'purple', icon: <CrownOutlined />, text: '企业版' }
+        }
+        const config = membershipConfig[membership] || membershipConfig.basic
+        return (
+          <Tag color={config.color} icon={config.icon}>
+            {config.text}
+          </Tag>
+        )
+      }
+    },
+    {
       title: '注册时间',
-      dataIndex: 'registeredAt',
-      key: 'registeredAt',
-      width: 120
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 120,
+      render: (date) => date ? new Date(date).toLocaleDateString() : '-'
     },
     {
       title: '最后活跃',
       dataIndex: 'lastActiveAt',
       key: 'lastActiveAt',
-      width: 120
+      width: 120,
+      render: (date) => date ? new Date(date).toLocaleDateString() : '从未活跃'
     },
     {
-      title: '操作',
-      key: 'action',
-      width: 200,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleCreditAdjust(record)}
-          >
-            调整积分
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewRecords(record)}
-          >
-            查看记录
-          </Button>
-        </Space>
-      )
-    }
-  ]
-
-  // 生成记录列定义
-  const recordColumns = [
-    {
-      title: '工具名称',
-      dataIndex: 'toolName',
-      key: 'toolName'
+      title: '生成次数',
+      dataIndex: 'totalGenerations',
+      key: 'totalGenerations',
+      width: 100,
+      render: (count) => count?.toLocaleString() || 0
     },
     {
-      title: '消耗积分',
-      dataIndex: 'creditCost',
-      key: 'creditCost',
-      render: (cost) => <span style={{ color: '#faad14' }}>-{cost}</span>
-    },
-    {
-      title: '生成状态',
+      title: '状态',
       dataIndex: 'status',
       key: 'status',
+      width: 100,
       render: (status) => (
-        <Tag color={status === 'success' ? 'green' : status === 'failed' ? 'red' : 'orange'}>
-          {status === 'success' ? '成功' : status === 'failed' ? '失败' : '处理中'}
+        <Tag color={status === 'active' ? 'green' : status === 'suspended' ? 'red' : 'orange'}>
+          {status === 'active' ? '正常' : status === 'suspended' ? '已封禁' : '待激活'}
         </Tag>
       )
     },
     {
-      title: '生成时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt'
+      title: '操作',
+      key: 'actions',
+      width: 150,
+      render: (_, record) => (
+        <Space size="small">
+          <Tooltip title="查看详情">
+            <Button type="text" size="small" icon={<EyeOutlined />} />
+          </Tooltip>
+          <Tooltip title="编辑">
+            <Button 
+              type="text" 
+              size="small" 
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+            />
+          </Tooltip>
+          <Popconfirm
+            title="确定要删除这个用户吗？"
+            onConfirm={() => handleDelete(record._id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Tooltip title="删除">
+              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+            </Tooltip>
+          </Popconfirm>
+        </Space>
+      )
     }
   ]
 
-  // 处理积分调整
-  const handleCreditAdjust = (user) => {
-    setSelectedUser(user)
-    form.setFieldsValue({
-      currentCredits: user.credits,
-      adjustType: 'add',
-      amount: 0,
-      reason: ''
+  // 行选择配置
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: setSelectedRowKeys,
+    getCheckboxProps: (record) => ({
+      disabled: record.role === 'admin' // 管理员不能被选中删除
     })
-    setCreditModalVisible(true)
-  }
-
-  // 处理查看记录
-  const handleViewRecords = (user) => {
-    setSelectedUser(user)
-    // 模拟获取用户记录
-    setUserRecords([
-      {
-        id: '1',
-        toolName: '模特图裂变',
-        creditCost: 10,
-        status: 'success',
-        createdAt: '2024-01-20 14:30:25'
-      },
-      {
-        id: '2',
-        toolName: '商品图场景更换',
-        creditCost: 8,
-        status: 'success',
-        createdAt: '2024-01-20 13:15:10'
-      },
-      {
-        id: '3',
-        toolName: '商品图换色',
-        creditCost: 5,
-        status: 'failed',
-        createdAt: '2024-01-20 12:45:30'
-      }
-    ])
-    setRecordModalVisible(true)
-  }
-
-  // 处理积分调整提交
-  const handleCreditSubmit = async (values) => {
-    try {
-      const { adjustType, amount, reason } = values
-      const newCredits = adjustType === 'add' 
-        ? selectedUser.credits + amount 
-        : selectedUser.credits - amount
-
-      // 更新用户积分
-      setUsers(users.map(user => 
-        user.id === selectedUser.id 
-          ? { ...user, credits: Math.max(0, newCredits) }
-          : user
-      ))
-
-      message.success(`积分${adjustType === 'add' ? '增加' : '减少'}成功`)
-      setCreditModalVisible(false)
-      form.resetFields()
-    } catch (error) {
-      message.error('操作失败')
-    }
-  }
-
-  // 统计数据
-  const stats = {
-    totalUsers: users.length,
-    activeUsers: users.filter(u => u.status === 'active').length,
-    premiumUsers: users.filter(u => u.membershipLevel === 'premium').length,
-    totalCredits: users.reduce((sum, u) => sum + u.credits, 0)
   }
 
   return (
     <div>
-      {/* 统计卡片 */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
-          <Card>
-            <Statistic title="总用户数" value={stats.totalUsers} prefix={<UserOutlined />} />
-          </Card>
-          <Card>
-            <Statistic title="活跃用户" value={stats.activeUsers} valueStyle={{ color: '#3f8600' }} />
-          </Card>
-          <Card>
-            <Statistic title="高级会员" value={stats.premiumUsers} valueStyle={{ color: '#faad14' }} />
-          </Card>
-          <Card>
-            <Statistic title="总积分" value={stats.totalCredits} valueStyle={{ color: '#1890ff' }} />
-          </Card>
+      <Card>
+        {/* 搜索和筛选区域 */}
+        <div style={{ marginBottom: 16 }}>
+          <Space wrap>
+            <Search
+              placeholder="搜索用户名、邮箱或微信ID"
+              allowClear
+              style={{ width: 300 }}
+              onSearch={handleSearch}
+            />
+            <Select
+              placeholder="状态筛选"
+              allowClear
+              style={{ width: 120 }}
+              onChange={(value) => handleFilterChange('status', value)}
+            >
+              <Option value="active">正常</Option>
+              <Option value="suspended">已封禁</Option>
+              <Option value="pending">待激活</Option>
+            </Select>
+            <Select
+              placeholder="会员筛选"
+              allowClear
+              style={{ width: 120 }}
+              onChange={(value) => handleFilterChange('membership', value)}
+            >
+              <Option value="basic">基础版</Option>
+              <Option value="premium">高级版</Option>
+              <Option value="enterprise">企业版</Option>
+            </Select>
+            <RangePicker
+              placeholder={['开始日期', '结束日期']}
+              onChange={(dates) => handleFilterChange('dateRange', dates)}
+            />
+            <Button type="primary" icon={<SearchOutlined />} onClick={loadUsers}>
+              搜索
+            </Button>
+          </Space>
         </div>
-      </div>
 
-      {/* 搜索和操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <Space>
-          <Search
-            placeholder="搜索用户名或微信号"
-            allowClear
-            style={{ width: 300 }}
-            onSearch={(value) => console.log('搜索:', value)}
-          />
-        </Space>
-        <Space>
-          <Button>批量操作</Button>
-          <Button>导出数据</Button>
-        </Space>
-      </div>
-
-      <Table
-        columns={columns}
-        dataSource={users}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          total: users.length,
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条记录`
-        }}
-      />
-
-      {/* 积分调整模态框 */}
-      <Modal
-        title="调整用户积分"
-        open={creditModalVisible}
-        onCancel={() => setCreditModalVisible(false)}
-        onOk={() => form.submit()}
-        width={500}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCreditSubmit}
-        >
-          <div style={{ marginBottom: 16, padding: 16, background: '#f5f5f5', borderRadius: 6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-              <AvatarWithFallback seed={selectedUser?.avatarSeed} size={32} style={{ marginRight: 8 }} />
-              <span style={{ fontWeight: 600 }}>{selectedUser?.username}</span>
-            </div>
-            <div style={{ color: '#8c8c8c' }}>
-              当前积分余额: <span style={{ color: '#1890ff', fontWeight: 600 }}>{selectedUser?.credits}</span>
-            </div>
-          </div>
-
-          <Form.Item
-            name="adjustType"
-            label="调整类型"
-            rules={[{ required: true }]}
-          >
+        {/* 批量操作区域 */}
+        {selectedRowKeys.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
             <Space>
-              <Button
-                type={form.getFieldValue('adjustType') === 'add' ? 'primary' : 'default'}
-                icon={<PlusOutlined />}
-                onClick={() => form.setFieldsValue({ adjustType: 'add' })}
+              <span>已选择 {selectedRowKeys.length} 项</span>
+              <Popconfirm
+                title={`确定要删除选中的 ${selectedRowKeys.length} 个用户吗？`}
+                onConfirm={handleBatchDelete}
+                okText="确定"
+                cancelText="取消"
               >
-                增加积分
-              </Button>
-              <Button
-                type={form.getFieldValue('adjustType') === 'subtract' ? 'primary' : 'default'}
-                icon={<MinusOutlined />}
-                onClick={() => form.setFieldsValue({ adjustType: 'subtract' })}
-              >
-                减少积分
-              </Button>
+                <Button danger>批量删除</Button>
+              </Popconfirm>
+              <Button onClick={() => setSelectedRowKeys([])}>取消选择</Button>
             </Space>
-          </Form.Item>
+          </div>
+        )}
 
-          <Form.Item
-            name="amount"
-            label="调整数量"
-            rules={[
-              { required: true, message: '请输入调整数量' },
-              { type: 'number', min: 1, message: '数量必须大于0' }
-            ]}
-          >
-            <InputNumber
-              style={{ width: '100%' }}
-              placeholder="请输入调整数量"
-              min={1}
-            />
-          </Form.Item>
+        {/* 用户表格 */}
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={users}
+          rowKey="_id"
+          loading={loading}
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+            onChange: (page, pageSize) => {
+              setPagination(prev => ({ ...prev, current: page, pageSize }))
+            }
+          }}
+          scroll={{ x: 1200 }}
+        />
+      </Card>
 
+      {/* 编辑用户模态框 */}
+      <Modal
+        title="编辑用户"
+        open={editModalVisible}
+        onOk={handleSaveEdit}
+        onCancel={() => {
+          setEditModalVisible(false)
+          setEditingUser(null)
+          form.resetFields()
+        }}
+        width={600}
+      >
+        <Form form={form} layout="vertical">
           <Form.Item
-            name="reason"
-            label="调整原因"
-            rules={[{ required: true, message: '请输入调整原因' }]}
+            name="username"
+            label="用户名"
+            rules={[{ required: true, message: '请输入用户名' }]}
           >
-            <Input.TextArea
-              rows={3}
-              placeholder="请输入调整原因，此信息将记录在操作日志中"
-            />
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="email"
+            label="邮箱"
+            rules={[{ type: 'email', message: '请输入有效的邮箱地址' }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item name="wechatId" label="微信ID">
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="credits"
+            label="积分"
+            rules={[{ type: 'number', min: 0, message: '积分不能为负数' }]}
+          >
+            <Input type="number" />
+          </Form.Item>
+          <Form.Item name="membership" label="会员等级">
+            <Select>
+              <Option value="basic">基础版</Option>
+              <Option value="premium">高级版</Option>
+              <Option value="enterprise">企业版</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item name="status" label="状态">
+            <Select>
+              <Option value="active">正常</Option>
+              <Option value="suspended">已封禁</Option>
+              <Option value="pending">待激活</Option>
+            </Select>
           </Form.Item>
         </Form>
-      </Modal>
-
-      {/* 用户记录模态框 */}
-      <Modal
-        title={`${selectedUser?.username} 的生成记录`}
-        open={recordModalVisible}
-        onCancel={() => setRecordModalVisible(false)}
-        footer={null}
-        width={800}
-      >
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
-            <AvatarWithFallback seed={selectedUser?.avatarSeed} size={40} style={{ marginRight: 12 }} />
-            <div>
-              <div style={{ fontWeight: 600 }}>{selectedUser?.username}</div>
-              <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                总生成次数: {selectedUser?.totalGeneration} | 当前积分: {selectedUser?.credits}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <Table
-          columns={recordColumns}
-          dataSource={userRecords}
-          rowKey="id"
-          size="small"
-          pagination={{
-            pageSize: 5,
-            showTotal: (total) => `共 ${total} 条记录`
-          }}
-        />
       </Modal>
     </div>
   )

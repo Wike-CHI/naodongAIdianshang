@@ -1,21 +1,40 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const { authenticateUser, authenticateAdmin } = require('../middlewares/auth');
+const { validate, schemas } = require('../middleware/validation');
+const { authenticateToken, optionalAuth } = require('../middleware/auth');
 
-// 用户认证路由
-router.post('/register', authController.register);
-router.post('/login', authController.login);
-router.post('/logout', authController.logout);
+// 用户注册
+router.post('/register', validate(schemas.userRegister), authController.register);
 
-// 管理员认证路由
-router.post('/admin/login', authController.adminLogin);
+// 用户登录
+router.post('/login', validate(schemas.userLogin), authController.login);
 
-// 需要认证的路由
-router.get('/user/profile', authenticateUser, authController.getCurrentUser);
-router.put('/user/password', authenticateUser, authController.changePassword);
+// 管理员登录
+router.post('/admin-login', validate(schemas.adminLogin), authController.adminLogin);
 
-// 管理员需要认证的路由
-router.get('/admin/profile', authenticateAdmin, authController.getCurrentAdmin);
+// 获取当前用户信息
+router.get('/me', authenticateToken, authController.getCurrentUser);
+
+// 刷新令牌
+router.post('/refresh', authController.refreshToken);
+
+// 修改密码
+router.post('/change-password', authenticateToken, validate(schemas.changePassword), authController.changePassword);
+
+// 请求密码重置
+router.post('/forgot-password', validate(schemas.forgotPassword), authController.requestPasswordReset);
+
+// 确认密码重置
+router.post('/reset-password', validate(schemas.resetPassword), authController.confirmPasswordReset);
+
+// 邮箱验证
+router.post('/verify-email', validate(schemas.verifyEmail), authController.verifyEmail);
+
+// 重新发送验证邮件
+router.post('/resend-verification', authenticateToken, authController.resendVerificationEmail);
+
+// 登出
+router.post('/logout', optionalAuth, authController.logout);
 
 module.exports = router;

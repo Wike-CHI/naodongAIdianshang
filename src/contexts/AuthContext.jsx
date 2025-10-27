@@ -17,8 +17,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // 从本地存储加载用户信息
     const savedUser = localStorage.getItem('naodong_user')
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
+    if (savedUser && savedUser !== 'undefined') {
+      try {
+        setUser(JSON.parse(savedUser))
+      } catch (error) {
+        console.error('解析用户数据失败:', error)
+        localStorage.removeItem('naodong_user')
+      }
     }
     setLoading(false)
   }, [])
@@ -26,19 +31,11 @@ export const AuthProvider = ({ children }) => {
   const login = (userData) => {
     setUser(userData)
     localStorage.setItem('naodong_user', JSON.stringify(userData))
-    // 如果有token，也保存到localStorage
-    if (userData.token) {
-      localStorage.setItem('token', userData.token)
-    }
   }
 
   const logout = () => {
     setUser(null)
     localStorage.removeItem('naodong_user')
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    localStorage.removeItem('adminToken')
-    localStorage.removeItem('admin')
   }
 
   const updateCredits = (newCredits) => {

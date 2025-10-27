@@ -1,9 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Layout, Card, Row, Col, Button, Typography, List, Tag, Space, Modal, message } from 'antd'
 import { CrownOutlined, CheckOutlined, StarOutlined, WalletOutlined } from '@ant-design/icons'
 import { useAuth } from '../contexts/AuthContext'
-import { mockSubscriptionPlans } from '../services/mockApi'
 import Header from '../components/Layout/Header'
+import axios from 'axios'
+import { API_ENDPOINTS } from '../config/api'
+import logger from '../utils/logger'
 
 const { Content } = Layout
 const { Title, Text } = Typography
@@ -12,6 +14,84 @@ const Subscription = () => {
   const { user, updateCredits } = useAuth()
   const [loading, setLoading] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState(null)
+  const [subscriptionPlans, setSubscriptionPlans] = useState([])
+
+  // 获取订阅套餐数据
+  useEffect(() => {
+    const fetchSubscriptionPlans = async () => {
+      try {
+        const response = await axios.get(API_ENDPOINTS.SUBSCRIPTION.PLANS)
+        if (response.data.success) {
+          setSubscriptionPlans(response.data.data)
+        } else {
+          // 如果API失败，使用默认套餐
+          setSubscriptionPlans([
+            {
+              id: 1,
+              name: '基础版',
+              price: 0,
+              credits: 100,
+              features: ['每日100次生成', '基础模板', '标准客服'],
+              popular: false,
+              type: 'free'
+            },
+            {
+              id: 2,
+              name: '专业版',
+              price: 29,
+              credits: 1000,
+              features: ['每日1000次生成', '高级模板', '优先客服', '无广告'],
+              popular: true,
+              type: 'pro'
+            },
+            {
+              id: 3,
+              name: '企业版',
+              price: 99,
+              credits: 5000,
+              features: ['每日5000次生成', '全部模板', '专属客服', '定制功能'],
+              popular: false,
+              type: 'enterprise'
+            }
+          ])
+        }
+      } catch (error) {
+        console.error('获取订阅套餐失败:', error)
+        // 使用默认套餐
+        setSubscriptionPlans([
+          {
+            id: 1,
+            name: '基础版',
+            price: 0,
+            credits: 100,
+            features: ['每日100次生成', '基础模板', '标准客服'],
+            popular: false,
+            type: 'free'
+          },
+          {
+            id: 2,
+            name: '专业版',
+            price: 29,
+            credits: 1000,
+            features: ['每日1000次生成', '高级模板', '优先客服', '无广告'],
+            popular: true,
+            type: 'pro'
+          },
+          {
+            id: 3,
+            name: '企业版',
+            price: 99,
+            credits: 5000,
+            features: ['每日5000次生成', '全部模板', '专属客服', '定制功能'],
+            popular: false,
+            type: 'enterprise'
+          }
+        ])
+      }
+    }
+
+    fetchSubscriptionPlans()
+  }, [])
 
   const handleSubscribe = async (plan) => {
     if (!user) {
@@ -30,7 +110,7 @@ const Subscription = () => {
       message.success(`成功订阅${plan.name}！`)
       
       // 这里应该调用真实的API更新用户会员状态
-      console.log('订阅成功:', plan)
+      logger.log('订阅成功:', plan)
       
     } catch (error) {
       message.error('订阅失败，请重试')
@@ -85,7 +165,7 @@ const Subscription = () => {
             </div>
 
             <Row gutter={[24, 24]} justify="center">
-              {mockSubscriptionPlans.map((plan) => (
+              {subscriptionPlans.map((plan) => (
                 <Col key={plan.id} xs={24} sm={12} lg={8}>
                   <Card
                     className={plan.popular ? 'popular-plan' : ''}

@@ -1,0 +1,325 @@
+{
+  "summary": {
+    "total": 21,
+    "passed": 0,
+    "failed": 21,
+    "skipped": 0,
+    "duration": 40113,
+    "timestamp": "2025-10-24T06:50:21.758Z"
+  },
+  "results": [
+    {
+      "testName": "服务器健康检查",
+      "status": "FAIL",
+      "message": "Request failed with status code 503",
+      "duration": 41,
+      "details": {
+        "errorDetails": {
+          "status": "unhealthy",
+          "timestamp": "2025-10-24T06:49:41.682Z",
+          "uptime": {
+            "application": 41666125,
+            "system": 49226312
+          },
+          "memory": {
+            "total": 34124718080,
+            "free": 16381235200,
+            "used": 17743482880,
+            "usagePercent": 51.99598378630766
+          },
+          "cpu": {
+            "loadAverage": [
+              0,
+              0,
+              0
+            ],
+            "cores": 24
+          },
+          "disk": {
+            "available": true,
+            "path": "D:\\gsxm\\naodongAIdianshang\\backend"
+          },
+          "database": {
+            "connected": true,
+            "type": "filesystem",
+            "path": "D:\\gsxm\\naodongAIdianshang\\backend\\data"
+          },
+          "requests": {
+            "total": 10,
+            "errors": 4,
+            "errorRate": 40
+          },
+          "performance": {
+            "averageResponseTime": 0,
+            "requestsPerMinute": 0,
+            "recentMetrics": []
+          }
+        }
+      },
+      "timestamp": "2025-10-24T06:49:41.687Z"
+    },
+    {
+      "testName": "管理员登录",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 3,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/auth/login"
+        }
+      },
+      "timestamp": "2025-10-24T06:49:41.691Z"
+    },
+    {
+      "testName": "无效登录测试",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 3,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/auth/login"
+        }
+      },
+      "timestamp": "2025-10-24T06:49:41.694Z"
+    },
+    {
+      "testName": "获取用户列表",
+      "status": "FAIL",
+      "message": "timeout of 10000ms exceeded",
+      "duration": 10008,
+      "details": {
+        "errorDetails": "timeout of 10000ms exceeded"
+      },
+      "timestamp": "2025-10-24T06:49:51.702Z"
+    },
+    {
+      "testName": "获取用户统计",
+      "status": "FAIL",
+      "message": "timeout of 10000ms exceeded",
+      "duration": 10016,
+      "details": {
+        "errorDetails": "timeout of 10000ms exceeded"
+      },
+      "timestamp": "2025-10-24T06:50:01.718Z"
+    },
+    {
+      "testName": "创建新用户",
+      "status": "FAIL",
+      "message": "timeout of 10000ms exceeded",
+      "duration": 10002,
+      "details": {
+        "errorDetails": "timeout of 10000ms exceeded"
+      },
+      "timestamp": "2025-10-24T06:50:11.721Z"
+    },
+    {
+      "testName": "获取工具列表",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 4,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/tools"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:11.726Z"
+    },
+    {
+      "testName": "获取工具分类",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 2,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/tools/categories"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:11.728Z"
+    },
+    {
+      "testName": "创建新工具",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 3,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/tools"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:11.731Z"
+    },
+    {
+      "testName": "获取订阅计划",
+      "status": "FAIL",
+      "message": "Request failed with status code 500",
+      "duration": 3,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "获取订阅计划列表失败",
+          "error": "this.subscriptionService.getAllPlans is not a function"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:11.734Z"
+    },
+    {
+      "testName": "获取订阅统计",
+      "status": "FAIL",
+      "message": "timeout of 10000ms exceeded",
+      "duration": 10005,
+      "details": {
+        "errorDetails": "timeout of 10000ms exceeded"
+      },
+      "timestamp": "2025-10-24T06:50:21.739Z"
+    },
+    {
+      "testName": "获取积分记录",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 3,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/points/records"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:21.742Z"
+    },
+    {
+      "testName": "获取积分统计",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 1,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/points/stats"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:21.744Z"
+    },
+    {
+      "testName": "获取订单列表",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 1,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/payment/orders"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:21.745Z"
+    },
+    {
+      "testName": "获取支付统计",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 2,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/payment/stats"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:21.747Z"
+    },
+    {
+      "testName": "创建支付订单",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 2,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/payment/orders"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:21.749Z"
+    },
+    {
+      "testName": "获取监控仪表板",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 2,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/monitoring/dashboard"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:21.751Z"
+    },
+    {
+      "testName": "获取系统指标",
+      "status": "FAIL",
+      "message": "Request failed with status code 401",
+      "duration": 2,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "用户未认证"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:21.753Z"
+    },
+    {
+      "testName": "获取数据库指标",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 2,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/monitoring/database"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:21.755Z"
+    },
+    {
+      "testName": "获取API统计",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 2,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/monitoring/api-stats"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:21.757Z"
+    },
+    {
+      "testName": "测试告警发送",
+      "status": "FAIL",
+      "message": "Request failed with status code 404",
+      "duration": 1,
+      "details": {
+        "errorDetails": {
+          "success": false,
+          "message": "API接口不存在",
+          "path": "/api/monitoring/test-alert"
+        }
+      },
+      "timestamp": "2025-10-24T06:50:21.758Z"
+    }
+  ]
+}

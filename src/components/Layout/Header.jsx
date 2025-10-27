@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import LoginModal from '../User/LoginModal'
 import SubscriptionModal from '../Common/SubscriptionModal'
+import logger from '../../utils/logger'
 
 const { Header: AntHeader } = Layout
 
@@ -29,7 +30,7 @@ const Header = () => {
       label: 'AI商品素材',
       icon: <ShoppingOutlined />,
       onClick: () => {
-        console.log('导航到AI商品素材')
+        logger.log('导航到AI商品素材')
         // 这里可以添加实际的导航逻辑
         // navigate('/materials')
       }
@@ -137,7 +138,7 @@ const Header = () => {
                 onClick={() => setSubscriptionModalVisible(true)}
               >
                 <WalletOutlined style={{ fontSize: '16px', color: '#52c41a' }} />
-                <span style={{ fontSize: '14px', color: '#52c41a', fontWeight: 'bold' }}>560</span>
+                <span style={{ fontSize: '14px', color: '#52c41a', fontWeight: 'bold' }}>{user?.credits_balance || 0}</span>
                 <span style={{ fontSize: '14px', color: '#666' }}>积分</span>
               </Space>
               

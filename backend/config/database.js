@@ -1,58 +1,60 @@
 const mongoose = require('mongoose');
+const logger = require('../utils/logger');
+require('dotenv').config();
 
-class Database {
-  constructor() {
-    this.connection = null;
-  }
-
-  async connect() {
-    try {
-      const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/naodongai';
-      
-      this.connection = await mongoose.connect(mongoUri, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
-        maxPoolSize: 10,
-        serverSelectionTimeoutMS: 5000,
-        socketTimeoutMS: 45000,
-      });
-
-      console.log('✅ MongoDB连接成功');
-      
-      // 监听连接事件
-      mongoose.connection.on('error', (err) => {
-        console.error('❌ MongoDB连接错误:', err);
-      });
-
-      mongoose.connection.on('disconnected', () => {
-        console.log('⚠️ MongoDB连接断开');
-      });
-
-      mongoose.connection.on('reconnected', () => {
-        console.log('✅ MongoDB重新连接成功');
-      });
-
-      return this.connection;
-    } catch (error) {
-      console.error('❌ MongoDB连接失败:', error);
-      console.log('⚠️ 继续运行服务器，但数据库功能将不可用');
-      // 不退出进程，让服务器继续运行
-      return null;
+const connectDB = async () => {
+  try {
+    let connectionString;
+    
+    // 检查是否使用内存数据库
+    if (process.env.USE_MEMORY_DB === 'true') {
+      // 使用内存数据库
+      connectionString = 'mongodb://127.0.0.1:27017/naodongai_memory';
+      logger.log('🔄 使用内存数据库模式');
+    } else {
+      connectionString = process.env.MONGODB_URI;
     }
-  }
 
-  async disconnect() {
-    try {
-      await mongoose.disconnect();
-      console.log('✅ MongoDB连接已关闭');
-    } catch (error) {
-      console.error('❌ 关闭MongoDB连接时出错:', error);
-    }
-  }
+    const conn = await mongoose.connect(connectionString, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
 
-  getConnection() {
-    return this.connection;
-  }
-}
+    logger.log(`✅ MongoDB 连接成功: ${conn.connection.host}`);
+    
+    // 监听连接事件
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB 连接错误:', err);
+    });
 
-module.exports = new Database();
+    mongoose.connection.on('disconnected', () => {
+      logger.log('⚠️ MongoDB 连接断开');
+    });
+
+    // 优雅关闭
+    process.on('SIGINT', async () => {
+      await mongoose.connection.close();
+      logger.log('📴 MongoDB 连接已关闭');
+      process.exit(0);
+    });
+
+  } catch (error) {
+    console.error('❌ MongoDB 连接失败:', error.message);
+    logger.log('🔄 尝试创建内存用户数据...');
+    
+    // 如果连接失败，创建内存用户数据
+    await createMemoryData();
+  }
+};
+
+// 创建内存用户数据
+const createMemoryData = async () => {
+  try {
+    // 这里我们将在server.js中处理内存数据
+    logger.log('📝 将使用内存数据存储');
+  } catch (error) {
+    console.error('❌ 创建内存数据失败:', error);
+  }
+};
+
+module.exports = connectDB;

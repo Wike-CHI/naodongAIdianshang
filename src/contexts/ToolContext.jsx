@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { aiToolsApi } from '../services/api'
+import axios from 'axios'
+import { API_ENDPOINTS } from '../config/api'
 
 const ToolContext = createContext()
 
@@ -18,28 +19,64 @@ export const ToolProvider = ({ children }) => {
   const [selectedTool, setSelectedTool] = useState(null)
   const [generationHistory, setGenerationHistory] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
-  const [loading, setLoading] = useState(true)
 
-  // 加载AI工具列表
+  // 获取工具列表
   useEffect(() => {
-    loadTools()
-  }, [])
-
-  const loadTools = async () => {
-    try {
-      const response = await aiToolsApi.getTools()
-      if (response.success) {
-        setTools(response.data)
-        if (response.data.length > 0) {
-          setSelectedTool(response.data[0])
+    const fetchTools = async () => {
+      try {
+        const response = await axios.get(API_ENDPOINTS.TOOLS.LIST)
+        if (response.data.success) {
+          setTools(response.data.data)
+          if (response.data.data.length > 0) {
+            setSelectedTool(response.data.data[0])
+          }
+        } else {
+          // 如果API失败，使用默认工具
+          const defaultTools = [
+            {
+              id: 1,
+              name: '商品主图生成',
+              description: '生成高质量的商品主图',
+              category: 'product',
+              icon: '🛍️'
+            },
+            {
+              id: 2,
+              name: '详情页设计',
+              description: '生成商品详情页设计',
+              category: 'design',
+              icon: '📄'
+            }
+          ]
+          setTools(defaultTools)
+          setSelectedTool(defaultTools[0])
         }
+      } catch (error) {
+        console.error('获取工具列表失败:', error)
+        // 使用默认工具
+        const defaultTools = [
+          {
+            id: 1,
+            name: '商品主图生成',
+            description: '生成高质量的商品主图',
+            category: 'product',
+            icon: '🛍️'
+          },
+          {
+            id: 2,
+            name: '详情页设计',
+            description: '生成商品详情页设计',
+            category: 'design',
+            icon: '📄'
+          }
+        ]
+        setTools(defaultTools)
+        setSelectedTool(defaultTools[0])
       }
-    } catch (error) {
-      console.error('加载工具列表失败:', error)
-    } finally {
-      setLoading(false)
     }
-  }
+
+    fetchTools()
+  }, [])
 
   const selectTool = (toolId) => {
     const tool = tools.find(t => t.id === toolId)
@@ -51,30 +88,22 @@ export const ToolProvider = ({ children }) => {
   const generateImage = async (params) => {
     setIsGenerating(true)
     
-    try {
-      // TODO: 实现真实的AI图片生成API调用
-      // const response = await aiToolsApi.generateImage(selectedTool.id, params)
-      
-      // 临时模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 3000))
-      
-      const result = {
-        id: Date.now().toString(),
-        toolId: selectedTool.id,
-        inputParams: params,
-        resultImage: `https://picsum.photos/400/600?random=${Date.now()}`,
-        createdAt: new Date(),
-        creditsCost: selectedTool.creditCost
-      }
-      
-      setGenerationHistory(prev => [result, ...prev])
-      return result
-    } catch (error) {
-      console.error('图片生成失败:', error)
-      throw error
-    } finally {
-      setIsGenerating(false)
+    // 模拟API调用延迟
+    await new Promise(resolve => setTimeout(resolve, 3000))
+    
+    const result = {
+      id: Date.now().toString(),
+      toolId: selectedTool.id,
+      inputParams: params,
+      resultImage: `https://picsum.photos/400/600?random=${Date.now()}`,
+      createdAt: new Date(),
+      creditsCost: selectedTool.creditCost
     }
+    
+    setGenerationHistory(prev => [result, ...prev])
+    setIsGenerating(false)
+    
+    return result
   }
 
   const value = {
@@ -84,9 +113,7 @@ export const ToolProvider = ({ children }) => {
     selectTool,
     generationHistory,
     generateImage,
-    isGenerating,
-    loading,
-    loadTools
+    isGenerating
   }
 
   return (

@@ -2,7 +2,8 @@ import React, { useState } from 'react'
 import { Modal, Form, Input, Select, Button, message } from 'antd'
 import { UserOutlined, PhoneOutlined, WechatOutlined, ShopOutlined, MailOutlined, EnvironmentOutlined } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { usersApi } from '../../services/api'
+import axios from 'axios'
+import { API_ENDPOINTS } from '../../config/api'
 
 const { Option } = Select
 
@@ -50,17 +51,24 @@ const UserInfoForm = ({ visible, onCancel }) => {
   const handleSubmit = async (values) => {
     setLoading(true)
     try {
-      const response = await usersApi.updateProfile(values)
-      if (response.success) {
-        updateUserInfo(response.data)
+      const token = localStorage.getItem('token')
+      const response = await axios.put(API_ENDPOINTS.USER.UPDATE_PROFILE, values, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (response.data.success) {
+        updateUserInfo(values)
         message.success('用户信息更新成功！')
         onCancel()
       } else {
-        message.error('更新失败，请重试')
+        message.error(response.data.message || '更新失败，请重试')
       }
     } catch (error) {
       console.error('更新用户信息失败:', error)
-      message.error('更新失败，请重试')
+      message.error(error.response?.data?.message || '更新失败，请重试')
     } finally {
       setLoading(false)
     }

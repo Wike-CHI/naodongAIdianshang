@@ -1,6 +1,7 @@
 import React from 'react'
-import { Card, Typography, Button, Space, Empty, Image, Tooltip } from 'antd'
-import { DownloadOutlined, RedoOutlined, HeartOutlined } from '@ant-design/icons'
+import { Card, Typography, Button, Space, Empty, Image, Tooltip, Divider } from 'antd'
+import { DownloadOutlined, RedoOutlined, HeartOutlined, ShareAltOutlined } from '@ant-design/icons'
+import logger from '../../utils/logger'
 import { useToolContext } from '../../contexts/ToolContext'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -21,12 +22,12 @@ const ResultPanel = () => {
 
   const handleRegenerate = () => {
     // 重新生成逻辑
-    console.log('重新生成')
+    logger.log('重新生成')
   }
 
   const handleFavorite = () => {
     // 收藏逻辑
-    console.log('收藏')
+    logger.log('收藏')
   }
 
   return (

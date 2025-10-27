@@ -1,780 +1,587 @@
 import React, { useState, useEffect } from 'react'
-import { Table, Button, Space, Tag, Modal, Form, Input, Select, message, Tabs, Card, InputNumber, DatePicker, Statistic } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, DollarOutlined, CrownOutlined, HistoryOutlined } from '@ant-design/icons'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import dayjs from 'dayjs'
+import { Card, Row, Col, Statistic, Table, Button, Space, Tag, Modal, Form, Input, InputNumber, Select, message, DatePicker, Tabs, Switch } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined, GiftOutlined, CreditCardOutlined, TrophyOutlined, UserOutlined } from '@ant-design/icons'
+import { Line, Pie } from '@ant-design/charts'
+import { creditAPI, subscriptionAPI } from '../services/api'
 
-const { TextArea } = Input
-const { Option } = Select
 const { RangePicker } = DatePicker
+const { Option } = Select
 
 const CreditsPage = () => {
   const [loading, setLoading] = useState(false)
-  const [creditRules, setCreditRules] = useState([])
-  const [membershipPlans, setMembershipPlans] = useState([])
-  const [transactions, setTransactions] = useState([])
-  const [modalVisible, setModalVisible] = useState(false)
-  const [planModalVisible, setPlanModalVisible] = useState(false)
-  const [editingRule, setEditingRule] = useState(null)
-  const [editingPlan, setEditingPlan] = useState(null)
-  const [activeTab, setActiveTab] = useState('rules')
-  const [form] = Form.useForm()
-  const [planForm] = Form.useForm()
-
-  // 统计数据
-  const [stats, setStats] = useState({
-    totalRevenue: 0,
-    totalUsers: 0,
-    activeMembers: 0,
-    todayTransactions: 0
+  const [statsData, setStatsData] = useState({
+    totalCredits: 0,
+    usedCredits: 0,
+    activeUsers: 0,
+    transactions: 0
   })
+  const [creditRules, setCreditRules] = useState([])
+  const [subscriptionPlans, setSubscriptionPlans] = useState([])
+  const [transactions, setTransactions] = useState([])
+  const [chartData, setChartData] = useState({
+    usageTrend: [],
+    distributionData: []
+  })
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  })
+  const [modalVisible, setModalVisible] = useState(false)
+  const [editingRule, setEditingRule] = useState(null)
+  const [form] = Form.useForm()
 
-  // 图表数据
-  const [chartData, setChartData] = useState([])
-  const [pieData, setPieData] = useState([])
-
-  // 模拟数据
   useEffect(() => {
-    setLoading(true)
-    setTimeout(() => {
-      // 积分规则数据
-      setCreditRules([
-        {
-          id: '1',
-          name: '文本生成',
-          description: '每次文本生成消耗积分',
-          creditCost: 1,
-          category: 'text',
-          status: 'active',
-          createdAt: '2024-01-15',
-          usageCount: 15420
-        },
-        {
-          id: '2',
-          name: '图像生成',
-          description: '每次图像生成消耗积分',
-          creditCost: 5,
-          category: 'image',
-          status: 'active',
-          createdAt: '2024-01-12',
-          usageCount: 8930
-        },
-        {
-          id: '3',
-          name: '高清图像',
-          description: '高清图像生成消耗更多积分',
-          creditCost: 10,
-          category: 'image',
-          status: 'active',
-          createdAt: '2024-01-10',
-          usageCount: 3250
-        },
-        {
-          id: '4',
-          name: '视频生成',
-          description: '视频生成功能（测试中）',
-          creditCost: 20,
-          category: 'video',
-          status: 'inactive',
-          createdAt: '2024-01-08',
-          usageCount: 120
-        }
-      ])
-
-      // 会员套餐数据
-      setMembershipPlans([
-        {
-          id: '1',
-          name: '基础套餐',
-          description: '适合轻度使用用户',
-          price: 29.9,
-          credits: 100,
-          duration: 30,
-          features: ['文本生成', '基础图像生成', '客服支持'],
-          status: 'active',
-          subscribers: 1250,
-          createdAt: '2024-01-15'
-        },
-        {
-          id: '2',
-          name: '专业套餐',
-          description: '适合专业用户和小团队',
-          price: 99.9,
-          credits: 500,
-          duration: 30,
-          features: ['所有基础功能', '高清图像生成', '优先处理', '专属客服'],
-          status: 'active',
-          subscribers: 680,
-          createdAt: '2024-01-12'
-        },
-        {
-          id: '3',
-          name: '企业套餐',
-          description: '适合大型团队和企业',
-          price: 299.9,
-          credits: 2000,
-          duration: 30,
-          features: ['所有功能', '无限制使用', 'API接入', '定制服务'],
-          status: 'active',
-          subscribers: 150,
-          createdAt: '2024-01-10'
-        }
-      ])
-
-      // 交易记录数据
-      setTransactions([
-        {
-          id: '1',
-          userId: 'user_001',
-          username: '张三',
-          type: 'purchase',
-          planName: '专业套餐',
-          amount: 99.9,
-          credits: 500,
-          status: 'completed',
-          paymentMethod: '微信支付',
-          createdAt: '2024-01-20 14:30:25'
-        },
-        {
-          id: '2',
-          userId: 'user_002',
-          username: '李四',
-          type: 'consume',
-          description: '图像生成',
-          amount: -5,
-          credits: -5,
-          status: 'completed',
-          createdAt: '2024-01-20 13:15:10'
-        },
-        {
-          id: '3',
-          userId: 'user_003',
-          username: '王五',
-          type: 'purchase',
-          planName: '基础套餐',
-          amount: 29.9,
-          credits: 100,
-          status: 'completed',
-          paymentMethod: '支付宝',
-          createdAt: '2024-01-20 11:45:30'
-        }
-      ])
-
-      // 统计数据
-      setStats({
-        totalRevenue: 15680.5,
-        totalUsers: 2080,
-        activeMembers: 1250,
-        todayTransactions: 45
-      })
-
-      // 图表数据
-      setChartData([
-        { name: '1月1日', revenue: 1200, transactions: 25 },
-        { name: '1月2日', revenue: 1800, transactions: 35 },
-        { name: '1月3日', revenue: 1500, transactions: 28 },
-        { name: '1月4日', revenue: 2200, transactions: 42 },
-        { name: '1月5日', revenue: 1900, transactions: 38 },
-        { name: '1月6日', revenue: 2500, transactions: 48 },
-        { name: '1月7日', revenue: 2100, transactions: 40 }
-      ])
-
-      setPieData([
-        { name: '基础套餐', value: 1250, color: '#8884d8' },
-        { name: '专业套餐', value: 680, color: '#82ca9d' },
-        { name: '企业套餐', value: 150, color: '#ffc658' }
-      ])
-
-      setLoading(false)
-    }, 1000)
+    loadData()
   }, [])
 
-  // 积分规则表格列定义
-  const ruleColumns = [
-    {
-      title: '规则名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 150,
-      render: (text, record) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{text}</div>
-          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-            {record.description}
-          </div>
-        </div>
-      )
-    },
-    {
-      title: '积分消耗',
-      dataIndex: 'creditCost',
-      key: 'creditCost',
-      width: 100,
-      render: (cost) => (
-        <span style={{ fontWeight: 600, color: '#f5222d' }}>
-          {cost} 积分
-        </span>
-      )
-    },
-    {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-      width: 100,
-      render: (category) => {
-        const categoryMap = {
-          text: { color: 'blue', text: '文本' },
-          image: { color: 'green', text: '图像' },
-          video: { color: 'purple', text: '视频' }
-        }
-        const config = categoryMap[category] || { color: 'default', text: category }
-        return <Tag color={config.color}>{config.text}</Tag>
-      }
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 80,
-      render: (status) => (
-        <Tag color={status === 'active' ? 'green' : 'red'}>
-          {status === 'active' ? '启用' : '停用'}
-        </Tag>
-      )
-    },
-    {
-      title: '使用次数',
-      dataIndex: 'usageCount',
-      key: 'usageCount',
-      width: 100,
-      render: (count) => count.toLocaleString()
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 120
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEditRule(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeleteRule(record)}
-          >
-            删除
-          </Button>
-        </Space>
-      )
+  // 加载所有数据
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      await Promise.all([
+        loadStatsData(),
+        loadCreditRules(),
+        loadSubscriptionPlans(),
+        loadTransactions(),
+        loadChartData()
+      ])
+    } catch (error) {
+      console.error('加载数据失败:', error)
+      message.error('加载数据失败，请稍后重试')
+    } finally {
+      setLoading(false)
     }
-  ]
-
-  // 会员套餐表格列定义
-  const planColumns = [
-    {
-      title: '套餐名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 150,
-      render: (text, record) => (
-        <div>
-          <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center' }}>
-            <CrownOutlined style={{ marginRight: 4, color: '#faad14' }} />
-            {text}
-          </div>
-          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-            {record.description}
-          </div>
-        </div>
-      )
-    },
-    {
-      title: '价格/积分',
-      key: 'priceCredits',
-      width: 120,
-      render: (_, record) => (
-        <div>
-          <div style={{ fontWeight: 600, color: '#f5222d' }}>
-            ¥{record.price}
-          </div>
-          <div style={{ fontSize: '12px', color: '#52c41a' }}>
-            {record.credits} 积分
-          </div>
-        </div>
-      )
-    },
-    {
-      title: '有效期',
-      dataIndex: 'duration',
-      key: 'duration',
-      width: 80,
-      render: (duration) => `${duration}天`
-    },
-    {
-      title: '订阅用户',
-      dataIndex: 'subscribers',
-      key: 'subscribers',
-      width: 100,
-      render: (count) => (
-        <span style={{ fontWeight: 600 }}>
-          {count.toLocaleString()}
-        </span>
-      )
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 80,
-      render: (status) => (
-        <Tag color={status === 'active' ? 'green' : 'red'}>
-          {status === 'active' ? '上架' : '下架'}
-        </Tag>
-      )
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 120
-    },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEditPlan(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDeletePlan(record)}
-          >
-            删除
-          </Button>
-        </Space>
-      )
-    }
-  ]
-
-  // 交易记录表格列定义
-  const transactionColumns = [
-    {
-      title: '用户',
-      key: 'user',
-      width: 120,
-      render: (_, record) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{record.username}</div>
-          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-            {record.userId}
-          </div>
-        </div>
-      )
-    },
-    {
-      title: '交易类型',
-      dataIndex: 'type',
-      key: 'type',
-      width: 100,
-      render: (type, record) => {
-        if (type === 'purchase') {
-          return <Tag color="green">购买套餐</Tag>
-        } else if (type === 'consume') {
-          return <Tag color="orange">消费积分</Tag>
-        }
-        return <Tag>{type}</Tag>
-      }
-    },
-    {
-      title: '描述',
-      key: 'description',
-      render: (_, record) => {
-        if (record.type === 'purchase') {
-          return record.planName
-        } else if (record.type === 'consume') {
-          return record.description
-        }
-        return '-'
-      }
-    },
-    {
-      title: '金额变动',
-      dataIndex: 'amount',
-      key: 'amount',
-      width: 100,
-      render: (amount) => (
-        <span style={{ 
-          fontWeight: 600, 
-          color: amount > 0 ? '#52c41a' : '#f5222d' 
-        }}>
-          {amount > 0 ? '+' : ''}¥{Math.abs(amount)}
-        </span>
-      )
-    },
-    {
-      title: '积分变动',
-      dataIndex: 'credits',
-      key: 'credits',
-      width: 100,
-      render: (credits) => (
-        <span style={{ 
-          fontWeight: 600, 
-          color: credits > 0 ? '#52c41a' : '#f5222d' 
-        }}>
-          {credits > 0 ? '+' : ''}{credits}
-        </span>
-      )
-    },
-    {
-      title: '支付方式',
-      dataIndex: 'paymentMethod',
-      key: 'paymentMethod',
-      width: 100,
-      render: (method) => method || '-'
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 80,
-      render: (status) => (
-        <Tag color={status === 'completed' ? 'green' : status === 'pending' ? 'orange' : 'red'}>
-          {status === 'completed' ? '完成' : status === 'pending' ? '处理中' : '失败'}
-        </Tag>
-      )
-    },
-    {
-      title: '交易时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      width: 150
-    }
-  ]
-
-  // 处理积分规则编辑
-  const handleEditRule = (rule) => {
-    setEditingRule(rule)
-    form.setFieldsValue(rule)
-    setModalVisible(true)
   }
 
-  // 处理积分规则新增
+  // 加载统计数据
+  const loadStatsData = async () => {
+    try {
+      const result = await creditAPI.getStats()
+      
+      if (result.success) {
+        setStatsData(result.data)
+      } else {
+        // 设置默认数据
+        setStatsData({
+          totalCredits: 0,
+          usedCredits: 0,
+          activeUsers: 0,
+          transactions: 0
+        })
+      }
+    } catch (error) {
+      console.error('加载统计数据失败:', error)
+      setStatsData({
+        totalCredits: 0,
+        usedCredits: 0,
+        activeUsers: 0,
+        transactions: 0
+      })
+    }
+  }
+
+  // 加载积分规则
+  const loadCreditRules = async () => {
+    try {
+      const result = await creditAPI.getRules()
+      
+      if (result.success) {
+        setCreditRules(result.data || [])
+      } else {
+        setCreditRules([])
+      }
+    } catch (error) {
+      console.error('加载积分规则失败:', error)
+      setCreditRules([])
+    }
+  }
+
+  // 加载订阅套餐
+  const loadSubscriptionPlans = async () => {
+    try {
+      const result = await subscriptionAPI.getPlans()
+      
+      if (result.success) {
+        setSubscriptionPlans(result.data || [])
+      } else {
+        setSubscriptionPlans([])
+      }
+    } catch (error) {
+      console.error('加载订阅套餐失败:', error)
+      setSubscriptionPlans([])
+    }
+  }
+
+  // 加载交易记录
+  const loadTransactions = async () => {
+    try {
+      const params = {
+        page: pagination.current,
+        limit: pagination.pageSize
+      }
+      
+      const result = await creditAPI.getTransactions(params)
+      
+      if (result.success) {
+        setTransactions(result.data.transactions || [])
+        setPagination(prev => ({
+          ...prev,
+          total: result.data.total || 0
+        }))
+      } else {
+        setTransactions([])
+        setPagination(prev => ({ ...prev, total: 0 }))
+      }
+    } catch (error) {
+      console.error('加载交易记录失败:', error)
+      setTransactions([])
+      setPagination(prev => ({ ...prev, total: 0 }))
+    }
+  }
+
+  // 加载图表数据
+  const loadChartData = async () => {
+    try {
+      const result = await creditAPI.getChartData()
+      
+      if (result.success) {
+        setChartData({
+          usageTrend: result.data.usageTrend || [],
+          distributionData: result.data.distributionData || []
+        })
+      } else {
+        setChartData({
+          usageTrend: [],
+          distributionData: []
+        })
+      }
+    } catch (error) {
+      console.error('加载图表数据失败:', error)
+      setChartData({
+        usageTrend: [],
+        distributionData: []
+      })
+    }
+  }
+
+  // 添加积分规则
   const handleAddRule = () => {
     setEditingRule(null)
     form.resetFields()
     setModalVisible(true)
   }
 
-  // 处理积分规则删除
-  const handleDeleteRule = (rule) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除积分规则"${rule.name}"吗？`,
-      onOk: () => {
-        setCreditRules(creditRules.filter(r => r.id !== rule.id))
-        message.success('删除成功')
-      }
-    })
+  // 编辑积分规则
+  const handleEditRule = (rule) => {
+    setEditingRule(rule)
+    form.setFieldsValue(rule)
+    setModalVisible(true)
   }
 
-  // 处理会员套餐编辑
-  const handleEditPlan = (plan) => {
-    setEditingPlan(plan)
-    planForm.setFieldsValue({
-      ...plan,
-      features: plan.features.join('\n')
-    })
-    setPlanModalVisible(true)
-  }
-
-  // 处理会员套餐新增
-  const handleAddPlan = () => {
-    setEditingPlan(null)
-    planForm.resetFields()
-    setPlanModalVisible(true)
-  }
-
-  // 处理会员套餐删除
-  const handleDeletePlan = (plan) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除会员套餐"${plan.name}"吗？`,
-      onOk: () => {
-        setMembershipPlans(membershipPlans.filter(p => p.id !== plan.id))
-        message.success('删除成功')
-      }
-    })
-  }
-
-  // 处理积分规则表单提交
-  const handleRuleSubmit = async (values) => {
+  // 保存积分规则
+  const handleSaveRule = async () => {
     try {
+      const values = await form.validateFields()
+      
+      let result
       if (editingRule) {
-        setCreditRules(creditRules.map(rule => 
-          rule.id === editingRule.id ? { ...rule, ...values } : rule
-        ))
-        message.success('更新成功')
+        result = await creditAPI.updateRule(editingRule._id, values)
       } else {
-        const newRule = {
-          id: Date.now().toString(),
-          ...values,
-          usageCount: 0,
-          createdAt: new Date().toISOString().split('T')[0]
-        }
-        setCreditRules([...creditRules, newRule])
-        message.success('添加成功')
-      }
-      setModalVisible(false)
-      form.resetFields()
-    } catch (error) {
-      message.error('操作失败')
-    }
-  }
-
-  // 处理会员套餐表单提交
-  const handlePlanSubmit = async (values) => {
-    try {
-      const planData = {
-        ...values,
-        features: values.features.split('\n').filter(f => f.trim())
+        result = await creditAPI.createRule(values)
       }
       
-      if (editingPlan) {
-        setMembershipPlans(membershipPlans.map(plan => 
-          plan.id === editingPlan.id ? { ...plan, ...planData } : plan
-        ))
-        message.success('更新成功')
+      if (result.success) {
+        message.success(editingRule ? '规则更新成功' : '规则创建成功')
+        setModalVisible(false)
+        setEditingRule(null)
+        form.resetFields()
+        loadCreditRules()
       } else {
-        const newPlan = {
-          id: Date.now().toString(),
-          ...planData,
-          subscribers: 0,
-          createdAt: new Date().toISOString().split('T')[0]
-        }
-        setMembershipPlans([...membershipPlans, newPlan])
-        message.success('添加成功')
+        message.error(result.message || '保存规则失败')
       }
-      setPlanModalVisible(false)
-      planForm.resetFields()
     } catch (error) {
-      message.error('操作失败')
+      console.error('保存规则失败:', error)
+      message.error('保存规则失败，请稍后重试')
     }
+  }
+
+  // 删除积分规则
+  const handleDeleteRule = async (ruleId) => {
+    try {
+      const result = await creditAPI.deleteRule(ruleId)
+      
+      if (result.success) {
+        message.success('规则删除成功')
+        loadCreditRules()
+      } else {
+        message.error(result.message || '删除规则失败')
+      }
+    } catch (error) {
+      console.error('删除规则失败:', error)
+      message.error('删除规则失败，请稍后重试')
+    }
+  }
+
+  // 积分规则表格列
+  const ruleColumns = [
+    {
+      title: '规则名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 150
+    },
+    {
+      title: '规则类型',
+      dataIndex: 'type',
+      key: 'type',
+      width: 120,
+      render: (type) => {
+        const typeConfig = {
+          signup: { color: 'green', text: '注册奖励' },
+          daily: { color: 'blue', text: '每日签到' },
+          referral: { color: 'orange', text: '推荐奖励' },
+          purchase: { color: 'purple', text: '购买奖励' },
+          task: { color: 'cyan', text: '任务奖励' }
+        }
+        const config = typeConfig[type] || { color: 'default', text: type }
+        return <Tag color={config.color}>{config.text}</Tag>
+      }
+    },
+    {
+      title: '积分数量',
+      dataIndex: 'credits',
+      key: 'credits',
+      width: 100,
+      render: (credits) => (
+        <span style={{ color: '#faad14', fontWeight: 600 }}>+{credits}</span>
+      )
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true
+    },
+    {
+      title: '状态',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      width: 80,
+      render: (enabled) => (
+        <Tag color={enabled ? 'success' : 'default'}>
+          {enabled ? '启用' : '禁用'}
+        </Tag>
+      )
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 120,
+      render: (_, record) => (
+        <Space size="small">
+          <Button 
+            type="text" 
+            size="small" 
+            icon={<EditOutlined />}
+            onClick={() => handleEditRule(record)}
+          >
+            编辑
+          </Button>
+          <Button 
+            type="text" 
+            size="small" 
+            danger 
+            icon={<DeleteOutlined />}
+            onClick={() => handleDeleteRule(record._id)}
+          >
+            删除
+          </Button>
+        </Space>
+      )
+    }
+  ]
+
+  // 交易记录表格列
+  const transactionColumns = [
+    {
+      title: '用户',
+      dataIndex: 'user',
+      key: 'user',
+      width: 120,
+      render: (user) => user?.username || user?.wechatId || '-'
+    },
+    {
+      title: '交易类型',
+      dataIndex: 'type',
+      key: 'type',
+      width: 100,
+      render: (type) => {
+        const typeConfig = {
+          earn: { color: 'green', text: '获得' },
+          spend: { color: 'red', text: '消费' },
+          refund: { color: 'blue', text: '退款' }
+        }
+        const config = typeConfig[type] || { color: 'default', text: type }
+        return <Tag color={config.color}>{config.text}</Tag>
+      }
+    },
+    {
+      title: '积分变化',
+      dataIndex: 'amount',
+      key: 'amount',
+      width: 100,
+      render: (amount, record) => (
+        <span style={{ 
+          color: record.type === 'earn' ? '#52c41a' : '#ff4d4f',
+          fontWeight: 600 
+        }}>
+          {record.type === 'earn' ? '+' : '-'}{Math.abs(amount)}
+        </span>
+      )
+    },
+    {
+      title: '余额',
+      dataIndex: 'balance',
+      key: 'balance',
+      width: 100,
+      render: (balance) => balance || 0
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true
+    },
+    {
+      title: '时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 150,
+      render: (date) => date ? new Date(date).toLocaleString() : '-'
+    }
+  ]
+
+  // 订阅套餐表格列
+  const planColumns = [
+    {
+      title: '套餐名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 120
+    },
+    {
+      title: '价格',
+      dataIndex: 'price',
+      key: 'price',
+      width: 100,
+      render: (price) => `¥${price}`
+    },
+    {
+      title: '积分数量',
+      dataIndex: 'credits',
+      key: 'credits',
+      width: 100,
+      render: (credits) => (
+        <span style={{ color: '#faad14', fontWeight: 600 }}>{credits}</span>
+      )
+    },
+    {
+      title: '有效期',
+      dataIndex: 'duration',
+      key: 'duration',
+      width: 100,
+      render: (duration) => `${duration}天`
+    },
+    {
+      title: '状态',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      width: 80,
+      render: (enabled) => (
+        <Tag color={enabled ? 'success' : 'default'}>
+          {enabled ? '启用' : '禁用'}
+        </Tag>
+      )
+    },
+    {
+      title: '销量',
+      dataIndex: 'salesCount',
+      key: 'salesCount',
+      width: 80,
+      render: (count) => count || 0
+    }
+  ]
+
+  // 使用趋势图配置
+  const usageTrendConfig = {
+    data: chartData.usageTrend,
+    xField: 'date',
+    yField: 'value',
+    seriesField: 'type',
+    smooth: true,
+    animation: {
+      appear: {
+        animation: 'path-in',
+        duration: 1000,
+      },
+    },
+  }
+
+  // 积分分布图配置
+  const distributionConfig = {
+    data: chartData.distributionData,
+    angleField: 'value',
+    colorField: 'type',
+    radius: 0.8,
+    label: {
+      type: 'outer',
+      content: '{name} {percentage}',
+    },
+    interactions: [
+      {
+        type: 'element-active',
+      },
+    ],
   }
 
   return (
     <div>
       {/* 统计卡片 */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={6}>
           <Card>
             <Statistic
-              title="总收入"
-              value={stats.totalRevenue}
-              precision={2}
-              prefix="¥"
-              valueStyle={{ color: '#52c41a' }}
+              title="总积分发放"
+              value={statsData.totalCredits}
+              prefix={<CreditCardOutlined />}
+              valueStyle={{ color: '#3f8600' }}
             />
           </Card>
+        </Col>
+        <Col span={6}>
           <Card>
             <Statistic
-              title="总用户数"
-              value={stats.totalUsers}
+              title="已消费积分"
+              value={statsData.usedCredits}
+              prefix={<GiftOutlined />}
+              valueStyle={{ color: '#cf1322' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="活跃用户"
+              value={statsData.activeUsers}
+              prefix={<UserOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
           </Card>
+        </Col>
+        <Col span={6}>
           <Card>
             <Statistic
-              title="付费会员"
-              value={stats.activeMembers}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-          <Card>
-            <Statistic
-              title="今日交易"
-              value={stats.todayTransactions}
+              title="交易笔数"
+              value={statsData.transactions}
+              prefix={<TrophyOutlined />}
               valueStyle={{ color: '#722ed1' }}
             />
           </Card>
-        </div>
-      </div>
+        </Col>
+      </Row>
 
       {/* 图表区域 */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-          <Card title="收入趋势">
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="revenue" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={16}>
+          <Card title="积分使用趋势" loading={loading}>
+            <Line {...usageTrendConfig} height={300} />
           </Card>
-          <Card title="套餐分布">
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={60}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+        </Col>
+        <Col span={8}>
+          <Card title="积分分布" loading={loading}>
+            <Pie {...distributionConfig} height={300} />
           </Card>
-        </div>
-      </div>
+        </Col>
+      </Row>
 
-      <Tabs 
-        activeKey={activeTab} 
-        onChange={setActiveTab}
-        items={[
-          {
-            key: 'rules',
-            label: '积分规则',
-            children: (
-              <>
-                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={handleAddRule}>
-                    添加积分规则
-                  </Button>
-                  <Space>
-                    <Button>批量设置</Button>
-                    <Button>导出规则</Button>
-                  </Space>
+      {/* 标签页内容 */}
+      <Card>
+        <Tabs 
+          defaultActiveKey="rules"
+          items={[
+            {
+              key: 'rules',
+              label: '积分规则',
+              children: (
+                <div>
+                  <div style={{ marginBottom: 16 }}>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={handleAddRule}>
+                      添加规则
+                    </Button>
+                  </div>
+                  <Table
+                    columns={ruleColumns}
+                    dataSource={creditRules}
+                    rowKey="_id"
+                    loading={loading}
+                    pagination={false}
+                  />
                 </div>
-
-                <Table
-                  columns={ruleColumns}
-                  dataSource={creditRules}
-                  rowKey="id"
-                  loading={loading}
-                  pagination={{
-                    total: creditRules.length,
-                    pageSize: 10,
-                    showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条记录`
-                  }}
-                />
-              </>
-            )
-          },
-          {
-            key: 'plans',
-            label: '会员套餐',
-            children: (
-              <>
-                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                  <Button type="primary" icon={<CrownOutlined />} onClick={handleAddPlan}>
-                    添加会员套餐
-                  </Button>
-                  <Space>
-                    <Button>套餐分析</Button>
-                    <Button>导出数据</Button>
-                  </Space>
-                </div>
-
+              )
+            },
+            {
+              key: 'plans',
+              label: '订阅套餐',
+              children: (
                 <Table
                   columns={planColumns}
-                  dataSource={membershipPlans}
-                  rowKey="id"
+                  dataSource={subscriptionPlans}
+                  rowKey="_id"
                   loading={loading}
-                  pagination={{
-                    total: membershipPlans.length,
-                    pageSize: 10,
-                    showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条记录`
-                  }}
+                  pagination={false}
                 />
-              </>
-            )
-          },
-          {
-            key: 'transactions',
-            label: '财务记录',
-            children: (
-              <>
-                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                  <Space>
-                    <RangePicker />
-                    <Select defaultValue="all" style={{ width: 120 }}>
-                      <Option value="all">全部类型</Option>
-                      <Option value="purchase">购买套餐</Option>
-                      <Option value="consume">消费积分</Option>
-                    </Select>
-                  </Space>
-                  <Space>
-                    <Button icon={<HistoryOutlined />}>导出记录</Button>
-                    <Button>财务报表</Button>
-                  </Space>
-                </div>
-
+              )
+            },
+            {
+              key: 'transactions',
+              label: '交易记录',
+              children: (
                 <Table
                   columns={transactionColumns}
                   dataSource={transactions}
-                  rowKey="id"
+                  rowKey="_id"
                   loading={loading}
                   pagination={{
-                    total: transactions.length,
-                    pageSize: 10,
+                    ...pagination,
                     showSizeChanger: true,
-                    showTotal: (total) => `共 ${total} 条记录`
+                    showQuickJumper: true,
+                    showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+                    onChange: (page, pageSize) => {
+                      setPagination(prev => ({ ...prev, current: page, pageSize }))
+                    }
                   }}
                 />
-              </>
-            )
-          }
-        ]}
-      />
+              )
+            }
+          ]}
+        />
+      </Card>
 
-      {/* 积分规则编辑/新增模态框 */}
+      {/* 添加/编辑规则模态框 */}
       <Modal
         title={editingRule ? '编辑积分规则' : '添加积分规则'}
         open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        onOk={() => form.submit()}
-        width={500}
+        onOk={handleSaveRule}
+        onCancel={() => {
+          setModalVisible(false)
+          setEditingRule(null)
+          form.resetFields()
+        }}
+        width={600}
+        destroyOnHidden
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleRuleSubmit}
-        >
+        <Form form={form} layout="vertical">
           <Form.Item
             name="name"
             label="规则名称"
@@ -784,141 +591,44 @@ const CreditsPage = () => {
           </Form.Item>
           
           <Form.Item
+            name="type"
+            label="规则类型"
+            rules={[{ required: true, message: '请选择规则类型' }]}
+          >
+            <Select placeholder="请选择规则类型">
+              <Option value="signup">注册奖励</Option>
+              <Option value="daily">每日签到</Option>
+              <Option value="referral">推荐奖励</Option>
+              <Option value="purchase">购买奖励</Option>
+              <Option value="task">任务奖励</Option>
+            </Select>
+          </Form.Item>
+          
+          <Form.Item
+            name="credits"
+            label="积分数量"
+            rules={[
+              { required: true, message: '请输入积分数量' },
+              { type: 'number', min: 1, message: '积分数量必须大于0' }
+            ]}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              placeholder="请输入积分数量"
+              min={1}
+            />
+          </Form.Item>
+          
+          <Form.Item
             name="description"
             label="规则描述"
             rules={[{ required: true, message: '请输入规则描述' }]}
           >
-            <TextArea rows={2} placeholder="请输入规则描述" />
+            <Input.TextArea rows={3} placeholder="请输入规则描述" />
           </Form.Item>
           
-          <Form.Item
-            name="category"
-            label="功能分类"
-            rules={[{ required: true, message: '请选择功能分类' }]}
-          >
-            <Select placeholder="请选择功能分类">
-              <Option value="text">文本生成</Option>
-              <Option value="image">图像生成</Option>
-              <Option value="video">视频生成</Option>
-            </Select>
-          </Form.Item>
-          
-          <Form.Item
-            name="creditCost"
-            label="积分消耗"
-            rules={[{ required: true, message: '请输入积分消耗' }]}
-          >
-            <InputNumber
-              min={1}
-              placeholder="请输入积分消耗"
-              style={{ width: '100%' }}
-              addonAfter="积分"
-            />
-          </Form.Item>
-          
-          <Form.Item
-            name="status"
-            label="状态"
-            rules={[{ required: true, message: '请选择状态' }]}
-          >
-            <Select placeholder="请选择状态">
-              <Option value="active">启用</Option>
-              <Option value="inactive">停用</Option>
-            </Select>
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 会员套餐编辑/新增模态框 */}
-      <Modal
-        title={editingPlan ? '编辑会员套餐' : '添加会员套餐'}
-        open={planModalVisible}
-        onCancel={() => setPlanModalVisible(false)}
-        onOk={() => planForm.submit()}
-        width={600}
-      >
-        <Form
-          form={planForm}
-          layout="vertical"
-          onFinish={handlePlanSubmit}
-        >
-          <Form.Item
-            name="name"
-            label="套餐名称"
-            rules={[{ required: true, message: '请输入套餐名称' }]}
-          >
-            <Input placeholder="请输入套餐名称" />
-          </Form.Item>
-          
-          <Form.Item
-            name="description"
-            label="套餐描述"
-            rules={[{ required: true, message: '请输入套餐描述' }]}
-          >
-            <TextArea rows={2} placeholder="请输入套餐描述" />
-          </Form.Item>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-            <Form.Item
-              name="price"
-              label="套餐价格"
-              rules={[{ required: true, message: '请输入套餐价格' }]}
-            >
-              <InputNumber
-                min={0}
-                precision={2}
-                placeholder="0.00"
-                style={{ width: '100%' }}
-                addonBefore="¥"
-              />
-            </Form.Item>
-            
-            <Form.Item
-              name="credits"
-              label="包含积分"
-              rules={[{ required: true, message: '请输入包含积分' }]}
-            >
-              <InputNumber
-                min={1}
-                placeholder="积分数量"
-                style={{ width: '100%' }}
-              />
-            </Form.Item>
-            
-            <Form.Item
-              name="duration"
-              label="有效期"
-              rules={[{ required: true, message: '请输入有效期' }]}
-            >
-              <InputNumber
-                min={1}
-                placeholder="天数"
-                style={{ width: '100%' }}
-                addonAfter="天"
-              />
-            </Form.Item>
-          </div>
-          
-          <Form.Item
-            name="features"
-            label="套餐特性"
-            rules={[{ required: true, message: '请输入套餐特性' }]}
-          >
-            <TextArea
-              rows={4}
-              placeholder="每行一个特性，如：&#10;文本生成&#10;基础图像生成&#10;客服支持"
-            />
-          </Form.Item>
-          
-          <Form.Item
-            name="status"
-            label="状态"
-            rules={[{ required: true, message: '请选择状态' }]}
-          >
-            <Select placeholder="请选择状态">
-              <Option value="active">上架</Option>
-              <Option value="inactive">下架</Option>
-            </Select>
+          <Form.Item name="enabled" label="启用状态" valuePropName="checked">
+            <Switch checkedChildren="启用" unCheckedChildren="禁用" />
           </Form.Item>
         </Form>
       </Modal>

@@ -1,485 +1,576 @@
-const { SubscriptionPlan, Subscription, User } = require('../models');
+const Subscription = require('../models/Subscription');
+const SubscriptionPlan = require('../models/SubscriptionPlan');
+const User = require('../models/User');
+const CreditRecord = require('../models/CreditRecord');
 
-class SubscriptionController {
-  // 获取所有订阅套餐
-  async getPlans(req, res) {
-    try {
-      const plans = await SubscriptionPlan.getActivePlans();
-      
-      res.json({
-        success: true,
-        data: { plans }
-      });
-    } catch (error) {
-      console.error('获取订阅套餐错误:', error);
-      res.status(500).json({
+// 获取订阅套餐列表
+const getSubscriptionPlans = async (req, res) => {
+  try {
+    const { active_only = 'true' } = req.query;
+    
+    let query = {};
+    if (active_only === 'true') {
+      query.is_active = true;
+    }
+
+    const plans = await SubscriptionPlan.find(query).sort({ sort_order: 1, price: 1 });
+
+    res.json({
+      success: true,
+      data: { plans }
+    });
+  } catch (error) {
+    console.error('Get subscription plans error:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取订阅套餐失败'
+    });
+  }
+};
+
+// 创建订阅套餐
+const createSubscriptionPlan = async (req, res) => {
+  try {
+    const planData = req.body;
+    
+    const plan = new SubscriptionPlan(planData);
+    await plan.save();
+
+    res.status(201).json({
+      success: true,
+      message: '订阅套餐创建成功',
+      data: { plan }
+    });
+  } catch (error) {
+    console.error('Create subscription plan error:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
         success: false,
-        message: '获取订阅套餐失败'
+        message: '数据验证失败',
+        errors: Object.values(error.errors).map(err => err.message)
       });
     }
+    res.status(500).json({
+      success: false,
+      message: '创建订阅套餐失败'
+    });
   }
+};
 
-  // 获取用户当前订阅
-  async getUserSubscription(req, res) {
-    try {
-      const userId = req.user._id;
-      
-      const subscription = await Subscription.getUserActiveSubscription(userId);
-      
-      res.json({
-        success: true,
-        data: { subscription }
-      });
-    } catch (error) {
-      console.error('获取用户订阅错误:', error);
-      res.status(500).json({
+// 更新订阅套餐
+const updateSubscriptionPlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    const plan = await SubscriptionPlan.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!plan) {
+      return res.status(404).json({
         success: false,
-        message: '获取订阅信息失败'
+        message: '订阅套餐不存在'
       });
     }
-  }
 
-  // 创建订阅
-  async createSubscription(req, res) {
-    try {
-      const { plan_id, payment_method = 'alipay' } = req.body;
-      const userId = req.user._id;
-
-      if (!plan_id) {
-        return res.status(400).json({
-          success: false,
-          message: '请选择订阅套餐'
-        });
-      }
-
-      // 检查套餐是否存在
-      const plan = await SubscriptionPlan.findById(plan_id);
-      if (!plan || !plan.is_active) {
-        return res.status(404).json({
-          success: false,
-          message: '订阅套餐不存在或已下架'
-        });
-      }
-
-      // 检查用户是否已有活跃订阅
-      const existingSubscription = await Subscription.getUserActiveSubscription(userId);
-      if (existingSubscription) {
-        return res.status(400).json({
-          success: false,
-          message: '您已有活跃的订阅，请先取消当前订阅'
-        });
-      }
-
-      // 创建订阅
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + plan.duration_months);
-
-      const subscription = new Subscription({
-        user_id: userId,
-        plan_id: plan_id,
-        start_date: startDate,
-        end_date: endDate,
-        status: 'pending',
-        paid_amount: plan.price,
-        payment_method
-      });
-
-      await subscription.save();
-
-      res.status(201).json({
-        success: true,
-        message: '订阅创建成功，请完成支付',
-        data: { 
-          subscription: {
-            id: subscription._id,
-            plan_name: plan.name,
-            start_date: subscription.start_date,
-            end_date: subscription.end_date,
-            paid_amount: subscription.paid_amount,
-            status: subscription.status
-          }
-        }
-      });
-    } catch (error) {
-      console.error('创建订阅错误:', error);
-      res.status(500).json({
+    res.json({
+      success: true,
+      message: '订阅套餐更新成功',
+      data: { plan }
+    });
+  } catch (error) {
+    console.error('Update subscription plan error:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
         success: false,
-        message: '创建订阅失败'
+        message: '数据验证失败',
+        errors: Object.values(error.errors).map(err => err.message)
       });
     }
+    res.status(500).json({
+      success: false,
+      message: '更新订阅套餐失败'
+    });
   }
+};
 
-  // 模拟订阅支付成功
-  async simulateSubscriptionPayment(req, res) {
-    try {
-      const { subscription_id, transaction_id } = req.body;
-      const userId = req.user._id;
+// 删除订阅套餐
+const deleteSubscriptionPlan = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-      if (!subscription_id || !transaction_id) {
-        return res.status(400).json({
-          success: false,
-          message: '缺少必要参数'
-        });
-      }
+    // 检查是否有用户正在使用此套餐
+    const activeSubscriptions = await Subscription.countDocuments({
+      plan_id: id,
+      status: 'active'
+    });
 
-      const subscription = await Subscription.findOne({
-        _id: subscription_id,
-        user_id: userId
-      });
-
-      if (!subscription) {
-        return res.status(404).json({
-          success: false,
-          message: '订阅不存在'
-        });
-      }
-
-      if (subscription.status === 'active') {
-        return res.status(400).json({
-          success: false,
-          message: '订阅已激活'
-        });
-      }
-
-      // 激活订阅
-      subscription.status = 'active';
-      subscription.transaction_id = transaction_id;
-      subscription.paid_at = new Date();
-      await subscription.save();
-
-      // 更新用户类型
-      const plan = await SubscriptionPlan.findById(subscription.plan_id);
-      if (plan) {
-        let userType = 'free';
-        if (plan.name.toLowerCase().includes('premium')) {
-          userType = 'premium';
-        } else if (plan.name.toLowerCase().includes('vip')) {
-          userType = 'vip';
-        }
-
-        await User.findByIdAndUpdate(userId, { user_type: userType });
-      }
-
-      res.json({
-        success: true,
-        message: '订阅支付成功，已激活'
-      });
-    } catch (error) {
-      console.error('订阅支付错误:', error);
-      res.status(500).json({
+    if (activeSubscriptions > 0) {
+      return res.status(400).json({
         success: false,
-        message: '订阅支付处理失败'
+        message: `无法删除套餐，还有 ${activeSubscriptions} 个活跃订阅`
       });
     }
-  }
 
-  // 取消订阅
-  async cancelSubscription(req, res) {
-    try {
-      const userId = req.user._id;
-
-      const subscription = await Subscription.getUserActiveSubscription(userId);
-      if (!subscription) {
-        return res.status(404).json({
-          success: false,
-          message: '没有找到活跃的订阅'
-        });
-      }
-
-      await subscription.cancel();
-
-      // 更新用户类型为免费用户
-      await User.findByIdAndUpdate(userId, { user_type: 'free' });
-
-      res.json({
-        success: true,
-        message: '订阅已取消'
-      });
-    } catch (error) {
-      console.error('取消订阅错误:', error);
-      res.status(500).json({
+    const plan = await SubscriptionPlan.findByIdAndDelete(id);
+    if (!plan) {
+      return res.status(404).json({
         success: false,
-        message: '取消订阅失败'
+        message: '订阅套餐不存在'
       });
     }
+
+    res.json({
+      success: true,
+      message: '订阅套餐删除成功'
+    });
+  } catch (error) {
+    console.error('Delete subscription plan error:', error);
+    res.status(500).json({
+      success: false,
+      message: '删除订阅套餐失败'
+    });
   }
+};
 
-  // 续费订阅
-  async renewSubscription(req, res) {
-    try {
-      const { months = 1 } = req.body;
-      const userId = req.user._id;
-
-      const subscription = await Subscription.getUserActiveSubscription(userId);
-      if (!subscription) {
-        return res.status(404).json({
-          success: false,
-          message: '没有找到活跃的订阅'
-        });
-      }
-
-      const plan = await SubscriptionPlan.findById(subscription.plan_id);
-      if (!plan) {
-        return res.status(404).json({
-          success: false,
-          message: '订阅套餐不存在'
-        });
-      }
-
-      await subscription.renew(months);
-
-      res.json({
-        success: true,
-        message: '订阅续费成功',
-        data: {
-          new_end_date: subscription.end_date,
-          extended_months: months
-        }
-      });
-    } catch (error) {
-      console.error('续费订阅错误:', error);
-      res.status(500).json({
-        success: false,
-        message: '续费订阅失败'
-      });
+// 获取用户订阅列表
+const getUserSubscriptions = async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 20, 
+      status = '', 
+      user_id = '',
+      plan_id = '' 
+    } = req.query;
+    
+    const query = {};
+    
+    // 权限控制：普通用户只能看到自己的订阅
+    if (req.userType !== 'admin') {
+      query.user_id = req.user._id;
+    } else if (user_id) {
+      query.user_id = user_id;
     }
-  }
-
-  // 获取用户订阅历史
-  async getUserSubscriptionHistory(req, res) {
-    try {
-      const { page = 1, limit = 20 } = req.query;
-      const userId = req.user._id;
-
-      const skip = (page - 1) * limit;
-
-      const subscriptions = await Subscription.find({ user_id: userId })
-        .populate('plan_id', 'name duration_months price')
-        .sort({ created_at: -1 })
-        .skip(skip)
-        .limit(parseInt(limit));
-
-      const total = await Subscription.countDocuments({ user_id: userId });
-
-      res.json({
-        success: true,
-        data: {
-          subscriptions,
-          pagination: {
-            current_page: parseInt(page),
-            total_pages: Math.ceil(total / limit),
-            total_items: total,
-            items_per_page: parseInt(limit)
-          }
-        }
-      });
-    } catch (error) {
-      console.error('获取订阅历史错误:', error);
-      res.status(500).json({
-        success: false,
-        message: '获取订阅历史失败'
-      });
+    
+    if (status) {
+      query.status = status;
     }
-  }
-
-  // 管理员：获取所有订阅套餐
-  async getAllPlans(req, res) {
-    try {
-      const plans = await SubscriptionPlan.find().sort({ sort_order: 1 });
-      
-      res.json({
-        success: true,
-        data: { plans }
-      });
-    } catch (error) {
-      console.error('获取所有订阅套餐错误:', error);
-      res.status(500).json({
-        success: false,
-        message: '获取订阅套餐失败'
-      });
+    
+    if (plan_id) {
+      query.plan_id = plan_id;
     }
-  }
 
-  // 管理员：创建订阅套餐
-  async createPlan(req, res) {
-    try {
-      const {
-        name,
-        description,
-        price,
-        duration_months,
-        benefits,
-        sort_order = 0,
-        is_active = true
-      } = req.body;
-
-      if (!name || !description || !price || !duration_months) {
-        return res.status(400).json({
-          success: false,
-          message: '请填写所有必填字段'
-        });
-      }
-
-      const plan = new SubscriptionPlan({
-        name,
-        description,
-        price,
-        duration_months,
-        benefits: benefits || [],
-        sort_order,
-        is_active
-      });
-
-      await plan.save();
-
-      res.status(201).json({
-        success: true,
-        message: '订阅套餐创建成功',
-        data: { plan }
-      });
-    } catch (error) {
-      console.error('创建订阅套餐错误:', error);
-      res.status(500).json({
-        success: false,
-        message: '创建订阅套餐失败'
-      });
-    }
-  }
-
-  // 管理员：更新订阅套餐
-  async updatePlan(req, res) {
-    try {
-      const { id } = req.params;
-      const updateData = req.body;
-
-      const plan = await SubscriptionPlan.findByIdAndUpdate(
-        id,
-        { ...updateData, updated_at: new Date() },
-        { new: true, runValidators: true }
-      );
-
-      if (!plan) {
-        return res.status(404).json({
-          success: false,
-          message: '订阅套餐不存在'
-        });
-      }
-
-      res.json({
-        success: true,
-        message: '订阅套餐更新成功',
-        data: { plan }
-      });
-    } catch (error) {
-      console.error('更新订阅套餐错误:', error);
-      res.status(500).json({
-        success: false,
-        message: '更新订阅套餐失败'
-      });
-    }
-  }
-
-  // 管理员：删除订阅套餐
-  async deletePlan(req, res) {
-    try {
-      const { id } = req.params;
-
-      const plan = await SubscriptionPlan.findByIdAndDelete(id);
-      if (!plan) {
-        return res.status(404).json({
-          success: false,
-          message: '订阅套餐不存在'
-        });
-      }
-
-      res.json({
-        success: true,
-        message: '订阅套餐删除成功'
-      });
-    } catch (error) {
-      console.error('删除订阅套餐错误:', error);
-      res.status(500).json({
-        success: false,
-        message: '删除订阅套餐失败'
-      });
-    }
-  }
-
-  // 管理员：获取订阅统计
-  async getSubscriptionStats(req, res) {
-    try {
-      const totalSubscriptions = await Subscription.countDocuments({ status: 'active' });
-      const totalRevenue = await Subscription.aggregate([
-        { $match: { status: 'active' } },
-        { $group: { _id: null, total: { $sum: '$paid_amount' } } }
-      ]);
-
-      // 即将到期的订阅
-      const expiringSubscriptions = await Subscription.getExpiringSubscriptions(7);
-
-      res.json({
-        success: true,
-        data: {
-          total_active_subscriptions: totalSubscriptions,
-          total_revenue: totalRevenue[0]?.total || 0,
-          expiring_subscriptions_7d: expiringSubscriptions.length
-        }
-      });
-    } catch (error) {
-      console.error('获取订阅统计错误:', error);
-      res.status(500).json({
-        success: false,
-        message: '获取订阅统计失败'
-      });
-    }
-  }
-
-  // 管理员：获取所有订阅记录
-  async getAllSubscriptions(req, res) {
-    try {
-      const { 
-        page = 1, 
-        limit = 20, 
-        status, 
-        plan_id 
-      } = req.query;
-
-      const filter = {};
-      if (status) filter.status = status;
-      if (plan_id) filter.plan_id = plan_id;
-
-      const skip = (page - 1) * limit;
-
-      const subscriptions = await Subscription.find(filter)
+    const skip = (page - 1) * limit;
+    
+    const [subscriptions, total] = await Promise.all([
+      Subscription.find(query)
         .populate('user_id', 'username email')
-        .populate('plan_id', 'name duration_months price')
+        .populate('plan_id', 'name price duration')
         .sort({ created_at: -1 })
         .skip(skip)
-        .limit(parseInt(limit));
+        .limit(parseInt(limit)),
+      Subscription.countDocuments(query)
+    ]);
 
-      const total = await Subscription.countDocuments(filter);
-
-      res.json({
-        success: true,
-        data: {
-          subscriptions,
-          pagination: {
-            current_page: parseInt(page),
-            total_pages: Math.ceil(total / limit),
-            total_items: total,
-            items_per_page: parseInt(limit)
-          }
+    res.json({
+      success: true,
+      data: {
+        subscriptions,
+        pagination: {
+          current_page: parseInt(page),
+          total_pages: Math.ceil(total / limit),
+          total_items: total,
+          items_per_page: parseInt(limit)
         }
-      });
-    } catch (error) {
-      console.error('获取所有订阅记录错误:', error);
-      res.status(500).json({
+      }
+    });
+  } catch (error) {
+    console.error('Get user subscriptions error:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取订阅记录失败'
+    });
+  }
+};
+
+// 创建订阅
+const createSubscription = async (req, res) => {
+  try {
+    const { plan_id, payment_method, transaction_id, auto_renew = true } = req.body;
+    const userId = req.user._id;
+
+    // 获取套餐信息
+    const plan = await SubscriptionPlan.findById(plan_id);
+    if (!plan) {
+      return res.status(404).json({
         success: false,
-        message: '获取订阅记录失败'
+        message: '订阅套餐不存在'
       });
     }
-  }
-}
 
-module.exports = new SubscriptionController();
+    if (!plan.is_active) {
+      return res.status(400).json({
+        success: false,
+        message: '订阅套餐已停用'
+      });
+    }
+
+    // 检查用户是否已有活跃订阅
+    const existingSubscription = await Subscription.getCurrentSubscription(userId);
+    if (existingSubscription) {
+      return res.status(400).json({
+        success: false,
+        message: '您已有活跃的订阅，请先取消当前订阅'
+      });
+    }
+
+    // 计算订阅时间
+    const startDate = new Date();
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + plan.duration);
+
+    // 创建订阅
+    const subscription = new Subscription({
+      user_id: userId,
+      plan_id,
+      start_date: startDate,
+      end_date: endDate,
+      status: 'active',
+      payment_amount: plan.actual_price,
+      currency: plan.currency,
+      payment_method,
+      transaction_id,
+      auto_renew,
+      granted_credits: plan.benefits.monthly_credits || 0
+    });
+
+    await subscription.save();
+
+    // 给用户添加积分
+    if (plan.benefits.monthly_credits > 0) {
+      const user = await User.findById(userId);
+      await user.addCredits(plan.benefits.monthly_credits);
+
+      // 创建积分记录
+      await CreditRecord.create({
+        user_id: userId,
+        type: 'subscription',
+        amount: plan.benefits.monthly_credits,
+        balance_before: user.credit_balance - plan.benefits.monthly_credits,
+        balance_after: user.credit_balance,
+        description: `订阅套餐赠送积分: ${plan.name}`,
+        metadata: {
+          subscription_id: subscription._id,
+          plan_id,
+          plan_name: plan.name
+        }
+      });
+    }
+
+    // 更新用户角色（如果套餐包含高级权限）
+    if (plan.benefits.priority_processing || plan.benefits.advanced_features) {
+      await User.findByIdAndUpdate(userId, { role: 'premium' });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: '订阅创建成功',
+      data: { subscription }
+    });
+  } catch (error) {
+    console.error('Create subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: '创建订阅失败'
+    });
+  }
+};
+
+// 取消订阅
+const cancelSubscription = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason = '', immediate = false } = req.body;
+    
+    const subscription = await Subscription.findById(id);
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: '订阅不存在'
+      });
+    }
+
+    // 权限检查
+    if (req.userType !== 'admin' && subscription.user_id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: '无权取消此订阅'
+      });
+    }
+
+    await subscription.cancel(reason, immediate);
+
+    // 如果立即取消，更新用户角色
+    if (immediate) {
+      const user = await User.findById(subscription.user_id);
+      const hasOtherActiveSubscription = await Subscription.getCurrentSubscription(subscription.user_id);
+      
+      if (!hasOtherActiveSubscription) {
+        await User.findByIdAndUpdate(subscription.user_id, { role: 'user' });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: immediate ? '订阅已立即取消' : '订阅将在到期后取消'
+    });
+  } catch (error) {
+    console.error('Cancel subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: '取消订阅失败'
+    });
+  }
+};
+
+// 续费订阅
+const renewSubscription = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { payment_method, transaction_id } = req.body;
+    
+    const subscription = await Subscription.findById(id).populate('plan_id');
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: '订阅不存在'
+      });
+    }
+
+    // 权限检查
+    if (req.userType !== 'admin' && subscription.user_id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: '无权续费此订阅'
+      });
+    }
+
+    if (!['expired', 'cancelled'].includes(subscription.status)) {
+      return res.status(400).json({
+        success: false,
+        message: '只能续费已过期或已取消的订阅'
+      });
+    }
+
+    await subscription.renew(payment_method, transaction_id);
+
+    // 给用户添加积分
+    if (subscription.plan_id.benefits.monthly_credits > 0) {
+      const user = await User.findById(subscription.user_id);
+      await user.addCredits(subscription.plan_id.benefits.monthly_credits);
+
+      // 创建积分记录
+      await CreditRecord.create({
+        user_id: subscription.user_id,
+        type: 'subscription',
+        amount: subscription.plan_id.benefits.monthly_credits,
+        balance_before: user.credit_balance - subscription.plan_id.benefits.monthly_credits,
+        balance_after: user.credit_balance,
+        description: `订阅续费赠送积分: ${subscription.plan_id.name}`,
+        metadata: {
+          subscription_id: subscription._id,
+          plan_id: subscription.plan_id._id,
+          plan_name: subscription.plan_id.name
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: '订阅续费成功'
+    });
+  } catch (error) {
+    console.error('Renew subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: '续费订阅失败'
+    });
+  }
+};
+
+// 获取订阅统计
+const getSubscriptionStats = async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    
+    const stats = await Subscription.getSubscriptionStats(parseInt(days));
+
+    // 获取套餐统计
+    const planStats = await SubscriptionPlan.aggregate([
+      {
+        $lookup: {
+          from: 'subscriptions',
+          localField: '_id',
+          foreignField: 'plan_id',
+          as: 'subscriptions'
+        }
+      },
+      {
+        $project: {
+          name: 1,
+          price: 1,
+          total_subscriptions: { $size: '$subscriptions' },
+          active_subscriptions: {
+            $size: {
+              $filter: {
+                input: '$subscriptions',
+                cond: { $eq: ['$$this.status', 'active'] }
+              }
+            }
+          },
+          revenue: {
+            $sum: {
+              $map: {
+                input: {
+                  $filter: {
+                    input: '$subscriptions',
+                    cond: { $eq: ['$$this.status', 'active'] }
+                  }
+                },
+                as: 'sub',
+                in: '$$sub.payment_amount'
+              }
+            }
+          }
+        }
+      },
+      { $sort: { active_subscriptions: -1 } }
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        subscription_stats: stats,
+        plan_stats: planStats
+      }
+    });
+  } catch (error) {
+    console.error('Get subscription stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取订阅统计失败'
+    });
+  }
+};
+
+// 获取即将到期的订阅
+const getExpiringSubscriptions = async (req, res) => {
+  try {
+    const { days = 7, limit = 50 } = req.query;
+    
+    const subscriptions = await Subscription.getExpiringSubscriptions(parseInt(days), parseInt(limit));
+
+    res.json({
+      success: true,
+      data: { subscriptions }
+    });
+  } catch (error) {
+    console.error('Get expiring subscriptions error:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取即将到期订阅失败'
+    });
+  }
+};
+
+// 批量操作订阅
+const batchUpdateSubscriptions = async (req, res) => {
+  try {
+    const { subscription_ids, action } = req.body;
+    
+    if (!subscription_ids || !Array.isArray(subscription_ids) || subscription_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: '订阅ID列表不能为空'
+      });
+    }
+
+    let query = { _id: { $in: subscription_ids } };
+    
+    // 普通用户只能操作自己的订阅
+    if (req.userType !== 'admin') {
+      query.user_id = req.user._id;
+    }
+
+    let result;
+    let message = '';
+
+    switch (action) {
+      case 'cancel':
+        result = await Subscription.updateMany(
+          { ...query, status: 'active' },
+          { 
+            $set: { 
+              status: 'cancelled',
+              'cancellation.cancelled_at': new Date(),
+              'cancellation.reason': '批量取消'
+            }
+          }
+        );
+        message = '订阅已批量取消';
+        break;
+      case 'pause':
+        result = await Subscription.updateMany(
+          { ...query, status: 'active' },
+          { $set: { status: 'paused' } }
+        );
+        message = '订阅已批量暂停';
+        break;
+      case 'resume':
+        result = await Subscription.updateMany(
+          { ...query, status: 'paused' },
+          { $set: { status: 'active' } }
+        );
+        message = '订阅已批量恢复';
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          message: '无效的操作类型'
+        });
+    }
+
+    res.json({
+      success: true,
+      message,
+      data: {
+        matched_count: result.matchedCount,
+        modified_count: result.modifiedCount
+      }
+    });
+  } catch (error) {
+    console.error('Batch update subscriptions error:', error);
+    res.status(500).json({
+      success: false,
+      message: '批量操作失败'
+    });
+  }
+};
+
+module.exports = {
+  getSubscriptionPlans,
+  createSubscriptionPlan,
+  updateSubscriptionPlan,
+  deleteSubscriptionPlan,
+  getUserSubscriptions,
+  createSubscription,
+  cancelSubscription,
+  renewSubscription,
+  getSubscriptionStats,
+  getExpiringSubscriptions,
+  batchUpdateSubscriptions
+};

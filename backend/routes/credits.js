@@ -1,23 +1,46 @@
 const express = require('express');
 const router = express.Router();
-const creditsController = require('../controllers/creditsController');
-const { authenticateUser, authenticateAdmin, requirePermission } = require('../middlewares/auth');
+const creditController = require('../controllers/creditController');
+const { validate, schemas } = require('../middleware/validation');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
-// 用户路由
-router.get('/balance', authenticateUser, creditsController.getUserCredits);
-router.get('/packages', creditsController.getCreditPackages);
-router.post('/orders', authenticateUser, creditsController.createCreditOrder);
-router.get('/orders', authenticateUser, creditsController.getUserOrders);
-router.post('/consume', authenticateUser, creditsController.consumeCredits);
+// 获取积分记录列表
+router.get('/', authenticateToken, validate(schemas.pagination), creditController.getCreditRecords);
 
-// 支付回调（模拟）
-router.post('/payment/callback', creditsController.simulatePaymentSuccess);
+// 管理员调整用户积分
+router.post('/adjust', authenticateToken, requireAdmin, validate(schemas.adjustCredits), creditController.adjustUserCredits);
 
-// 管理员路由
-router.get('/admin/packages', authenticateAdmin, requirePermission('credits_manage'), creditsController.getAllPackages);
-router.post('/admin/packages', authenticateAdmin, requirePermission('credits_manage'), creditsController.createPackage);
-router.put('/admin/packages/:id', authenticateAdmin, requirePermission('credits_manage'), creditsController.updatePackage);
-router.delete('/admin/packages/:id', authenticateAdmin, requirePermission('credits_manage'), creditsController.deletePackage);
-router.get('/admin/stats', authenticateAdmin, requirePermission('credits_view'), creditsController.getCreditsStats);
+// 批量调整用户积分（管理员）
+router.post('/batch-adjust', authenticateToken, requireAdmin, validate(schemas.batchAdjustCredits), creditController.batchAdjustCredits);
+
+// 获取积分统计
+router.get('/stats', authenticateToken, creditController.getCreditStats);
+
+// 获取积分类型统计
+router.get('/type-stats', authenticateToken, creditController.getCreditTypeStats);
+
+// 获取积分排行榜
+router.get('/leaderboard', authenticateToken, creditController.getCreditLeaderboard);
+
+// 导出积分记录
+router.get('/export', authenticateToken, creditController.exportCreditRecords);
+
+// 管理员获取积分规则
+router.get('/rules', authenticateToken, requireAdmin, creditController.getCreditRules);
+
+// 管理员创建积分规则
+router.post('/rules', authenticateToken, requireAdmin, creditController.createCreditRule);
+
+// 管理员更新积分规则
+router.put('/rules/:id', authenticateToken, requireAdmin, creditController.updateCreditRule);
+
+// 管理员删除积分规则
+router.delete('/rules/:id', authenticateToken, requireAdmin, creditController.deleteCreditRule);
+
+// 管理员获取积分交易记录
+router.get('/transactions', authenticateToken, requireAdmin, creditController.getCreditTransactions);
+
+// 管理员获取积分图表数据
+router.get('/chart-data', authenticateToken, requireAdmin, creditController.getCreditChartData);
 
 module.exports = router;

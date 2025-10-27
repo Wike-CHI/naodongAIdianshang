@@ -31,10 +31,12 @@ app.use('/api', (req, res, next) => {
 app.post('/api/admin/auth/login', (req, res) => {
   const { username, password } = req.body
   
+  // TODO: 实现真实的用户认证逻辑，连接数据库验证用户
   if (username === 'admin' && password === 'admin123') {
+    // TODO: 生成真实的JWT token而不是mock token
     res.json({
       success: true,
-      token: 'mock-admin-token-12345',
+      token: 'jwt-token-placeholder', // 需要替换为真实的JWT token
       user: {
         id: 1,
         username: 'admin',
@@ -53,7 +55,8 @@ app.post('/api/admin/auth/login', (req, res) => {
 app.get('/api/admin/auth/verify', (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
   
-  if (token === 'mock-admin-token-12345') {
+  // TODO: 实现真实的JWT token验证逻辑
+  if (token === 'jwt-token-placeholder') {
     res.json({
       success: true,
       user: {
@@ -72,13 +75,10 @@ app.get('/api/admin/auth/verify', (req, res) => {
 
 // 管理员工具列表路由
 app.get('/api/admin/tools', (req, res) => {
+  // TODO: 从数据库获取真实的工具列表
   res.json({
     success: true,
-    data: [
-      { id: 1, name: '模特图裂变', status: 'active' },
-      { id: 2, name: '商品图场景更换', status: 'active' },
-      { id: 3, name: '商品图换色', status: 'active' }
-    ]
+    data: [] // 暂时返回空数据，等待数据库集成
   })
 })
 

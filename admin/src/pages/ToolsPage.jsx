@@ -1,96 +1,279 @@
 import React, { useState, useEffect } from 'react'
-import { Table, Button, Space, Tag, Switch, Modal, Form, Input, Select, message, Drawer } from 'antd'
-import { PlusOutlined, EditOutlined, DeleteOutlined, SettingOutlined, CodeOutlined } from '@ant-design/icons'
+import { Table, Card, Button, Space, Tag, Modal, Form, Input, InputNumber, Select, Switch, message, Popconfirm, Tooltip, Upload } from 'antd'
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, SettingOutlined, ApiOutlined, UploadOutlined } from '@ant-design/icons'
+import { toolsAPI, fileAPI } from '../services/api'
 
-const { TextArea } = Input
 const { Option } = Select
+const { TextArea } = Input
 
 const ToolsPage = () => {
-  const [loading, setLoading] = useState(false)
   const [tools, setTools] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [selectedRowKeys, setSelectedRowKeys] = useState([])
+  const [searchText, setSearchText] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  })
   const [modalVisible, setModalVisible] = useState(false)
-  const [templateDrawerVisible, setTemplateDrawerVisible] = useState(false)
   const [editingTool, setEditingTool] = useState(null)
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    category: '',
+    api_endpoint: '',
+    credits_per_use: 1,
+    sort_order: 0,
+    enabled: true,
+    icon: '',
+    supported_resolutions: [],
+    default_prompt: '',
+    negative_prompt: '',
+    max_file_size: 10,
+    supported_formats: [],
+    advanced_config: '{}'
+  })
   const [form] = Form.useForm()
-  const [templateForm] = Form.useForm()
 
-  // 模拟数据
+  // 处理图片上传
+  const handleImageUpload = async (file) => {
+    try {
+      setUploading(true);
+      const result = await fileAPI.uploadImage(file);
+      
+      if (result.success && result.data && result.data.files && result.data.files.length > 0) {
+        const uploadedFile = result.data.files[0];
+        setFormData(prev => ({
+          ...prev,
+          icon: uploadedFile.url || uploadedFile.file_path
+        }));
+        message.success('图片上传成功');
+      } else {
+        throw new Error('上传响应格式错误');
+      }
+    } catch (error) {
+      console.error('图片上传失败:', error);
+      message.error(error.message || '图片上传失败');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   useEffect(() => {
-    setLoading(true)
-    setTimeout(() => {
-      setTools([
-        {
-          id: '1',
-          name: '模特图裂变',
-          description: '基于单张模特图生成多种姿势的图片',
-          category: '图像生成',
-          enabled: true,
-          apiUrl: '/api/model-fission',
-          creditCost: 10,
-          sortOrder: 1,
-          createdAt: '2024-01-15',
-          usageCount: 1250
-        },
-        {
-          id: '2',
-          name: '商品图场景更换',
-          description: '将商品图片更换到不同的场景背景中',
-          category: '图像编辑',
-          enabled: true,
-          apiUrl: '/api/scene-change',
-          creditCost: 8,
-          sortOrder: 2,
-          createdAt: '2024-01-10',
-          usageCount: 890
-        },
-        {
-          id: '3',
-          name: '商品图换色',
-          description: '智能更换商品图片的颜色',
-          category: '图像编辑',
-          enabled: true,
-          apiUrl: '/api/color-change',
-          creditCost: 5,
-          sortOrder: 3,
-          createdAt: '2024-01-08',
-          usageCount: 650
-        }
-      ])
+    loadTools()
+  }, [pagination.current, pagination.pageSize, searchText, categoryFilter, statusFilter])
+
+  // 加载AI工具数据
+  const loadTools = async () => {
+    try {
+      setLoading(true)
+      const params = {
+        page: pagination.current,
+        limit: pagination.pageSize,
+        search: searchText,
+        category: categoryFilter,
+        status: statusFilter
+      }
+
+      const result = await toolsAPI.getTools(params)
+      
+      if (result.success) {
+        setTools(result.data.tools || [])
+        setPagination(prev => ({
+          ...prev,
+          total: result.data.total || 0
+        }))
+      } else {
+        message.error(result.message || '获取工具列表失败')
+      }
+    } catch (error) {
+      console.error('加载工具列表失败:', error)
+      message.error('加载工具列表失败')
+    } finally {
       setLoading(false)
-    }, 1000)
-  }, [])
+    }
+  }
+
+  // 搜索工具
+  const handleSearch = (value) => {
+    setSearchText(value)
+    setPagination(prev => ({ ...prev, current: 1 }))
+  }
+
+  // 筛选变化
+  const handleFilterChange = (type, value) => {
+    if (type === 'category') {
+      setCategoryFilter(value)
+    } else if (type === 'status') {
+      setStatusFilter(value)
+    }
+    setPagination(prev => ({ ...prev, current: 1 }))
+  }
+
+  // 添加新工具
+  const handleAdd = () => {
+    setEditingTool(null)
+    form.resetFields()
+    setModalVisible(true)
+  }
+
+  // 编辑工具
+  const handleEdit = (tool) => {
+    setEditingTool(tool)
+    form.setFieldsValue({
+      name: tool.name,
+      description: tool.description,
+      category: tool.category,
+      apiUrl: tool.apiUrl,
+      creditCost: tool.creditCost,
+      enabled: tool.enabled,
+      sortOrder: tool.sortOrder,
+      parameters: tool.parameters ? JSON.stringify(tool.parameters, null, 2) : ''
+    })
+    setModalVisible(true)
+  }
+
+  // 保存工具（新增或编辑）
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields()
+      
+      // 处理参数配置JSON
+      if (values.parameters) {
+        try {
+          JSON.parse(values.parameters)
+        } catch (error) {
+          message.error('参数配置格式不正确，请输入有效的JSON格式')
+          return
+        }
+      }
+
+      if (editingTool) {
+        // 编辑模式
+        const result = await toolsAPI.updateTool(editingTool._id, values)
+        if (result.success) {
+          message.success('工具更新成功')
+          setModalVisible(false)
+          setEditingTool(null)
+          form.resetFields()
+          loadTools()
+        } else {
+          message.error(result.message || '更新工具失败')
+        }
+      } else {
+        // 新增模式
+        const result = await toolsAPI.createTool(values)
+        if (result.success) {
+          message.success('工具创建成功')
+          setModalVisible(false)
+          form.resetFields()
+          loadTools()
+        } else {
+          message.error(result.message || '创建工具失败')
+        }
+      }
+    } catch (error) {
+      console.error('保存工具失败:', error)
+      message.error('保存工具失败')
+    }
+  }
+
+  // 删除工具
+  const handleDelete = async (toolId) => {
+    try {
+      const result = await toolsAPI.deleteTool(toolId)
+      if (result.success) {
+        message.success('工具删除成功')
+        loadTools()
+      } else {
+        message.error(result.message || '删除工具失败')
+      }
+    } catch (error) {
+      console.error('删除工具失败:', error)
+      message.error('删除工具失败')
+    }
+  }
+
+  // 批量删除工具
+  const handleBatchDelete = async () => {
+    try {
+      const result = await toolsAPI.batchUpdateTools({
+        action: 'delete',
+        toolIds: selectedRowKeys
+      })
+      if (result.success) {
+        message.success(`成功删除 ${selectedRowKeys.length} 个工具`)
+        setSelectedRowKeys([])
+        loadTools()
+      } else {
+        message.error(result.message || '批量删除失败')
+      }
+    } catch (error) {
+      console.error('批量删除失败:', error)
+      message.error('批量删除失败')
+    }
+  }
+
+  // 切换工具状态
+  const handleToggleStatus = async (toolId, enabled) => {
+    try {
+      const result = await toolsAPI.toggleToolStatus(toolId, enabled)
+      if (result.success) {
+        message.success(`工具已${enabled ? '启用' : '禁用'}`)
+        loadTools()
+      } else {
+        message.error(result.message || '状态切换失败')
+      }
+    } catch (error) {
+      console.error('状态切换失败:', error)
+      message.error('状态切换失败')
+    }
+  }
 
   // 表格列定义
   const columns = [
     {
-      title: '工具名称',
-      dataIndex: 'name',
-      key: 'name',
-      width: 150,
-      render: (text, record) => (
+      title: '工具信息',
+      key: 'toolInfo',
+      width: 250,
+      render: (_, record) => (
         <div>
-          <div style={{ fontWeight: 600 }}>{text}</div>
-          <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-            使用次数: {record.usageCount}
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>{record.name}</div>
+          <div style={{ fontSize: '12px', color: '#8c8c8c', lineHeight: '1.4' }}>
+            {record.description}
           </div>
         </div>
       )
     },
     {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true
-    },
-    {
-      title: '分类',
+      title: '类别',
       dataIndex: 'category',
       key: 'category',
-      width: 100,
-      render: (category) => (
-        <Tag color={category === '图像生成' ? 'blue' : 'green'}>
-          {category}
-        </Tag>
+      width: 120,
+      render: (category) => {
+        const categoryConfig = {
+          image: { color: 'blue', text: '图像处理' },
+          text: { color: 'green', text: '文本生成' },
+          video: { color: 'purple', text: '视频处理' },
+          audio: { color: 'orange', text: '音频处理' }
+        }
+        const config = categoryConfig[category] || { color: 'default', text: category }
+        return <Tag color={config.color}>{config.text}</Tag>
+      }
+    },
+    {
+      title: 'API地址',
+      dataIndex: 'apiUrl',
+      key: 'apiUrl',
+      width: 200,
+      render: (url) => (
+        <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+          {url ? url.substring(0, 50) + (url.length > 50 ? '...' : '') : '未设置'}
+        </div>
       )
     },
     {
@@ -98,205 +281,183 @@ const ToolsPage = () => {
       dataIndex: 'creditCost',
       key: 'creditCost',
       width: 100,
-      render: (cost) => <span style={{ color: '#faad14', fontWeight: 600 }}>{cost}</span>
+      render: (cost) => (
+        <span style={{ color: '#faad14', fontWeight: 600 }}>
+          {cost || 0}
+        </span>
+      )
     },
     {
-      title: '状态',
-      dataIndex: 'enabled',
-      key: 'enabled',
-      width: 80,
-      render: (enabled, record) => (
-        <Switch
-          checked={enabled}
-          onChange={(checked) => handleToggleStatus(record.id, checked)}
-          size="small"
-        />
-      )
+      title: '使用次数',
+      dataIndex: 'usageCount',
+      key: 'usageCount',
+      width: 100,
+      render: (count) => count?.toLocaleString() || 0
     },
     {
       title: '排序',
       dataIndex: 'sortOrder',
       key: 'sortOrder',
       width: 80,
-      sorter: (a, b) => a.sortOrder - b.sortOrder
+      render: (order) => order || 0
+    },
+    {
+      title: '状态',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      width: 100,
+      render: (enabled, record) => (
+        <Switch
+          checked={enabled}
+          onChange={(checked) => handleToggleStatus(record._id, checked)}
+          checkedChildren="启用"
+          unCheckedChildren="禁用"
+        />
+      )
     },
     {
       title: '创建时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      width: 120
+      width: 120,
+      render: (date) => date ? new Date(date).toLocaleDateString() : '-'
     },
     {
       title: '操作',
-      key: 'action',
-      width: 200,
+      key: 'actions',
+      width: 150,
       render: (_, record) => (
         <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
+          <Tooltip title="查看详情">
+            <Button type="text" size="small" icon={<EyeOutlined />} />
+          </Tooltip>
+          <Tooltip title="编辑">
+            <Button 
+              type="text" 
+              size="small" 
+              icon={<EditOutlined />}
+              onClick={() => handleEdit(record)}
+            />
+          </Tooltip>
+          <Popconfirm
+            title="确定要删除这个工具吗？"
+            onConfirm={() => handleDelete(record._id)}
+            okText="确定"
+            cancelText="取消"
           >
-            编辑
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<CodeOutlined />}
-            onClick={() => handleEditTemplate(record)}
-          >
-            模板
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<SettingOutlined />}
-            onClick={() => handleApiBinding(record)}
-          >
-            API
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-          >
-            删除
-          </Button>
+            <Tooltip title="删除">
+              <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+            </Tooltip>
+          </Popconfirm>
         </Space>
       )
     }
   ]
 
-  // 处理状态切换
-  const handleToggleStatus = (id, enabled) => {
-    setTools(tools.map(tool => 
-      tool.id === id ? { ...tool, enabled } : tool
-    ))
-    message.success(`工具已${enabled ? '启用' : '禁用'}`)
-  }
-
-  // 处理编辑
-  const handleEdit = (tool) => {
-    setEditingTool(tool)
-    form.setFieldsValue(tool)
-    setModalVisible(true)
-  }
-
-  // 处理新增
-  const handleAdd = () => {
-    setEditingTool(null)
-    form.resetFields()
-    setModalVisible(true)
-  }
-
-  // 处理删除
-  const handleDelete = (tool) => {
-    Modal.confirm({
-      title: '确认删除',
-      content: `确定要删除工具"${tool.name}"吗？此操作不可恢复。`,
-      okText: '确认',
-      cancelText: '取消',
-      onOk: () => {
-        setTools(tools.filter(t => t.id !== tool.id))
-        message.success('删除成功')
-      }
-    })
-  }
-
-  // 处理模板编辑
-  const handleEditTemplate = (tool) => {
-    setEditingTool(tool)
-    setTemplateDrawerVisible(true)
-  }
-
-  // 处理API绑定
-  const handleApiBinding = (tool) => {
-    message.info('API绑定功能开发中...')
-  }
-
-  // 处理表单提交
-  const handleSubmit = async (values) => {
-    try {
-      if (editingTool) {
-        // 更新
-        setTools(tools.map(tool => 
-          tool.id === editingTool.id ? { ...tool, ...values } : tool
-        ))
-        message.success('更新成功')
-      } else {
-        // 新增
-        const newTool = {
-          id: Date.now().toString(),
-          ...values,
-          enabled: true,
-          usageCount: 0,
-          createdAt: new Date().toISOString().split('T')[0]
-        }
-        setTools([...tools, newTool])
-        message.success('添加成功')
-      }
-      setModalVisible(false)
-      form.resetFields()
-    } catch (error) {
-      message.error('操作失败')
-    }
-  }
-
-  // 处理模板保存
-  const handleTemplateSave = async (values) => {
-    try {
-      // 这里应该调用API保存模板
-      console.log('保存模板:', values)
-      message.success('模板保存成功')
-      setTemplateDrawerVisible(false)
-    } catch (error) {
-      message.error('保存失败')
-    }
+  // 行选择配置
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: setSelectedRowKeys
   }
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <div>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-            添加工具
-          </Button>
+      <Card>
+        {/* 搜索和筛选区域 */}
+        <div style={{ marginBottom: 16 }}>
+          <Space wrap>
+            <Input.Search
+              placeholder="搜索工具名称或描述"
+              allowClear
+              style={{ width: 300 }}
+              onSearch={handleSearch}
+            />
+            <Select
+              placeholder="类别筛选"
+              allowClear
+              style={{ width: 120 }}
+              onChange={(value) => handleFilterChange('category', value)}
+            >
+              <Option value="image">图像处理</Option>
+              <Option value="text">文本生成</Option>
+              <Option value="video">视频处理</Option>
+              <Option value="audio">音频处理</Option>
+            </Select>
+            <Select
+              placeholder="状态筛选"
+              allowClear
+              style={{ width: 120 }}
+              onChange={(value) => handleFilterChange('status', value)}
+            >
+              <Option value="enabled">已启用</Option>
+              <Option value="disabled">已禁用</Option>
+            </Select>
+          </Space>
         </div>
-        <Space>
-          <Button>批量操作</Button>
-          <Button>导出数据</Button>
-        </Space>
-      </div>
 
-      <Table
-        columns={columns}
-        dataSource={tools}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          total: tools.length,
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条记录`
-        }}
-      />
+        {/* 操作按钮区域 */}
+        <div style={{ marginBottom: 16 }}>
+          <Space>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+              添加工具
+            </Button>
+            {selectedRowKeys.length > 0 && (
+              <Popconfirm
+                title={`确定要删除选中的 ${selectedRowKeys.length} 个工具吗？`}
+                onConfirm={handleBatchDelete}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button danger icon={<DeleteOutlined />}>
+                  批量删除 ({selectedRowKeys.length})
+                </Button>
+              </Popconfirm>
+            )}
+          </Space>
+        </div>
 
-      {/* 编辑/新增模态框 */}
+        {/* 工具列表表格 */}
+        <Table
+          rowSelection={rowSelection}
+          columns={columns}
+          dataSource={tools}
+          loading={loading}
+          rowKey="_id"
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => `第 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+            onChange: (page, pageSize) => {
+              setPagination(prev => ({ ...prev, current: page, pageSize }))
+            }
+          }}
+          scroll={{ x: 1200 }}
+        />
+      </Card>
+
+      {/* 添加/编辑工具模态框 */}
       <Modal
         title={editingTool ? '编辑工具' : '添加工具'}
         open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        onOk={() => form.submit()}
-        width={600}
+        onOk={handleSave}
+        onCancel={() => {
+          setModalVisible(false)
+          setEditingTool(null)
+          form.resetFields()
+        }}
+        width={800}
+        okText="保存"
+        cancelText="取消"
       >
         <Form
           form={form}
           layout="vertical"
-          onFinish={handleSubmit}
+          initialValues={{
+            enabled: true,
+            creditCost: 1,
+            sortOrder: 0
+          }}
         >
           <Form.Item
             name="name"
@@ -305,7 +466,7 @@ const ToolsPage = () => {
           >
             <Input placeholder="请输入工具名称" />
           </Form.Item>
-          
+
           <Form.Item
             name="description"
             label="工具描述"
@@ -313,19 +474,20 @@ const ToolsPage = () => {
           >
             <TextArea rows={3} placeholder="请输入工具描述" />
           </Form.Item>
-          
+
           <Form.Item
             name="category"
-            label="工具分类"
-            rules={[{ required: true, message: '请选择工具分类' }]}
+            label="工具类别"
+            rules={[{ required: true, message: '请选择工具类别' }]}
           >
-            <Select placeholder="请选择工具分类">
-              <Option value="图像生成">图像生成</Option>
-              <Option value="图像编辑">图像编辑</Option>
-              <Option value="文本处理">文本处理</Option>
+            <Select placeholder="请选择工具类别">
+              <Option value="image">图像处理</Option>
+              <Option value="text">文本生成</Option>
+              <Option value="video">视频处理</Option>
+              <Option value="audio">音频处理</Option>
             </Select>
           </Form.Item>
-          
+
           <Form.Item
             name="apiUrl"
             label="API地址"
@@ -333,74 +495,138 @@ const ToolsPage = () => {
           >
             <Input placeholder="请输入API地址" />
           </Form.Item>
-          
+
           <Form.Item
             name="creditCost"
             label="积分消耗"
             rules={[{ required: true, message: '请输入积分消耗' }]}
           >
-            <Input type="number" placeholder="请输入积分消耗" />
+            <InputNumber min={0} placeholder="请输入积分消耗" style={{ width: '100%' }} />
           </Form.Item>
-          
+
           <Form.Item
             name="sortOrder"
-            label="排序"
-            rules={[{ required: true, message: '请输入排序值' }]}
+            label="排序权重"
           >
-            <Input type="number" placeholder="请输入排序值" />
+            <InputNumber min={0} placeholder="数值越大排序越靠前" style={{ width: '100%' }} />
+          </Form.Item>
+
+          <Form.Item
+            name="enabled"
+            label="启用状态"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+          </Form.Item>
+
+          <Form.Item
+            name="parameters"
+            label="参数配置"
+          >
+            <Card title="工具参数设置" size="small">
+              <Form.Item
+                name={['parameters', 'supportImageUpload']}
+                label="支持图片上传"
+                valuePropName="checked"
+              >
+                <Switch checkedChildren="是" unCheckedChildren="否" />
+              </Form.Item>
+
+              <Form.Item
+                name={['parameters', 'defaultPrompt']}
+                label="默认提示词"
+              >
+                <TextArea
+                  rows={3}
+                  placeholder="请输入默认提示词模板"
+                />
+              </Form.Item>
+
+              <Form.Item
+                name={['parameters', 'supportedResolutions']}
+                label="支持的分辨率"
+              >
+                <Select
+                  mode="multiple"
+                  placeholder="选择支持的分辨率"
+                  options={[
+                    { label: '512x512', value: '512x512' },
+                    { label: '768x768', value: '768x768' },
+                    { label: '1024x1024', value: '1024x1024' },
+                    { label: '1280x720', value: '1280x720' },
+                    { label: '1920x1080', value: '1920x1080' },
+                    { label: '512x768', value: '512x768' },
+                    { label: '768x512', value: '768x512' }
+                  ]}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name={['parameters', 'defaultResolution']}
+                label="默认分辨率"
+              >
+                <Select placeholder="选择默认分辨率">
+                  <Option value="512x512">512x512</Option>
+                  <Option value="768x768">768x768</Option>
+                  <Option value="1024x1024">1024x1024</Option>
+                  <Option value="1280x720">1280x720</Option>
+                  <Option value="1920x1080">1920x1080</Option>
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                name={['parameters', 'maxImageSize']}
+                label="最大图片大小(MB)"
+              >
+                <InputNumber
+                  min={1}
+                  max={50}
+                  placeholder="最大图片大小"
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name={['parameters', 'supportedFormats']}
+                label="支持的图片格式"
+              >
+                <Select
+                  mode="multiple"
+                  placeholder="选择支持的图片格式"
+                  options={[
+                    { label: 'JPEG', value: 'jpeg' },
+                    { label: 'PNG', value: 'png' },
+                    { label: 'WEBP', value: 'webp' },
+                    { label: 'GIF', value: 'gif' }
+                  ]}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name={['parameters', 'processingTime']}
+                label="预计处理时间(秒)"
+              >
+                <InputNumber
+                  min={1}
+                  max={300}
+                  placeholder="预计处理时间"
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+
+              <Form.Item
+                name={['parameters', 'customFields']}
+                label="自定义参数"
+              >
+                <TextArea
+                  rows={4}
+                  placeholder="请输入JSON格式的自定义参数配置，例如：&#123;&quot;style&quot;: [&quot;realistic&quot;, &quot;cartoon&quot;], &quot;quality&quot;: &quot;high&quot;&#125;"
+                />
+              </Form.Item>
+            </Card>
           </Form.Item>
         </Form>
       </Modal>
-
-      {/* 模板编辑抽屉 */}
-      <Drawer
-        title="编辑提示词模板"
-        placement="right"
-        width={600}
-        open={templateDrawerVisible}
-        onClose={() => setTemplateDrawerVisible(false)}
-      >
-        <div style={{ marginBottom: 16 }}>
-          <h4>工具: {editingTool?.name}</h4>
-          <p style={{ color: '#8c8c8c' }}>配置AI生成时使用的提示词模板，支持参数占位符如 {'{参数名}'}</p>
-        </div>
-        
-        <Form 
-          form={templateForm} 
-          layout="vertical"
-          onFinish={handleTemplateSave}
-        >
-          <Form.Item 
-            name="template"
-            label="提示词模板"
-          >
-            <TextArea
-              rows={10}
-              placeholder="请输入提示词模板，例如：生成一张{style}风格的{subject}图片，要求{requirements}"
-              defaultValue="生成一张{style}风格的{subject}图片，背景为{background}，整体色调{color_tone}，画面要求{requirements}"
-            />
-          </Form.Item>
-          
-          <Form.Item 
-            name="description"
-            label="参数说明"
-          >
-            <TextArea
-              rows={5}
-              placeholder="请说明各参数的含义和用法"
-              defaultValue="{style}: 图片风格，如写实、卡通、油画等&#10;{subject}: 主体对象，如人物、商品等&#10;{background}: 背景描述&#10;{color_tone}: 色调要求&#10;{requirements}: 其他特殊要求"
-            />
-          </Form.Item>
-          
-          <Form.Item>
-            <Space>
-              <Button type="primary" onClick={() => templateForm.submit()}>保存模板</Button>
-              <Button>预览效果</Button>
-              <Button onClick={() => templateForm.resetFields()}>重置</Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Drawer>
     </div>
   )
 }

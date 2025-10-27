@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { message } from 'antd'
-import { authService } from '../services/authService'
+import authService from '../services/authService'
 
 const AuthContext = createContext()
 
@@ -15,76 +15,93 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [token, setToken] = useState(localStorage.getItem('admin_token'))
-  const [isLoggingIn, setIsLoggingIn] = useState(false) // 添加登录状态标记
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
+  // 检查本地存储的认证信息
   useEffect(() => {
-    // 只在非登录过程中验证token
-    if (token && !isLoggingIn) {
-      // 验证token有效性
-      authService.verifyToken(token)
-        .then(userData => {
-          setUser(userData)
-        })
-        .catch(() => {
-          localStorage.removeItem('admin_token')
-          setToken(null)
-        })
-        .finally(() => {
-          setLoading(false)
-        })
-    } else if (!token) {
+    checkAuthStatus()
+  }, [])
+
+  const checkAuthStatus = async () => {
+    try {
+      const token = localStorage.getItem('admin_token')
+      const userData = localStorage.getItem('admin_user')
+      
+      if (token && userData) {
+        // 验证token是否有效
+        const result = await authService.verifyToken()
+        if (result.success) {
+          setUser(JSON.parse(userData))
+          setIsAuthenticated(true)
+        } else {
+          // Token无效，清除本地存储
+          clearAuthData()
+        }
+      }
+    } catch (error) {
+      console.error('验证认证状态失败:', error)
+      clearAuthData()
+    } finally {
       setLoading(false)
     }
-  }, [token, isLoggingIn])
+  }
 
   const login = async (credentials) => {
     try {
       setLoading(true)
-      setIsLoggingIn(true) // 标记开始登录
+      const result = await authService.login(credentials)
       
-      const response = await authService.login(credentials)
-      const { token: newToken, user: userData } = response
-      
-      localStorage.setItem('admin_token', newToken)
-      setToken(newToken)
-      setUser(userData)
-      
-      message.success('登录成功')
-      
-      // 延迟清除登录状态，确保状态稳定
-      setTimeout(() => {
-        setIsLoggingIn(false)
-        setLoading(false)
-      }, 200)
-      
-      return { success: true }
+      if (result.success) {
+        const { token, user: userData } = result.data
+        
+        // 保存认证信息到本地存储
+        localStorage.setItem('admin_token', token)
+        localStorage.setItem('admin_user', JSON.stringify(userData))
+        
+        setUser(userData)
+        setIsAuthenticated(true)
+        message.success('登录成功')
+        
+        return { success: true }
+      } else {
+        message.error(result.message || '登录失败')
+        return { success: false, message: result.message }
+      }
     } catch (error) {
-      message.error(error.message || '登录失败')
-      return { success: false, error: error.message }
+      console.error('登录失败:', error)
+      const errorMessage = error.message || '登录失败，请稍后重试'
+      message.error(errorMessage)
+      return { success: false, message: errorMessage }
     } finally {
-      // 确保登录状态被清除
-      setTimeout(() => {
-        setIsLoggingIn(false)
-        setLoading(false)
-      }, 100)
+      setLoading(false)
     }
   }
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await authService.logout()
+    } catch (error) {
+      console.error('登出失败:', error)
+    } finally {
+      clearAuthData()
+      message.success('已退出登录')
+    }
+  }
+
+  const clearAuthData = () => {
     localStorage.removeItem('admin_token')
-    setToken(null)
+    localStorage.removeItem('admin_user')
     setUser(null)
-    message.success('已退出登录')
+    setIsAuthenticated(false)
   }
 
   const value = {
     user,
-    token,
     loading,
+    isAuthenticated,
     login,
     logout,
-    isAuthenticated: !!user && !!token
+    checkAuthStatus
   }
 
   return (

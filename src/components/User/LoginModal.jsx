@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { Modal, Tabs, Form, Input, Button, message, Space, Card, Avatar, Typography } from 'antd'
 import { WechatOutlined, MobileOutlined, GiftOutlined } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { authApi } from '../../services/api'
 import { referralCodeApi, referralRelationshipApi } from '../../services/referralApi'
+import axios from 'axios'
+import { API_ENDPOINTS } from '../../config/api'
+import logger from '../../utils/logger'
 
 const { Text } = Typography
 
@@ -198,36 +200,44 @@ const LoginModal = ({ visible, onCancel }) => {
     try {
       // 模拟微信登录
       await new Promise(resolve => setTimeout(resolve, 2000))
-      const response = await authApi.login({ type: 'wechat' })
+      const response = await axios.post(API_ENDPOINTS.AUTH.WECHAT_LOGIN)
       
-      if (response.success) {
+      if (response.data.success) {
         // 保存用户数据，等待手机验证
-        setPendingUserData(response.data)
+        setPendingUserData(response.data.data)
         setPhoneVerificationVisible(true)
+      } else {
+        message.error(response.data.message || '微信登录失败')
       }
     } catch (error) {
-      message.error('微信登录失败，请重试')
+      console.error('微信登录失败:', error)
+      message.error(error.response?.data?.message || '微信登录失败，请重试')
     } finally {
       setLoading(false)
     }
   }
 
-  // 手机号登录
+  // 手机号+密码登录
   const handlePhoneLogin = async (values) => {
     setLoading(true)
     try {
-      const response = await authApi.login({ 
-        type: 'phone', 
+      const response = await axios.post(API_ENDPOINTS.AUTH.LOGIN, { 
         phone: values.phone, 
-        code: values.code 
+        password: values.password 
       })
       
-      if (response.success) {
+      if (response.data.success) {
         // 直接完成登录，手机号已验证
-        await completeLogin(response.data, values.phone)
+        logger.log('登录响应数据:', response.data)
+        login(response.data.data.user)
+        message.success('登录成功！')
+        onCancel()
+      } else {
+        message.error(response.data.message || '登录失败')
       }
     } catch (error) {
-      message.error('登录失败，请重试')
+      console.error('手机号登录失败:', error)
+      message.error(error.response?.data?.message || '登录失败，请重试')
     } finally {
       setLoading(false)
     }
@@ -362,18 +372,14 @@ const LoginModal = ({ visible, onCancel }) => {
             </Form.Item>
             
             <Form.Item
-              name="code"
-              label="验证码"
-              rules={[{ required: true, message: '请输入验证码' }]}
+              name="password"
+              label="密码"
+              rules={[{ required: true, message: '请输入密码' }]}
             >
-              <Space.Compact style={{ width: '100%' }}>
-                <Input 
-                  placeholder="请输入验证码" 
-                  size="large"
-                  style={{ flex: 1 }}
-                />
-                <Button size="large">获取验证码</Button>
-              </Space.Compact>
+              <Input.Password 
+                placeholder="请输入密码" 
+                size="large"
+              />
             </Form.Item>
             
             <Form.Item>
