@@ -7,6 +7,14 @@ const sharp = require('sharp');
 const logger = require('./utils/logger');
 const connectDB = require('./config/database');
 
+// 路由配置
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
+const aiToolRoutes = require('./routes/aiTools');
+const subscriptionRoutes = require('./routes/subscriptions');
+const creditRoutes = require('./routes/credits');
+const adminRoutes = require('./routes/admin');
+
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 const PORT = process.env.PORT || 8080;
@@ -17,6 +25,7 @@ const FRONTEND_ORIGINS = [
   process.env.FRONTEND_URL,
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:3000'
 ].filter(Boolean);
 
@@ -26,6 +35,15 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// API路由
+app.use('/api/auth', authRoutes);
+app.use('/api/admin/auth', authRoutes); // 为管理员后台添加专用路径
+app.use('/api/admin', adminRoutes); // 管理员专用路由
+app.use('/api/users', userRoutes);
+app.use('/api/tools', aiToolRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/credits', creditRoutes);
 
 if (!USE_MEMORY_DB) {
   connectDB();
@@ -48,6 +66,40 @@ const memoryUsers = [
     loginMethod: 'phone',
     referralCode: 'ND2024',
     createdAt: new Date().toISOString()
+  }
+];
+
+// 内存管理员用户数据
+const memoryAdmins = [
+  {
+    _id: 'admin-1001',
+    username: 'admin',
+    password_hash: '$2b$10$qOUyeg39qk.AGD1Edz0Xquf9id8K270eavpYoo5VrBo9M0jWReVuS', // admin123
+    email: 'admin@naodongai.com',
+    role: 'super_admin',
+    permissions: ['user_management', 'tool_management', 'subscription_management', 'system_settings'],
+    is_active: true,
+    is_locked: false,
+    login_attempts: 0,
+    last_login: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    // 添加验证密码的方法
+    validatePassword: function(candidatePassword) {
+      const bcrypt = require('bcrypt');
+      return bcrypt.compare(candidatePassword, this.password_hash);
+    },
+    // 添加更新最后登录时间的方法
+    updateLastLogin: function() {
+      this.last_login = new Date();
+      return Promise.resolve(this);
+    },
+    // 添加toJSON方法，排除敏感信息
+    toJSON: function() {
+      const obj = { ...this };
+      delete obj.password_hash;
+      return obj;
+    }
   }
 ];
 
@@ -227,6 +279,9 @@ const memoryReferralCodes = {
 };
 
 global.memoryUsers = memoryUsers;
+global.memoryAdmins = memoryAdmins;
+global.memoryTools = memoryTools;
+global.memorySubscriptionPlans = memorySubscriptionPlans;
 
 // ---------------- 辅助方法 ----------------
 const buildUserPayload = (user) => ({
@@ -503,32 +558,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // ---------------- 认证相关 ----------------
-app.post('/api/auth/login', (req, res) => {
-  const { phone, email, password } = req.body || {};
-  if (!phone && !email) {
-    return res.status(400).json({ success: false, message: '请提供手机号或邮箱登录' });
-  }
-
-  const user = memoryUsers.find((candidate) => {
-    if (phone && candidate.phone === phone) return true;
-    if (email && candidate.email === email) return true;
-    return false;
-  });
-
-  if (!user || user.password !== password) {
-    return res.status(401).json({ success: false, message: '账号或密码错误' });
-  }
-
-  const token = signToken({ userId: user.id, loginMethod: 'phone' });
-  res.json({
-    success: true,
-    message: '登录成功',
-    data: {
-      token,
-      user: buildUserPayload({ ...user, loginMethod: 'phone' })
-    }
-  });
-});
+// 注意：用户登录和管理员登录现在都通过 routes/auth.js 处理
 
 app.post('/api/auth/wechat-login', (req, res) => {
   const user = { ...memoryUsers[0], loginMethod: 'wechat' };

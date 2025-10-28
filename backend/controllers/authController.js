@@ -206,8 +206,19 @@ const loginAdmin = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // 查找管理员
-    const admin = await AdminUser.findOne({ username });
+    // 检查是否使用内存数据库
+    const useMemoryDB = process.env.USE_MEMORY_DB === 'true';
+    let admin;
+
+    if (useMemoryDB) {
+      // 使用内存数据库
+      const memoryAdmins = global.memoryAdmins || [];
+      admin = memoryAdmins.find(a => a.username === username);
+    } else {
+      // 查找管理员
+      admin = await AdminUser.findOne({ username });
+    }
+
     if (!admin) {
       return res.status(401).json({
         success: false,
@@ -216,7 +227,7 @@ const loginAdmin = async (req, res) => {
     }
 
     // 检查账户锁定状态
-    if (admin.isLocked()) {
+    if (admin.isLocked && admin.isLocked()) {
       const lockTimeRemaining = Math.ceil((admin.locked_until - new Date()) / 1000 / 60);
       return res.status(423).json({
         success: false,
@@ -233,10 +244,23 @@ const loginAdmin = async (req, res) => {
     }
 
     // 验证密码
-    const isValidPassword = await admin.validatePassword(password);
+    let isValidPassword;
+    if (useMemoryDB) {
+      // 内存模式下，validatePassword返回Promise
+      isValidPassword = await admin.validatePassword(password);
+    } else {
+      // 数据库模式下，validatePassword也返回Promise
+      isValidPassword = await admin.validatePassword(password);
+    }
+    
     if (!isValidPassword) {
-      // 增加登录失败次数
-      await admin.incrementLoginAttempts();
+      // 在内存模式下，简单增加登录失败次数
+      if (useMemoryDB) {
+        admin.login_attempts = (admin.login_attempts || 0) + 1;
+      } else {
+        // 增加登录失败次数
+        await admin.incrementLoginAttempts();
+      }
       
       return res.status(401).json({
         success: false,
@@ -247,7 +271,10 @@ const loginAdmin = async (req, res) => {
     // 重置登录失败次数
     admin.login_attempts = 0;
     admin.locked_until = null;
-    await admin.save();
+    
+    if (!useMemoryDB) {
+      await admin.save();
+    }
 
     // 更新最后登录时间
     await admin.updateLastLogin();
@@ -256,8 +283,10 @@ const loginAdmin = async (req, res) => {
     const token = generateToken(admin._id, 'admin');
 
     // 返回管理员信息（不包含密码）
-    const adminResponse = admin.toObject();
-    delete adminResponse.password_hash;
+    const adminResponse = useMemoryDB ? admin.toJSON() : admin.toObject();
+    if (!useMemoryDB) {
+      delete adminResponse.password_hash;
+    }
 
     res.json({
       success: true,

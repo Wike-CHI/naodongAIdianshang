@@ -241,13 +241,13 @@ pnpm install
 
 ```
 naodongAIdianshang/
-├── src/                    # 主网站源码
+├── frontend/                    # 主网站源码
 │   ├── components/         # React组件
 │   ├── pages/             # 页面组件
 │   ├── contexts/          # React Context
 │   └── services/          # API服务
 ├── admin/                 # 管理后台
-│   ├── src/
+│   ├── frontend/
 │   │   ├── components/    # 后台组件
 │   │   ├── pages/         # 后台页面
 │   │   ├── contexts/      # 认证上下文

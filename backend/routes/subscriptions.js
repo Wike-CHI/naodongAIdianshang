@@ -8,33 +8,33 @@ const { authenticateToken, requireAdmin, optionalAuth } = require('../middleware
 router.get('/plans', optionalAuth, subscriptionController.getSubscriptionPlans);
 
 // 创建订阅套餐（管理员）
-router.post('/plans', authenticateToken, requireAdmin, validate(schemas.subscriptionPlan), subscriptionController.createSubscriptionPlan);
+router.post('/plans', authenticateToken, requireAdmin, subscriptionController.createSubscriptionPlan);
 
 // 更新订阅套餐（管理员）
-router.put('/plans/:id', authenticateToken, requireAdmin, validate(schemas.idParam), validate(schemas.subscriptionPlan), subscriptionController.updateSubscriptionPlan);
+router.put('/plans/:id', authenticateToken, requireAdmin, subscriptionController.updateSubscriptionPlan);
 
 // 删除订阅套餐（管理员）
-router.delete('/plans/:id', authenticateToken, requireAdmin, validate(schemas.idParam), subscriptionController.deleteSubscriptionPlan);
+router.delete('/plans/:id', authenticateToken, requireAdmin, subscriptionController.deleteSubscriptionPlan);
 
 // 获取用户订阅列表
-router.get('/', authenticateToken, validate(schemas.pagination), subscriptionController.getUserSubscriptions);
+router.get('/', authenticateToken, subscriptionController.getUserSubscriptions);
 
 // 创建订阅
-router.post('/', authenticateToken, validate(schemas.createSubscription), subscriptionController.createSubscription);
+router.post('/', authenticateToken, subscriptionController.createSubscription);
 
 // 取消订阅
-router.post('/:id/cancel', authenticateToken, validate(schemas.idParam), subscriptionController.cancelSubscription);
+router.post('/:id/cancel', authenticateToken, subscriptionController.cancelSubscription);
 
 // 续费订阅
-router.post('/:id/renew', authenticateToken, validate(schemas.idParam), validate(schemas.renewSubscription), subscriptionController.renewSubscription);
+router.post('/:id/renew', authenticateToken, subscriptionController.renewSubscription);
 
-// 获取订阅统计（管理员）
+// 获取订阅统计信息（管理员）
 router.get('/meta/stats', authenticateToken, requireAdmin, subscriptionController.getSubscriptionStats);
 
-// 获取即将到期的订阅（管理员）
+// 获取即将过期的订阅（管理员）
 router.get('/meta/expiring', authenticateToken, requireAdmin, subscriptionController.getExpiringSubscriptions);
 
-// 批量操作订阅（管理员）
-router.post('/batch', authenticateToken, requireAdmin, validate(schemas.batchSubscriptionUpdate), subscriptionController.batchUpdateSubscriptions);
+// 批量更新订阅（管理员）
+router.post('/batch', authenticateToken, requireAdmin, subscriptionController.batchUpdateSubscriptions);
 
 module.exports = router;

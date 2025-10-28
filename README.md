@@ -23,7 +23,7 @@
 ## 项目结构
 
 ```
-src/
+frontend/
 ├── components/          # 组件目录
 │   ├── Layout/         # 布局组件
 │   ├── Common/         # 通用组件
