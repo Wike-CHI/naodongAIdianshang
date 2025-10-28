@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": "backend_media",
+      "content": "实现后端生成接口支持文件上传并返回真实结果",
+      "status": "in_progress"
+    },
+    {
+      "id": "frontend_media",
+      "content": "修改前端上传组件与生成流程调用后端",
+      "status": "todo"
+    },
+    {
+      "id": "verification",
+      "content": "本地验证前后端联调结果",
+      "status": "todo"
+    }
+  ]
+}

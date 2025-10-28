@@ -1,12 +1,10 @@
 import React, { useState } from 'react'
-import { Card, Typography, Form, Button, message, Space, Divider } from 'antd'
+import { Card, Typography, Form, Button, message } from 'antd'
 import { ThunderboltOutlined } from '@ant-design/icons'
 import { useToolContext } from '../../contexts/ToolContext'
 import { useAuth } from '../../contexts/AuthContext'
 import ImageUpload from '../Common/ImageUpload'
 import PromptInput from '../Common/PromptInput'
-import SelectInput from '../Common/SelectInput'
-import ColorPicker from '../Common/ColorPicker'
 
 const { Title, Text } = Typography
 
@@ -48,15 +46,6 @@ const WorkArea = () => {
       }
     }
   }
-
-  // 分辨率选项
-  const resolutionOptions = [
-    { label: '512x512', value: '512x512' },
-    { label: '768x768', value: '768x768' },
-    { label: '1024x1024', value: '1024x1024' },
-    { label: '1024x768', value: '1024x768' },
-    { label: '768x1024', value: '768x1024' }
-  ]
 
   if (!selectedTool) {
     return (
@@ -126,42 +115,6 @@ const WorkArea = () => {
               placeholder="请上传参考图片" 
               multiple={false}
               maxCount={1}
-            />
-          </Form.Item>
-
-          {/* 辅助图片上传 - 可选 */}
-          <Form.Item
-            name="auxiliaryImage"
-            label="辅助图片上传"
-          >
-            <ImageUpload 
-              placeholder="请上传辅助图片（可选）" 
-              multiple={false}
-              maxCount={1}
-            />
-          </Form.Item>
-
-          {/* 扩展图片上传 - 可选 */}
-          <Form.Item
-            name="extendedImage"
-            label="扩展图片上传"
-          >
-            <ImageUpload 
-              placeholder="请上传扩展图片（可选）" 
-              multiple={false}
-              maxCount={1}
-            />
-          </Form.Item>
-
-          {/* 分辨率选择 */}
-          <Form.Item
-            name="resolution"
-            label="分辨率"
-            rules={[{ required: true, message: '请选择分辨率' }]}
-          >
-            <SelectInput 
-              options={resolutionOptions} 
-              placeholder="请选择分辨率" 
             />
           </Form.Item>
 
