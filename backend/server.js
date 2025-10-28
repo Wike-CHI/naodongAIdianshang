@@ -1,848 +1,807 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
+const multer = require('multer');
+const sharp = require('sharp');
 const logger = require('./utils/logger');
+const connectDB = require('./config/database');
 
 const app = express();
-const PORT = 8080;
-const JWT_SECRET = 'your-secret-key-here';
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const PORT = process.env.PORT || 8080;
+const JWT_SECRET = process.env.JWT_SECRET || 'naodong-ai-dev-secret';
+const USE_MEMORY_DB = process.env.USE_MEMORY_DB === 'true';
 
-// 内存数据存储
-let memoryUsers = [
+const FRONTEND_ORIGINS = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000'
+].filter(Boolean);
+
+app.use(cors({
+  origin: FRONTEND_ORIGINS,
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+if (!USE_MEMORY_DB) {
+  connectDB();
+} else {
+  logger.log('🔄 正在使用内存数据模式运行后端服务');
+}
+
+// ---------------- 内存数据 ----------------
+const memoryUsers = [
   {
-    id: 1,
+    id: 'user-1001',
     phone: '13800138000',
-    password: '$2b$10$rQZ8kqH5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5F5', // 123456
-    username: 'testuser',
     email: 'test@example.com',
-    credits: 100,
-    createdAt: new Date()
+    password: '123456',
+    username: '脑洞商家',
+    avatar: 'https://avatars.githubusercontent.com/u/1342004?v=4',
+    credits: 860,
+    credits_balance: 860,
+    membershipType: 'vip',
+    loginMethod: 'phone',
+    referralCode: 'ND2024',
+    createdAt: new Date().toISOString()
   }
 ];
 
-// 连接MongoDB（如果失败则使用内存存储）
-let useMemoryDB = false;
-mongoose.connect('mongodb://localhost:27017/naodongai', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => {
-  logger.log('MongoDB连接成功');
-}).catch(err => {
-  console.error('MongoDB连接失败:', err);
-  logger.log('🔄 切换到内存数据库模式');
-  useMemoryDB = true;
-});
+const memoryTools = [
+  {
+    id: 'ai-model',
+    name: 'AI模特生成',
+    description: '上传服装图，生成真实模特展示效果',
+    category: 'model',
+    icon: '🧍',
+    creditCost: 15
+  },
+  {
+    id: 'try-on-clothes',
+    name: '同版型试衣',
+    description: '让模特自动试穿相似版型的服装',
+    category: 'tryon',
+    icon: '👗',
+    creditCost: 12
+  },
+  {
+    id: 'glasses-tryon',
+    name: '配件试戴',
+    description: '生成眼镜、帽饰等配件试戴效果图',
+    category: 'accessory',
+    icon: '🕶️',
+    creditCost: 10
+  },
+  {
+    id: 'pose-variation',
+    name: '姿态变换',
+    description: '智能调整模特姿态，匹配不同商品角度',
+    category: 'modeling',
+    icon: '🧘',
+    creditCost: 9
+  },
+  {
+    id: 'model-video',
+    name: '模特视频生成',
+    description: '将静态图片转换为动态走秀视频',
+    category: 'video',
+    icon: '🎥',
+    creditCost: 25
+  },
+  {
+    id: 'shoe-tryon',
+    name: '鞋靴试穿',
+    description: '自动合成鞋靴穿着效果图',
+    category: 'product',
+    icon: '👟',
+    creditCost: 11
+  },
+  {
+    id: 'scene-change',
+    name: '场景更换',
+    description: '快速替换电商宣传背景，增强氛围感',
+    category: 'scene',
+    icon: '🏙️',
+    creditCost: 10
+  },
+  {
+    id: 'color-change',
+    name: '商品换色',
+    description: '一键生成多种颜色组合，提升SKU展示效率',
+    category: 'product',
+    icon: '🎨',
+    creditCost: 8
+  },
+  {
+    id: 'background-removal',
+    name: '抠图去底',
+    description: '自动识别主体并精细抠图，秒级完成',
+    category: 'editing',
+    icon: '✂️',
+    creditCost: 6
+  }
+];
 
-// 中间件
-app.use(cors());
-app.use(express.json());
+const memorySubscriptionPlans = [
+  {
+    id: 'plan-free',
+    name: '基础版',
+    price: 0,
+    originalPrice: 0,
+    duration: 'monthly',
+    credits: 100,
+    benefits: ['每日100次生成', '基础模板', '标准客服'],
+    popular: false,
+    type: 'free'
+  },
+  {
+    id: 'plan-pro',
+    name: '专业版',
+    price: 29,
+    originalPrice: 49,
+    duration: 'monthly',
+    credits: 1000,
+    benefits: ['每日1000次生成', '高级模板', '优先客服', '无广告'],
+    popular: true,
+    type: 'pro'
+  },
+  {
+    id: 'plan-enterprise',
+    name: '企业版',
+    price: 99,
+    originalPrice: 149,
+    duration: 'monthly',
+    credits: 5000,
+    benefits: ['每日5000次生成', '全部模板', '专属客服', '定制功能'],
+    popular: false,
+    type: 'enterprise'
+  }
+];
 
-// 引入路由
-const authRoutes = require('./routes/auth');
-
-// 使用路由
-app.use('/api/auth', authRoutes);
-
-// 管理员登录API
-app.post('/api/admin/auth/login', (req, res) => {
-  const { username, password } = req.body;
-  
-  // 简单的管理员验证（实际项目中应该使用数据库验证）
-  if (username === 'admin' && password === 'admin123') {
-    // 生成JWT token
-    const token = jwt.sign(
-      { 
-        id: 1, 
-        username: 'admin', 
-        role: 'admin' 
-      }, 
-      JWT_SECRET, 
-      { expiresIn: '24h' }
-    );
-    
-    res.json({
-      success: true,
-      message: '登录成功',
-      data: {
-        token,
-        user: {
-          id: 1,
-          username: 'admin',
-          role: 'admin'
-        }
+const memoryReferralData = {
+  'user-1001': {
+    referralCode: 'ND2024',
+    isActive: true,
+    totalReferrals: 18,
+    successfulReferrals: 12,
+    conversionRate: 66.7,
+    totalEarnings: 960,
+    referralDetails: [
+      {
+        id: 'ref-1001',
+        referredUsername: '优选潮流店',
+        rewardCredits: 120,
+        status: 'completed',
+        createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
+      },
+      {
+        id: 'ref-1002',
+        referredUsername: '小熊童装',
+        rewardCredits: 80,
+        status: 'pending',
+        createdAt: new Date(Date.now() - 86400000 * 1).toISOString()
       }
-    });
-  } else {
-    res.status(401).json({
-      success: false,
-      message: '用户名或密码错误'
-    });
+    ],
+    creditHistory: [
+      {
+        id: 'credit-9001',
+        type: 'referral_reward',
+        amount: 120,
+        description: '邀请优选潮流店完成注册奖励',
+        createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
+      },
+      {
+        id: 'credit-9002',
+        type: 'consumption',
+        amount: -45,
+        description: '使用AI模特生成消耗积分',
+        createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
+      },
+      {
+        id: 'credit-9003',
+        type: 'recharge',
+        amount: 300,
+        description: '积分充值到账',
+        createdAt: new Date(Date.now() - 86400000 * 7).toISOString()
+      }
+    ]
   }
-});
-
-// Token验证中间件
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ success: false, message: '未提供访问令牌' });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ success: false, message: '令牌无效' });
-    }
-    req.user = user;
-    next();
-  });
 };
 
-// Token验证API
-app.post('/api/admin/auth/verify', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    message: '令牌有效',
-    data: {
-      user: req.user
-    }
-  });
-});
+const memoryGenerationHistory = {
+  'user-1001': []
+};
 
-// 推荐系统概览API
-app.get('/api/admin/referral/overview', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      totalUsers: 1250,
-      totalRelationships: 856,
-      totalCredits: 125600,
-      todayNewUsers: 23,
-      todayNewRelationships: 15,
-      todayCreditsIssued: 2300
-    }
-  });
-});
-
-// 推荐关系列表API
-app.get('/api/admin/referral/relationships', authenticateToken, (req, res) => {
-  const { page = 1, pageSize = 10, search = '', status = '' } = req.query;
-  
-  // TODO: 从数据库获取推广关系数据
-  // 暂时返回空数据，等待数据库集成
-  let filteredData = [];
-  if (search) {
-    filteredData = filteredData.filter(item => 
-      item.referrerName.includes(search) || 
-      item.refereeName.includes(search) ||
-      item.referrerId.includes(search) ||
-      item.refereeId.includes(search)
-    );
+const memoryReferralCodes = {
+  ND2024: {
+    code: 'ND2024',
+    referrerUserId: 'user-1001',
+    referrerName: '脑洞商家',
+    rewardCredits: 120,
+    createdAt: new Date(Date.now() - 86400000 * 10).toISOString()
   }
-  if (status) {
-    filteredData = filteredData.filter(item => item.status === status);
+};
+
+global.memoryUsers = memoryUsers;
+
+// ---------------- 辅助方法 ----------------
+const buildUserPayload = (user) => ({
+  id: user.id,
+  username: user.username,
+  email: user.email || null,
+  phone: user.phone || null,
+  avatar: user.avatar || null,
+  credits: user.credits ?? user.credits_balance ?? 0,
+  credits_balance: user.credits ?? user.credits_balance ?? 0,
+  membershipType: user.membershipType || 'standard',
+  loginMethod: user.loginMethod || 'phone',
+  referralCode: user.referralCode || null,
+  createdAt: user.createdAt || new Date().toISOString()
+});
+
+const createMockGeneration = ({
+  toolId,
+  creditsCost,
+  seed,
+  description,
+  extraAssets
+}) => ({
+  id: `gen-${toolId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  toolId,
+  creditsCost,
+  resultImage: `https://picsum.photos/seed/${seed || toolId}/${400 + Math.floor(Math.random() * 50)}/${600 + Math.floor(Math.random() * 50)}`,
+  description,
+  additionalAssets: extraAssets || [],
+  createdAt: new Date().toISOString()
+});
+
+const blendImages = async (mainImageBuffer, referenceImageBuffer) => {
+  const mainImage = sharp(mainImageBuffer).resize(512, 512).blur(10);
+  const referenceImage = await sharp(referenceImageBuffer)
+    .resize(512, 512)
+    .toBuffer();
+
+  return sharp(await mainImage.toBuffer())
+    .composite([{ input: referenceImage, gravity: 'center', blend: 'over' }])
+    .png()
+    .toBuffer();
+};
+
+const toolGenerators = {
+  'ai-model': ({ prompt, user }) => {
+    const record = createMockGeneration({
+      toolId: 'ai-model',
+      creditsCost: 15,
+      seed: `model-${Date.now()}`,
+      description: prompt || 'AI模特生成效果图'
+    });
+    return {
+      record,
+      creditsCost: 15,
+      previewText: '已生成模特展示效果，包含动态姿态与布料细节。',
+      additionalAssets: [],
+      creditDescription: 'AI模特生成消耗积分'
+    };
+  },
+  'try-on-clothes': ({ prompt }) => {
+    const record = createMockGeneration({
+      toolId: 'try-on-clothes',
+      creditsCost: 12,
+      seed: `tryon-${Date.now()}`,
+      description: prompt || '同版型试衣展示图'
+    });
+    return {
+      record,
+      creditsCost: 12,
+      previewText: '同版型试衣完成，可在动态视角查看合身度。',
+      additionalAssets: [],
+      creditDescription: '同版型试衣消耗积分'
+    };
+  },
+  'glasses-tryon': ({ prompt }) => {
+    const record = createMockGeneration({
+      toolId: 'glasses-tryon',
+      creditsCost: 10,
+      seed: `accessory-${Date.now()}`,
+      description: prompt || '配件试戴展示图'
+    });
+    return {
+      record,
+      creditsCost: 10,
+      previewText: '配件试戴效果已生成，可预览多角度细节。',
+      additionalAssets: [],
+      creditDescription: '配件试戴消耗积分'
+    };
+  },
+  'pose-variation': ({ prompt }) => {
+    const record = createMockGeneration({
+      toolId: 'pose-variation',
+      creditsCost: 9,
+      seed: `pose-${Date.now()}`,
+      description: prompt || '姿态变换效果图'
+    });
+    return {
+      record,
+      creditsCost: 9,
+      previewText: '姿态变换完成，模特肢体姿势自动适配商品。',
+      additionalAssets: [],
+      creditDescription: '姿态变换消耗积分'
+    };
+  },
+  'model-video': ({ prompt }) => {
+    const record = createMockGeneration({
+      toolId: 'model-video',
+      creditsCost: 25,
+      seed: `video-${Date.now()}`,
+      description: prompt || '模特视频生成预览'
+    });
+    return {
+      record,
+      creditsCost: 25,
+      previewText: '模特走秀视频已生成，视频链接可在详情查看。',
+      additionalAssets: [
+        {
+          type: 'video',
+          url: `https://samplelib.com/lib/preview/mp4/sample-5s.mp4?seed=${Date.now()}`,
+          description: '模特走秀短视频'
+        }
+      ],
+      creditDescription: '模特视频生成消耗积分'
+    };
+  },
+  'shoe-tryon': ({ prompt }) => {
+    const record = createMockGeneration({
+      toolId: 'shoe-tryon',
+      creditsCost: 11,
+      seed: `shoe-${Date.now()}`,
+      description: prompt || '鞋靴试穿展示图'
+    });
+    return {
+      record,
+      creditsCost: 11,
+      previewText: '鞋靴试穿效果已生成，包含侧视与脚部贴合细节。',
+      additionalAssets: [],
+      creditDescription: '鞋靴试穿消耗积分'
+    };
+  },
+  'scene-change': ({ prompt }) => {
+    const record = createMockGeneration({
+      toolId: 'scene-change',
+      creditsCost: 10,
+      seed: `scene-${Date.now()}`,
+      description: prompt || '场景更换效果图'
+    });
+    return {
+      record,
+      creditsCost: 10,
+      previewText: '场景更换完成，生成多种氛围背景可选。',
+      additionalAssets: [],
+      creditDescription: '场景更换消耗积分'
+    };
+  },
+  'color-change': ({ prompt }) => {
+    const record = createMockGeneration({
+      toolId: 'color-change',
+      creditsCost: 8,
+      seed: `color-${Date.now()}`,
+      description: prompt || '商品换色效果图'
+    });
+    return {
+      record,
+      creditsCost: 8,
+      previewText: '商品颜色已完成变换，支持多色对比图。',
+      additionalAssets: [],
+      creditDescription: '商品换色消耗积分'
+    };
+  },
+  'background-removal': ({ prompt }) => {
+    const record = createMockGeneration({
+      toolId: 'background-removal',
+      creditsCost: 6,
+      seed: `cutout-${Date.now()}`,
+      description: prompt || '抠图去底结果图'
+    });
+    record.resultImage = `https://picsum.photos/seed/${record.id}/600/600?grayscale`;
+    return {
+      record,
+      creditsCost: 6,
+      previewText: '抠图去底完成，可下载透明背景PNG。',
+      additionalAssets: [
+        {
+          type: 'image/png',
+          url: `https://picsum.photos/seed/${Date.now() + 1}/600/600`,
+          description: '透明背景PNG下载链接'
+        }
+      ],
+      creditDescription: '抠图去底消耗积分'
+    };
   }
-  
-  // 分页
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + parseInt(pageSize);
-  const paginatedData = filteredData.slice(startIndex, endIndex);
-  
-  res.json({
-    success: true,
-    data: {
-      list: paginatedData,
-      total: filteredData.length,
-      page: parseInt(page),
-      pageSize: parseInt(pageSize)
-    }
-  });
-});
+};
 
-// 删除推荐关系API
-app.delete('/api/admin/referral/relationships/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  
-  res.json({
-    success: true,
-    message: `推荐关系 ${id} 已删除`
+const createFallbackGeneration = ({ toolId, prompt }) => {
+  const fallback = createMockGeneration({
+    toolId,
+    creditsCost: 10,
+    seed: toolId,
+    description: prompt || 'AI生成结果'
   });
-});
-
-// 更新推荐关系状态API
-app.put('/api/admin/referral/relationships/:id/status', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body;
-  
-  res.json({
-    success: true,
-    message: `推荐关系 ${id} 状态已更新为 ${status}`
-  });
-});
-
-// 系统配置API
-app.get('/api/admin/system/config', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      referralCredits: 100,
-      maxReferrals: 10,
-      creditExpireDays: 365,
-      enableReferralSystem: true
-    }
-  });
-});
-
-app.put('/api/admin/system/config', authenticateToken, (req, res) => {
-  const config = req.body;
-  
-  res.json({
-    success: true,
-    message: '系统配置已更新',
-    data: config
-  });
-});
-
-app.post('/api/admin/system/config/reset', authenticateToken, (req, res) => {
-  const defaultConfig = {
-    referralCredits: 100,
-    maxReferrals: 10,
-    creditExpireDays: 365,
-    enableReferralSystem: true
+  return {
+    record: fallback,
+    creditsCost: fallback.creditsCost,
+    previewText: '生成完成',
+    additionalAssets: [],
+    creditDescription: `工具 ${toolId} 消耗积分`
   };
-  
-  res.json({
-    success: true,
-    message: '系统配置已重置为默认值',
-    data: defaultConfig
-  });
-});
+};
 
-// 系统统计API
-app.get('/api/admin/system/stats', authenticateToken, (req, res) => {
-  // TODO: 从数据库获取真实的系统统计数据
-  const stats = {
-    totalUsers: 0,
-    activeUsers: 0,
-    todayNewUsers: 0,
-    systemUptime: Math.floor(process.uptime()), // 系统运行时间（秒）
-    storageUsage: {
-      used: 0, // MB
-      total: 1024, // MB
-      percentage: 0
-    },
-    memoryUsage: {
-      used: process.memoryUsage().heapUsed / 1024 / 1024, // MB
-      total: process.memoryUsage().heapTotal / 1024 / 1024, // MB
-      percentage: (process.memoryUsage().heapUsed / process.memoryUsage().heapTotal * 100).toFixed(1)
-    },
-    databaseStatus: 'disconnected', // TODO: 检查真实数据库连接状态
-    databaseSize: 0, // MB
-    lastBackup: null, // TODO: 从数据库获取最后备份时间
-    serverInfo: {
-      nodeVersion: process.version,
-      platform: process.platform,
-      arch: process.arch,
-      startTime: new Date(Date.now() - process.uptime() * 1000).toISOString()
-    }
+const signToken = (payload, expiresIn = '24h') => jwt.sign(payload, JWT_SECRET, { expiresIn });
+
+const getUserByToken = (req) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return null;
+  const token = authHeader.replace('Bearer ', '');
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return memoryUsers.find((candidate) => candidate.id === decoded.userId) || null;
+  } catch (error) {
+    return null;
+  }
+};
+
+const ensureAuth = (req, res) => {
+  const user = getUserByToken(req);
+  if (!user) {
+    res.status(401).json({ success: false, message: '未授权访问' });
+    return null;
+  }
+  return user;
+};
+
+const findReferralData = (userId) => {
+  return memoryReferralData[userId] || {
+    referralCode: null,
+    isActive: false,
+    totalReferrals: 0,
+    successfulReferrals: 0,
+    conversionRate: 0,
+    totalEarnings: 0,
+    referralDetails: [],
+    creditHistory: []
   };
+};
 
+const syncCreditHistory = (userId) => {
+  const user = memoryUsers.find((candidate) => candidate.id === userId);
+  const referral = memoryReferralData[userId];
+  if (!user || !referral) return;
+
+  const totalCredits = referral.creditHistory.reduce((sum, item) => sum + item.amount, 0);
+  user.credits = (referral.initialCredits || 860) + totalCredits;
+  user.credits_balance = user.credits;
+};
+
+const refreshReferralConversion = (userId) => {
+  const referral = memoryReferralData[userId];
+  if (!referral) return;
+  const total = referral.referralDetails.length;
+  const success = referral.referralDetails.filter((item) => item.status === 'completed').length;
+  referral.totalReferrals = total;
+  referral.successfulReferrals = success;
+  referral.conversionRate = total === 0 ? 0 : Number(((success / total) * 100).toFixed(1));
+  referral.totalEarnings = referral.creditHistory
+    .filter((item) => item.amount > 0)
+    .reduce((sum, item) => sum + item.amount, 0);
+};
+
+// ---------------- 通用路由 ----------------
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', mode: USE_MEMORY_DB ? 'memory' : 'database', timestamp: new Date().toISOString() });
+});
+
+// ---------------- 认证相关 ----------------
+app.post('/api/auth/login', (req, res) => {
+  const { phone, email, password } = req.body || {};
+  if (!phone && !email) {
+    return res.status(400).json({ success: false, message: '请提供手机号或邮箱登录' });
+  }
+
+  const user = memoryUsers.find((candidate) => {
+    if (phone && candidate.phone === phone) return true;
+    if (email && candidate.email === email) return true;
+    return false;
+  });
+
+  if (!user || user.password !== password) {
+    return res.status(401).json({ success: false, message: '账号或密码错误' });
+  }
+
+  const token = signToken({ userId: user.id, loginMethod: 'phone' });
   res.json({
     success: true,
-    data: stats
+    message: '登录成功',
+    data: {
+      token,
+      user: buildUserPayload({ ...user, loginMethod: 'phone' })
+    }
   });
 });
 
-// 前端工具列表API (不需要认证)
+app.post('/api/auth/wechat-login', (req, res) => {
+  const user = { ...memoryUsers[0], loginMethod: 'wechat' };
+  const token = signToken({ userId: user.id, loginMethod: 'wechat' });
+  res.json({
+    success: true,
+    message: '微信登录成功',
+    data: {
+      token,
+      user: buildUserPayload(user)
+    }
+  });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  const user = ensureAuth(req, res);
+  if (!user) return;
+  res.json({ success: true, data: { user: buildUserPayload(user) } });
+});
+
+// ---------------- 工具相关 ----------------
 app.get('/api/tools', (req, res) => {
-  // 返回前端需要的工具列表数据
-  const tools = [
-    {
-      id: 1,
-      name: '商品主图生成',
-      description: '生成高质量的商品主图，适用于电商平台展示',
-      category: 'product',
-      icon: '🛍️',
-      creditCost: 10
-    },
-    {
-      id: 2,
-      name: '详情页设计',
-      description: '生成商品详情页设计，提升转化率',
-      category: 'design',
-      icon: '📄',
-      creditCost: 15
-    },
-    {
-      id: 3,
-      name: 'AI文案生成',
-      description: '智能生成商品文案和营销内容',
-      category: 'text',
-      icon: '✍️',
-      creditCost: 5
-    },
-    {
-      id: 4,
-      name: '背景移除',
-      description: '智能移除图片背景，制作透明图片',
-      category: 'image',
-      icon: '🖼️',
-      creditCost: 8
-    },
-    {
-      id: 5,
-      name: '图片增强',
-      description: '提升图片质量和清晰度',
-      category: 'image',
-      icon: '✨',
-      creditCost: 12
-    }
-  ];
+  res.json({ success: true, data: memoryTools });
+});
+
+app.get('/api/tools/history', (req, res) => {
+  const user = ensureAuth(req, res);
+  if (!user) return;
+  res.json({ success: true, data: memoryGenerationHistory[user.id] || [] });
+});
+
+app.post('/api/tools/generate', upload.fields([
+  { name: 'mainImage', maxCount: 1 },
+  { name: 'referenceImage', maxCount: 1 }
+]), async (req, res) => {
+  const user = ensureAuth(req, res);
+  if (!user) return;
+
+  const { toolId, prompt } = req.body || {};
+  if (!toolId) {
+    return res.status(400).json({ success: false, message: '缺少工具ID' });
+  }
+
+  const tool = memoryTools.find((candidate) => candidate.id === toolId);
+  if (!tool) {
+    return res.status(404).json({ success: false, message: '未找到指定工具' });
+  }
+
+  const mainImageBuffer = req.files?.mainImage?.[0]?.buffer;
+  const referenceImageBuffer = req.files?.referenceImage?.[0]?.buffer;
+  if (!mainImageBuffer || !referenceImageBuffer) {
+    return res.status(400).json({ success: false, message: '主图和参考图均为必传' });
+  }
+
+  let generationRecord;
+  try {
+    const mergedImageBuffer = await blendImages(mainImageBuffer, referenceImageBuffer);
+    const mergedImageBase64 = mergedImageBuffer.toString('base64');
+
+    generationRecord = {
+      id: `gen-${toolId}-${Date.now()}`,
+      toolId,
+      creditsCost: tool.creditCost,
+      resultImage: `data:image/png;base64,${mergedImageBase64}`,
+      createdAt: new Date().toISOString(),
+      prompt: prompt || null,
+      description: `${tool.name} 生成结果`
+    };
+  } catch (error) {
+    logger.error('生成图片失败:', error);
+    return res.status(500).json({ success: false, message: '生成图片失败，请稍后重试' });
+  }
+
+  const history = memoryGenerationHistory[user.id] || [];
+  history.unshift(generationRecord);
+  memoryGenerationHistory[user.id] = history;
+
+  const referral = findReferralData(user.id);
+  referral.creditHistory.unshift({
+    id: `credit-${Date.now()}`,
+    type: 'consumption',
+    amount: -tool.creditCost,
+    description: `${tool.name} 消耗积分`,
+    createdAt: new Date().toISOString()
+  });
+  syncCreditHistory(user.id);
 
   res.json({
     success: true,
-    data: tools
+    data: generationRecord
   });
 });
 
-// 启动服务器
+// ---------------- 订阅相关 ----------------
+app.get('/api/subscription/plans', (req, res) => {
+  res.json({ success: true, data: memorySubscriptionPlans });
+});
+
+// ---------------- 推广码相关 ----------------
+app.post('/api/referral/code/generate', (req, res) => {
+  const user = ensureAuth(req, res);
+  if (!user) return;
+
+  let referral = memoryReferralData[user.id];
+  if (!referral) {
+    referral = {
+      referralCode: `ND${Date.now().toString().slice(-6)}`,
+      isActive: true,
+      referralDetails: [],
+      creditHistory: []
+    };
+    memoryReferralData[user.id] = referral;
+  }
+
+  referral.referralCode = referral.referralCode || `ND${Date.now().toString().slice(-6)}`;
+  referral.isActive = true;
+  memoryReferralCodes[referral.referralCode] = {
+    code: referral.referralCode,
+    referrerUserId: user.id,
+    referrerName: user.username,
+    rewardCredits: 120,
+    createdAt: new Date().toISOString()
+  };
+
+  res.json({ success: true, data: { referralCode: referral.referralCode } });
+});
+
+app.post('/api/referral/code/validate', (req, res) => {
+  const { code } = req.body || {};
+  if (!code) {
+    return res.status(400).json({ success: false, message: '缺少推广码' });
+  }
+
+  const record = memoryReferralCodes[code.toUpperCase()];
+  if (!record) {
+    return res.json({ success: true, data: { valid: false } });
+  }
+
+  res.json({
+    success: true,
+    data: {
+      valid: true,
+      referrer: {
+        id: record.referrerUserId,
+        name: record.referrerName
+      }
+    }
+  });
+});
+
+// ---------------- 推广关系 ----------------
+app.post('/api/referral/relationship', (req, res) => {
+  const user = ensureAuth(req, res);
+  if (!user) return;
+
+  const { refereeId, referralCode } = req.body || {};
+  if (!refereeId || !referralCode) {
+    return res.status(400).json({ success: false, message: '缺少被推荐用户或推广码' });
+  }
+
+  const codeRecord = memoryReferralCodes[referralCode.toUpperCase()];
+  if (!codeRecord) {
+    return res.status(404).json({ success: false, message: '推广码无效' });
+  }
+
+  const referrerId = codeRecord.referrerUserId;
+  let referral = memoryReferralData[referrerId];
+  if (!referral) {
+    referral = {
+      referralCode,
+      isActive: true,
+      referralDetails: [],
+      creditHistory: []
+    };
+    memoryReferralData[referrerId] = referral;
+  }
+
+  const newRelationship = {
+    id: `ref-${Date.now()}`,
+    referredUsername: refereeId,
+    rewardCredits: codeRecord.rewardCredits,
+    status: 'pending',
+    registrationStatus: 'in_progress',
+    createdAt: new Date().toISOString()
+  };
+
+  referral.referralDetails.unshift(newRelationship);
+  referral.creditHistory.unshift({
+    id: `credit-${Date.now()}`,
+    type: 'referral_reward',
+    amount: codeRecord.rewardCredits,
+    description: `推广奖励：${refereeId}`,
+    createdAt: new Date().toISOString()
+  });
+
+  refreshReferralConversion(referrerId);
+  syncCreditHistory(referrerId);
+
+  res.json({ success: true, data: newRelationship });
+});
+
+app.get('/api/referral/user/:userId', (req, res) => {
+  const { userId } = req.params;
+  const referral = findReferralData(userId);
+  res.json({
+    success: true,
+    data: {
+      referralCode: referral.referralCode,
+      isActive: referral.isActive,
+      totalReferrals: referral.totalReferrals,
+      totalEarnings: referral.totalEarnings,
+      successfulReferrals: referral.successfulReferrals,
+      conversionRate: referral.conversionRate
+    }
+  });
+});
+
+app.get('/api/referral/stats/:userId', (req, res) => {
+  const { userId } = req.params;
+  const referral = findReferralData(userId);
+  res.json({ success: true, data: referral });
+});
+
+app.get('/api/referral/list/:userId', (req, res) => {
+  const { userId } = req.params;
+  const referral = findReferralData(userId);
+  res.json({ success: true, data: referral.referralDetails });
+});
+
+app.get('/api/referral/credits/:userId', (req, res) => {
+  const { userId } = req.params;
+  const referral = findReferralData(userId);
+  res.json({ success: true, data: referral.creditHistory });
+});
+
+// ---------------- 积分相关 ----------------
+app.get('/api/credits/balance', (req, res) => {
+  const user = ensureAuth(req, res);
+  if (!user) return;
+  res.json({ success: true, data: { credits: user.credits ?? 0 } });
+});
+
+app.get('/api/credits/history', (req, res) => {
+  const user = ensureAuth(req, res);
+  if (!user) return;
+  const referral = findReferralData(user.id);
+  res.json({ success: true, data: referral.creditHistory });
+});
+
+app.post('/api/credits/purchase', (req, res) => {
+  const user = ensureAuth(req, res);
+  if (!user) return;
+
+  const { credits, bonus = 0 } = req.body || {};
+  if (!credits || credits <= 0) {
+    return res.status(400).json({ success: false, message: '积分数量无效' });
+  }
+
+  const total = credits + bonus;
+  const referral = findReferralData(user.id);
+  referral.creditHistory.unshift({
+    id: `credit-${Date.now()}`,
+    type: 'recharge',
+    amount: total,
+    description: `充值 ${credits} 积分${bonus > 0 ? `，赠送 ${bonus} 积分` : ''}`,
+    createdAt: new Date().toISOString()
+  });
+  syncCreditHistory(user.id);
+
+  res.json({ success: true, data: { credits: user.credits } });
+});
+
+// ---------------- 服务器启动 ----------------
 app.listen(PORT, () => {
-  logger.log(`后端服务器已启动，运行在 http://localhost:${PORT}`);
-});
-
-// 积分系统API
-app.get('/api/admin/credits/stats', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      totalCredits: 125600,
-      totalUsers: 1250,
-      totalTransactions: 3456,
-      averageCreditsPerUser: 100.48,
-      todayCreditsIssued: 2300,
-      todayCreditsUsed: 1850,
-      monthlyCreditsIssued: 45600,
-      monthlyCreditsUsed: 38900
-    }
-  });
-});
-
-app.get('/api/admin/credits/rules', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: [
-      {
-        id: 1,
-        name: '每日签到',
-        type: 'daily_checkin',
-        credits: 10,
-        description: '每日签到获得积分',
-        isActive: true,
-        createdAt: '2024-01-01T00:00:00Z'
-      },
-      {
-        id: 2,
-        name: '推荐新用户',
-        type: 'referral',
-        credits: 100,
-        description: '成功推荐新用户注册',
-        isActive: true,
-        createdAt: '2024-01-01T00:00:00Z'
-      },
-      {
-        id: 3,
-        name: '完成任务',
-        type: 'task_completion',
-        credits: 50,
-        description: '完成指定任务获得积分',
-        isActive: true,
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    ]
-  });
-});
-
-app.post('/api/admin/credits/rules', authenticateToken, (req, res) => {
-  const { name, type, credits, description, isActive } = req.body;
-  
-  const newRule = {
-    id: Date.now(),
-    name,
-    type,
-    credits: parseInt(credits),
-    description,
-    isActive: isActive !== false,
-    createdAt: new Date().toISOString()
-  };
-  
-  res.json({
-    success: true,
-    message: '积分规则创建成功',
-    data: newRule
-  });
-});
-
-app.put('/api/admin/credits/rules/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const { name, type, credits, description, isActive } = req.body;
-  
-  res.json({
-    success: true,
-    message: `积分规则 ${id} 更新成功`,
-    data: {
-      id: parseInt(id),
-      name,
-      type,
-      credits: parseInt(credits),
-      description,
-      isActive,
-      updatedAt: new Date().toISOString()
-    }
-  });
-});
-
-app.delete('/api/admin/credits/rules/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  
-  res.json({
-    success: true,
-    message: `积分规则 ${id} 删除成功`
-  });
-});
-
-app.get('/api/admin/credits/transactions', authenticateToken, (req, res) => {
-  const { page = 1, pageSize = 10, type = '', userId = '' } = req.query;
-  
-  // TODO: 从数据库获取积分交易记录
-  // 暂时返回空数据，等待数据库集成
-  let filteredData = [];
-  if (type) {
-    filteredData = filteredData.filter(item => item.type === type);
-  }
-  if (userId) {
-    filteredData = filteredData.filter(item => item.userId.includes(userId) || item.userName.includes(userId));
-  }
-  
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + parseInt(pageSize);
-  const paginatedData = filteredData.slice(startIndex, endIndex);
-  
-  res.json({
-    success: true,
-    data: {
-      list: paginatedData,
-      total: filteredData.length,
-      page: parseInt(page),
-      pageSize: parseInt(pageSize)
-    }
-  });
-});
-
-app.get('/api/admin/credits/chart-data', authenticateToken, (req, res) => {
-  const { period = '7d' } = req.query;
-  
-  let days = 7;
-  if (period === '30d') days = 30;
-  if (period === '90d') days = 90;
-  
-  const chartData = Array.from({ length: days }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (days - 1 - i));
-    return {
-      date: date.toISOString().split('T')[0],
-      earned: Math.floor(Math.random() * 1000) + 500,
-      spent: Math.floor(Math.random() * 800) + 300
-    };
-  });
-  
-  res.json({
-    success: true,
-    data: chartData
-  });
-});
-
-// 订阅系统API
-app.get('/api/admin/subscriptions/stats', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      totalSubscriptions: 456,
-      activeSubscriptions: 389,
-      totalRevenue: 125600,
-      monthlyRevenue: 15600,
-      conversionRate: 12.5,
-      churnRate: 3.2
-    }
-  });
-});
-
-app.get('/api/admin/subscriptions/plans', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: [
-      {
-        id: 1,
-        name: '基础版',
-        price: 29,
-        duration: 'monthly',
-        features: ['100积分/月', '基础AI工具', '邮件支持'],
-        isActive: true,
-        subscriberCount: 156,
-        createdAt: '2024-01-01T00:00:00Z'
-      },
-      {
-        id: 2,
-        name: '专业版',
-        price: 99,
-        duration: 'monthly',
-        features: ['500积分/月', '全部AI工具', '优先支持', '高级功能'],
-        isActive: true,
-        subscriberCount: 233,
-        createdAt: '2024-01-01T00:00:00Z'
-      },
-      {
-        id: 3,
-        name: '企业版',
-        price: 299,
-        duration: 'monthly',
-        features: ['无限积分', '全部功能', '专属客服', 'API访问'],
-        isActive: true,
-        subscriberCount: 67,
-        createdAt: '2024-01-01T00:00:00Z'
-      }
-    ]
-  });
-});
-
-app.post('/api/admin/subscriptions/plans', authenticateToken, (req, res) => {
-  const { name, price, duration, features, isActive } = req.body;
-  
-  const newPlan = {
-    id: Date.now(),
-    name,
-    price: parseFloat(price),
-    duration,
-    features: Array.isArray(features) ? features : [],
-    isActive: isActive !== false,
-    subscriberCount: 0,
-    createdAt: new Date().toISOString()
-  };
-  
-  res.json({
-    success: true,
-    message: '订阅套餐创建成功',
-    data: newPlan
-  });
-});
-
-app.put('/api/admin/subscriptions/plans/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const { name, price, duration, features, isActive } = req.body;
-  
-  res.json({
-    success: true,
-    message: `订阅套餐 ${id} 更新成功`,
-    data: {
-      id: parseInt(id),
-      name,
-      price: parseFloat(price),
-      duration,
-      features: Array.isArray(features) ? features : [],
-      isActive,
-      updatedAt: new Date().toISOString()
-    }
-  });
-});
-
-app.delete('/api/admin/subscriptions/plans/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  
-  res.json({
-    success: true,
-    message: `订阅套餐 ${id} 删除成功`
-  });
-});
-
-app.get('/api/admin/subscriptions/list', authenticateToken, (req, res) => {
-  const { page = 1, pageSize = 10, status = '', planId = '' } = req.query;
-  
-  // TODO: 从数据库获取订阅列表
-  // 暂时返回空数据，等待数据库集成
-  let filteredData = [];
-  if (status) {
-    filteredData = filteredData.filter(item => item.status === status);
-  }
-  if (planId) {
-    filteredData = filteredData.filter(item => item.planId === parseInt(planId));
-  }
-  
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + parseInt(pageSize);
-  const paginatedData = filteredData.slice(startIndex, endIndex);
-  
-  res.json({
-    success: true,
-    data: {
-      list: paginatedData,
-      total: filteredData.length,
-      page: parseInt(page),
-      pageSize: parseInt(pageSize)
-    }
-  });
-});
-
-// 仪表盘API
-app.get('/api/admin/dashboard/stats', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      totalUsers: 1250,
-      totalCredits: 125600,
-      totalSubscriptions: 456,
-      totalRevenue: 125600,
-      todayNewUsers: 23,
-      todayCreditsUsed: 1850,
-      todayNewSubscriptions: 5,
-      todayRevenue: 890
-    }
-  });
-});
-
-app.get('/api/admin/dashboard/chart-data', authenticateToken, (req, res) => {
-  const chartData = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - i));
-    return {
-      date: date.toISOString().split('T')[0],
-      users: Math.floor(Math.random() * 50) + 20,
-      credits: Math.floor(Math.random() * 2000) + 1000,
-      revenue: Math.floor(Math.random() * 1000) + 500
-    };
-  });
-  
-  res.json({
-    success: true,
-    data: chartData
-  });
-});
-
-app.get('/api/admin/dashboard/recent-activities', authenticateToken, (req, res) => {
-  const activities = [
-    { id: 1, type: 'user_register', message: '新用户注册：用户123', time: '2分钟前' },
-    { id: 2, type: 'subscription', message: '用户456购买了专业版套餐', time: '5分钟前' },
-    { id: 3, type: 'credit_usage', message: '用户789使用了50积分', time: '8分钟前' },
-    { id: 4, type: 'tool_usage', message: 'AI图片生成工具被使用了15次', time: '12分钟前' },
-    { id: 5, type: 'referral', message: '用户101成功推荐了新用户', time: '15分钟前' }
-  ];
-  
-  res.json({
-    success: true,
-    data: activities
-  });
-});
-
-// AI工具管理API
-// 添加路由别名以兼容前端请求
-app.get('/api/admin/ai-tools', authenticateToken, (req, res) => {
-  const { page = 1, pageSize = 10, category = '', status = '' } = req.query;
-  
-  // TODO: 从数据库获取AI工具列表
-  // 暂时返回空数据，等待数据库集成
-  let filteredData = [];
-  if (category) {
-    filteredData = filteredData.filter(item => item.category === category);
-  }
-  if (status) {
-    filteredData = filteredData.filter(item => item.status === status);
-  }
-  
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + parseInt(pageSize);
-  const paginatedData = filteredData.slice(startIndex, endIndex);
-  
-  res.json({
-    success: true,
-    data: {
-      list: paginatedData,
-      total: filteredData.length,
-      page: parseInt(page),
-      pageSize: parseInt(pageSize)
-    }
-  });
-});
-
-app.get('/api/admin/tools/list', authenticateToken, (req, res) => {
-  const { page = 1, pageSize = 10, category = '', status = '' } = req.query;
-  
-  // TODO: 从数据库获取工具列表
-  // 暂时返回空数据，等待数据库集成
-  let filteredData = [];
-  if (category) {
-    filteredData = filteredData.filter(item => item.category === category);
-  }
-  if (status) {
-    filteredData = filteredData.filter(item => item.status === status);
-  }
-  
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + parseInt(pageSize);
-  const paginatedData = filteredData.slice(startIndex, endIndex);
-  
-  res.json({
-    success: true,
-    data: {
-      list: paginatedData,
-      total: filteredData.length,
-      page: parseInt(page),
-      pageSize: parseInt(pageSize)
-    }
-  });
-});
-
-app.post('/api/admin/tools', authenticateToken, (req, res) => {
-  const { name, category, description, creditCost, status, settings } = req.body;
-  
-  const newTool = {
-    id: Date.now(),
-    name,
-    category,
-    description,
-    creditCost: parseInt(creditCost),
-    status: status || 'active',
-    usageCount: 0,
-    icon: category === 'image' ? 'image' : category === 'text' ? 'file-text' : 'code',
-    settings: settings || {},
-    createdAt: new Date().toISOString()
-  };
-  
-  res.json({
-    success: true,
-    message: 'AI工具创建成功',
-    data: newTool
-  });
-});
-
-app.put('/api/admin/tools/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const { name, category, description, creditCost, status, settings } = req.body;
-  
-  res.json({
-    success: true,
-    message: `AI工具 ${id} 更新成功`,
-    data: {
-      id: parseInt(id),
-      name,
-      category,
-      description,
-      creditCost: parseInt(creditCost),
-      status,
-      settings: settings || {},
-      updatedAt: new Date().toISOString()
-    }
-  });
-});
-
-app.delete('/api/admin/tools/:id', authenticateToken, (req, res) => {
-  const { id } = req.params;
-  
-  res.json({
-    success: true,
-    message: `AI工具 ${id} 删除成功`
-  });
-});
-
-app.get('/api/admin/tools/stats', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      totalTools: 15,
-      activeTools: 12,
-      totalUsage: 4580,
-      todayUsage: 156,
-      popularTools: [
-        { name: 'AI文本生成', usage: 2340 },
-        { name: 'AI图片生成', usage: 1250 },
-        { name: 'AI代码生成', usage: 890 }
-      ]
-    }
-  });
-});
-
-// 用户管理API
-// 添加路由别名以兼容前端请求
-app.get('/api/admin/users', authenticateToken, (req, res) => {
-  const { page = 1, pageSize = 10, search = '', status = '' } = req.query;
-  
-  // TODO: 从数据库获取用户列表
-  // 暂时返回空数据，等待数据库集成
-  let filteredData = [];
-  if (search) {
-    filteredData = filteredData.filter(item => 
-      item.username.includes(search) || 
-      item.email.includes(search)
-    );
-  }
-  if (status) {
-    filteredData = filteredData.filter(item => item.status === status);
-  }
-  
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + parseInt(pageSize);
-  const paginatedData = filteredData.slice(startIndex, endIndex);
-  
-  res.json({
-    success: true,
-    data: {
-      list: paginatedData,
-      total: filteredData.length,
-      page: parseInt(page),
-      pageSize: parseInt(pageSize)
-    }
-  });
-});
-
-app.get('/api/admin/users/list', authenticateToken, (req, res) => {
-  const { page = 1, pageSize = 10, search = '', status = '' } = req.query;
-  
-  // TODO: 从数据库获取用户列表
-  // 暂时返回空数据，等待数据库集成
-  let filteredData = [];
-  if (search) {
-    filteredData = filteredData.filter(item => 
-      item.username.includes(search) || 
-      item.email.includes(search)
-    );
-  }
-  if (status) {
-    filteredData = filteredData.filter(item => item.status === status);
-  }
-  
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + parseInt(pageSize);
-  const paginatedData = filteredData.slice(startIndex, endIndex);
-  
-  res.json({
-    success: true,
-    data: {
-      list: paginatedData,
-      total: filteredData.length,
-      page: parseInt(page),
-      pageSize: parseInt(pageSize)
-    }
-  });
-});
-
-app.get('/api/admin/users/stats', authenticateToken, (req, res) => {
-  // TODO: 从数据库获取真实的用户统计数据
-  res.json({
-    success: true,
-    data: {
-      totalUsers: 0,
-      activeUsers: 0,
-      newUsersToday: 0,
-      newUsersThisMonth: 0,
-      userGrowthRate: 0
-    }
-  });
+  logger.log(`✅ 后端服务已启动：http://localhost:${PORT}`);
 });
