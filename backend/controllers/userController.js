@@ -464,6 +464,34 @@ const getUserStats = async (req, res) => {
   }
 };
 
+// 获取用户订阅信息
+const getUserSubscription = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 检查权限
+    if (req.userType !== 'admin' && req.user._id.toString() !== id) {
+      return res.status(403).json({
+        success: false,
+        message: '无权查看此用户的订阅信息'
+      });
+    }
+
+    const subscription = await Subscription.getCurrentSubscription(id);
+    
+    res.json({
+      success: true,
+      data: { subscription }
+    });
+  } catch (error) {
+    console.error('Get user subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取订阅信息失败'
+    });
+  }
+};
+
 // 批量操作用户
 const batchUpdateUsers = async (req, res) => {
   try {
@@ -536,5 +564,6 @@ module.exports = {
   getUserGenerations,
   adjustUserCredits,
   getUserStats,
+  getUserSubscription,
   batchUpdateUsers
 };

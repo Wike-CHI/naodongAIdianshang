@@ -139,7 +139,10 @@ const UsersPage = () => {
   // 批量删除
   const handleBatchDelete = async () => {
     try {
-      const result = await usersAPI.batchDeleteUsers(selectedRowKeys)
+      const result = await usersAPI.batchUpdateUsers({
+        action: 'delete',
+        user_ids: selectedRowKeys
+      })
       
       if (result.success) {
         message.success(`成功删除 ${selectedRowKeys.length} 个用户`)

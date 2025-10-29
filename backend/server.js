@@ -37,10 +37,18 @@ if (!USE_MEMORY_DB) {
 // 引入路由
 const authRoutes = require('./routes/auth');
 const aiGenerationRoutes = require('./routes/aiGeneration');
+const aiToolsRoutes = require('./routes/aiTools');
 const aiModelToolsAdminRoutes = require('./routes/aiModelToolsAdmin');
+const usersRoutes = require('./routes/users');
+const subscriptionsRoutes = require('./routes/subscriptions');
+const creditsRoutes = require('./routes/credits');
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiGenerationRoutes);
+app.use('/api/admin/ai-tools', aiToolsRoutes);
 app.use('/api/admin/ai-model-tools', aiModelToolsAdminRoutes);
+app.use('/api/admin/users', usersRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
+app.use('/api/credits', creditsRoutes);
 
 // ---------------- 内存数据 ----------------
 const memoryUsers = [

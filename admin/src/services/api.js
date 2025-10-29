@@ -50,7 +50,7 @@ export const authAPI = {
   login: (credentials) => apiClient.post(API_ENDPOINTS.LOGIN, credentials),
   
   // 获取当前用户信息
-  getCurrentUser: () => apiClient.get('/api/admin/me'),
+  getCurrentUser: () => apiClient.get('/api/auth/me'),
   
   // 刷新token
   refreshToken: () => apiClient.post(API_ENDPOINTS.REFRESH_TOKEN),
@@ -82,14 +82,20 @@ export const usersAPI = {
   // 更新用户信息
   updateUser: (id, data) => apiClient.put(API_ENDPOINTS.USER_BY_ID(id), data),
   
+  // 删除用户
+  deleteUser: (id) => apiClient.delete(API_ENDPOINTS.USER_BY_ID(id)),
+  
   // 调整用户积分
-  adjustCredits: (id, data) => apiClient.post(API_ENDPOINTS.USER_CREDITS(id), data),
+  adjustCredits: (id, data) => apiClient.post(API_ENDPOINTS.USER_ADJUST_CREDITS(id), data),
   
   // 获取用户积分记录
   getUserCredits: (id, params) => apiClient.get(API_ENDPOINTS.USER_CREDITS(id), { params }),
   
   // 获取用户订阅信息
   getUserSubscription: (id, params) => apiClient.get(API_ENDPOINTS.USER_SUBSCRIPTION(id), { params }),
+  
+  // 获取用户AI生成历史
+  getUserGenerations: (id, params) => apiClient.get(API_ENDPOINTS.USER_GENERATIONS(id), { params }),
   
   // 批量操作用户
   batchUpdateUsers: (data) => apiClient.post(API_ENDPOINTS.BATCH_USER_UPDATE, data),
@@ -116,7 +122,19 @@ export const toolsAPI = {
   deleteTool: (id) => apiClient.delete(API_ENDPOINTS.AI_TOOL_BY_ID(id)),
   
   // 切换工具状态
-  toggleToolStatus: (id, enabled) => apiClient.patch(API_ENDPOINTS.AI_TOOL_TOGGLE(id), { enabled }),
+  toggleToolStatus: (id, enabled) => apiClient.post(API_ENDPOINTS.AI_TOOL_TOGGLE(id), { enabled }),
+  
+  // 批量更新工具状态
+  batchUpdateStatus: (data) => apiClient.post(API_ENDPOINTS.AI_TOOL_BATCH_STATUS, data),
+  
+  // 重置工具配置
+  resetTool: (id) => apiClient.post(API_ENDPOINTS.AI_TOOL_RESET(id)),
+  
+  // 批量重置工具配置
+  batchResetTools: (data) => apiClient.post(API_ENDPOINTS.AI_TOOL_BATCH_RESET, data),
+  
+  // 获取工具使用历史
+  getToolHistory: (id, params) => apiClient.get(API_ENDPOINTS.AI_TOOL_HISTORY(id), { params }),
   
   // 获取工具类型
   getToolTypes: () => apiClient.get(API_ENDPOINTS.AI_TOOL_TYPES),
@@ -152,7 +170,19 @@ export const subscriptionsAPI = {
   getUserSubscriptions: (params) => apiClient.get(API_ENDPOINTS.USER_SUBSCRIPTIONS, { params }),
   
   // 获取订阅统计
-  getSubscriptionStats: () => apiClient.get(API_ENDPOINTS.SUBSCRIPTION_STATS)
+  getSubscriptionStats: () => apiClient.get(API_ENDPOINTS.SUBSCRIPTION_STATS),
+  
+  // 取消订阅
+  cancelSubscription: (id, data) => apiClient.post(API_ENDPOINTS.SUBSCRIPTION_CANCEL(id), data),
+  
+  // 续费订阅
+  renewSubscription: (id, data) => apiClient.post(API_ENDPOINTS.SUBSCRIPTION_RENEW(id), data),
+  
+  // 获取即将到期的订阅（管理员）
+  getExpiringSubscriptions: (params) => apiClient.get(API_ENDPOINTS.SUBSCRIPTION_EXPIRING, { params }),
+  
+  // 批量操作订阅（管理员）
+  batchUpdateSubscriptions: (data) => apiClient.post(API_ENDPOINTS.SUBSCRIPTION_BATCH, data)
 };
 
 // 积分管理相关API
@@ -169,11 +199,32 @@ export const creditsAPI = {
   // 获取积分规则
   getRules: () => apiClient.get(API_ENDPOINTS.CREDIT_RULES),
   
+  // 创建积分规则
+  createRule: (data) => apiClient.post(API_ENDPOINTS.CREDIT_RULES, data),
+  
+  // 更新积分规则
+  updateRule: (id, data) => apiClient.put(`${API_ENDPOINTS.CREDIT_RULES}/${id}`, data),
+  
+  // 删除积分规则
+  deleteRule: (id) => apiClient.delete(`${API_ENDPOINTS.CREDIT_RULES}/${id}`),
+  
   // 获取交易记录
   getTransactions: (params) => apiClient.get(API_ENDPOINTS.CREDIT_TRANSACTIONS, { params }),
   
   // 获取图表数据
-  getChartData: () => apiClient.get(API_ENDPOINTS.CREDIT_CHART_DATA)
+  getChartData: () => apiClient.get(API_ENDPOINTS.CREDIT_CHART_DATA),
+  
+  // 批量调整用户积分
+  batchAdjustCredits: (data) => apiClient.post(API_ENDPOINTS.CREDIT_BATCH_ADJUST, data),
+  
+  // 获取积分类型统计
+  getCreditTypeStats: () => apiClient.get(API_ENDPOINTS.CREDIT_TYPE_STATS),
+  
+  // 获取积分排行榜
+  getCreditLeaderboard: () => apiClient.get(API_ENDPOINTS.CREDIT_LEADERBOARD),
+  
+  // 导出积分记录
+  exportCreditRecords: () => apiClient.get(API_ENDPOINTS.CREDIT_EXPORT)
 };
 
 // 系统管理相关API
@@ -251,10 +302,10 @@ export const apiManagementAPI = {
   createEndpoint: (data) => apiClient.post(API_ENDPOINTS.API_ENDPOINTS, data),
   
   // 更新API接口
-  updateEndpoint: (id, data) => apiClient.put(`${API_ENDPOINTS.API_ENDPOINTS}/${id}`, data),
+  updateEndpoint: (id, data) => apiClient.put(API_ENDPOINTS.API_ENDPOINT_BY_ID(id), data),
   
   // 删除API接口
-  deleteEndpoint: (id) => apiClient.delete(`${API_ENDPOINTS.API_ENDPOINTS}/${id}`),
+  deleteEndpoint: (id) => apiClient.delete(API_ENDPOINTS.API_ENDPOINT_BY_ID(id)),
   
   // 获取API密钥列表
   getKeys: () => apiClient.get(API_ENDPOINTS.API_KEYS),
@@ -263,40 +314,43 @@ export const apiManagementAPI = {
   createKey: (data) => apiClient.post(API_ENDPOINTS.API_KEYS, data),
   
   // 更新API密钥
-  updateKey: (id, data) => apiClient.put(`${API_ENDPOINTS.API_KEYS}/${id}`, data),
+  updateKey: (id, data) => apiClient.put(API_ENDPOINTS.API_KEY_BY_ID(id), data),
   
   // 删除API密钥
-  deleteKey: (id) => apiClient.delete(`${API_ENDPOINTS.API_KEYS}/${id}`)
+  deleteKey: (id) => apiClient.delete(API_ENDPOINTS.API_KEY_BY_ID(id))
 };
 
 // AI模特工具管理API
 export const aiModelToolsAPI = {
   // 获取AI模特工具列表
-  getAIModelTools: () => apiClient.get('/api/admin/ai-model-tools'),
+  getAIModelTools: () => apiClient.get(API_ENDPOINTS.AI_TOOLS),
   
   // 获取AI模特工具详情
-  getAIModelTool: (id) => apiClient.get(`/api/admin/ai-model-tools/${id}`),
+  getAIModelTool: (id) => apiClient.get(API_ENDPOINTS.AI_TOOL_BY_ID(id)),
   
   // 更新AI模特工具配置
-  updateAIModelTool: (id, data) => apiClient.put(`/api/admin/ai-model-tools/${id}`, data),
+  updateAIModelTool: (id, data) => apiClient.put(API_ENDPOINTS.AI_TOOL_BY_ID(id), data),
+  
+  // 切换AI模特工具状态
+  toggleAIModelTool: (id, enabled) => apiClient.post(API_ENDPOINTS.AI_TOOL_TOGGLE(id), { enabled }),
   
   // 批量更新AI模特工具状态
-  batchUpdateStatus: (data) => apiClient.post('/api/admin/ai-model-tools/batch-status', data),
+  batchUpdateStatus: (data) => apiClient.post(API_ENDPOINTS.AI_TOOL_BATCH_STATUS, data),
   
   // 重置AI模特工具配置
-  resetAIModelTool: (id) => apiClient.post(`/api/admin/ai-model-tools/${id}/reset`),
+  resetAIModelTool: (id) => apiClient.post(API_ENDPOINTS.AI_TOOL_RESET(id)),
   
   // 批量重置AI模特工具配置
-  batchReset: (ids) => apiClient.post('/api/admin/ai-model-tools/batch-reset', { ids }),
+  batchReset: (data) => apiClient.post(API_ENDPOINTS.AI_TOOL_BATCH_RESET, data),
   
   // 获取AI模特工具统计数据
-  getAIModelToolsStats: () => apiClient.get('/api/admin/ai-model-tools/stats'),
+  getAIModelToolsStats: () => apiClient.get(API_ENDPOINTS.AI_TOOL_STATS),
   
   // 获取AI模特工具使用历史
-  getAIModelToolHistory: (id, params) => apiClient.get(`/api/admin/ai-model-tools/${id}/history`, { params }),
+  getAIModelToolHistory: (id, params) => apiClient.get(API_ENDPOINTS.AI_TOOL_HISTORY(id), { params }),
   
   // 测试AI模特工具配置
-  testAIModelTool: (id, data) => apiClient.post(`/api/admin/ai-model-tools/${id}/test`, data)
+  testAIModelTool: (id, data) => apiClient.post(API_ENDPOINTS.AI_TOOL_TEST(id), data)
 };
 
 // 导出所有API

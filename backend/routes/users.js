@@ -25,6 +25,9 @@ router.get('/:id/generations', authenticateToken, requireUserOrAdmin, validate(s
 // 管理员调整用户积分
 router.post('/:id/adjust-credits', authenticateToken, requireAdmin, validate(schemas.idParam), validate(schemas.adjustCredits), userController.adjustUserCredits);
 
+// 获取用户订阅信息
+router.get('/:id/subscription', authenticateToken, requireUserOrAdmin, validate(schemas.idParam), userController.getUserSubscription);
+
 // 获取用户统计（管理员）
 router.get('/stats', authenticateToken, requireAdmin, userController.getUserStats);
 
