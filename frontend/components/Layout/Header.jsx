@@ -138,7 +138,7 @@ const Header = () => {
                 onClick={() => setSubscriptionModalVisible(true)}
               >
                 <WalletOutlined style={{ fontSize: '16px', color: '#52c41a' }} />
-                <span style={{ fontSize: '14px', color: '#52c41a', fontWeight: 'bold' }}>{user?.credits_balance || 0}</span>
+                <span style={{ fontSize: '14px', color: '#52c41a', fontWeight: 'bold' }}>{user?.credits || user?.credits_balance || 0}</span>
                 <span style={{ fontSize: '14px', color: '#666' }}>积分</span>
               </Space>
               

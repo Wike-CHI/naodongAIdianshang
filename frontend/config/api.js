@@ -29,9 +29,9 @@ export const API_ENDPOINTS = {
   
   // 工具相关
   TOOLS: {
-    LIST: `${API_BASE_URL}/api/tools`,
-    GENERATE: `${API_BASE_URL}/api/tools/generate`,
-    HISTORY: `${API_BASE_URL}/api/tools/history`,
+    LIST: `${API_BASE_URL}/api/admin/ai-tools`,
+    GENERATE: `${API_BASE_URL}/api/ai/generate`,
+    HISTORY: `${API_BASE_URL}/api/ai/history`,
   },
   
   // 推广相关

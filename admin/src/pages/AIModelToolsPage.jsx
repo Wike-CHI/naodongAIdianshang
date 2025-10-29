@@ -41,7 +41,6 @@ import {
   PlayCircleOutlined,
   ApiOutlined
 } from '@ant-design/icons'
-import { aiModelToolsAPI } from '../services/api'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -58,97 +57,133 @@ const AIModelToolsPage = () => {
   const [currentTool, setCurrentTool] = useState(null)
   const [form] = Form.useForm()
 
-  // 9个AI模特功能的配置
-  const aiModelTools = [
+  // 硬编码的AI工具列表 - 与前端保持一致
+  const hardcodedTools = [
     {
       id: 'ai-model',
       name: 'AI模特生成',
-      description: '基于商品图片生成专业模特展示图',
-      icon: '👤',
+      description: '上传服装图，生成真实模特展示效果',
       category: 'model',
-      defaultEnabled: true,
-      defaultCredits: 10,
+      icon: '🧍',
+      creditCost: 15,
+      enabled: true,
+      usageCount: 0,
+      lastUsed: null,
+      config: {
+        maxResolution: '1024x1024',
+        quality: 'high',
+        timeout: 60,
+        retryCount: 3
+      },
       features: ['商品图片输入', '模特风格选择', '背景场景设置']
     },
     {
       id: 'try-on-clothes',
       name: '同版型试衣',
-      description: '在保持服装版型的基础上更换模特',
-      icon: '👔',
+      description: '让模特自动试穿相似版型的服装',
       category: 'tryon',
-      defaultEnabled: true,
-      defaultCredits: 8,
+      icon: '👗',
+      creditCost: 12,
+      enabled: true,
+      usageCount: 0,
+      lastUsed: null,
+      config: {
+        maxResolution: '1024x1024',
+        quality: 'high',
+        timeout: 60,
+        retryCount: 3
+      },
       features: ['服装图片', '模特替换', '版型保持']
     },
     {
-      id: 'accessory-tryon',
+      id: 'glasses-tryon',
       name: '配件试戴',
-      description: '为模特添加眼镜、帽子等配件效果',
-      icon: '👓',
+      description: '生成眼镜、帽饰等配件试戴效果图',
       category: 'accessory',
-      defaultEnabled: true,
-      defaultCredits: 6,
+      icon: '🕶️',
+      creditCost: 10,
+      enabled: true,
+      usageCount: 0,
+      lastUsed: null,
+      config: {
+        maxResolution: '1024x1024',
+        quality: 'high',
+        timeout: 60,
+        retryCount: 3
+      },
       features: ['配件图片', '佩戴位置', '尺寸调整']
     },
     {
-      id: 'pose-transform',
+      id: 'pose-variation',
       name: '姿态变换',
-      description: '改变模特的姿势和动作',
-      icon: '🤸',
-      category: 'pose',
-      defaultEnabled: true,
-      defaultCredits: 12,
+      description: '智能调整模特姿态，匹配不同商品角度',
+      category: 'modeling',
+      icon: '🧘',
+      creditCost: 9,
+      enabled: true,
+      usageCount: 0,
+      lastUsed: null,
+      config: {
+        maxResolution: '1024x1024',
+        quality: 'high',
+        timeout: 60,
+        retryCount: 3
+      },
       features: ['姿态选择', '动作调整', '自然度控制']
     },
     {
-      id: 'model-video',
-      name: '模特视频生成',
-      description: '生成模特展示商品的短视频',
-      icon: '🎬',
-      category: 'video',
-      defaultEnabled: false,
-      defaultCredits: 25,
-      features: ['视频时长', '动作序列', '背景音乐']
-    },
-    {
-      id: 'shoes-tryon',
+      id: 'shoe-tryon',
       name: '鞋靴试穿',
-      description: '为模特试穿不同款式的鞋靴',
-      icon: '👠',
-      category: 'shoes',
-      defaultEnabled: true,
-      defaultCredits: 7,
+      description: '自动合成鞋靴穿着效果图',
+      category: 'product',
+      icon: '👟',
+      creditCost: 11,
+      enabled: true,
+      usageCount: 0,
+      lastUsed: null,
+      config: {
+        maxResolution: '1024x1024',
+        quality: 'high',
+        timeout: 60,
+        retryCount: 3
+      },
       features: ['鞋靴图片', '脚部匹配', '角度调整']
     },
     {
       id: 'scene-change',
       name: '场景更换',
-      description: '更换模特所在的背景场景',
-      icon: '🏞️',
+      description: '快速替换电商宣传背景，增强氛围感',
       category: 'scene',
-      defaultEnabled: true,
-      defaultCredits: 9,
+      icon: '🏙️',
+      creditCost: 10,
+      enabled: true,
+      usageCount: 0,
+      lastUsed: null,
+      config: {
+        maxResolution: '1024x1024',
+        quality: 'high',
+        timeout: 60,
+        retryCount: 3
+      },
       features: ['场景选择', '光线调整', '氛围设置']
     },
     {
-      id: 'product-recolor',
+      id: 'color-change',
       name: '商品换色',
-      description: '改变商品的颜色和材质效果',
+      description: '一键生成多种颜色组合，提升SKU展示效率',
+      category: 'product',
       icon: '🎨',
-      category: 'color',
-      defaultEnabled: true,
-      defaultCredits: 5,
+      creditCost: 8,
+      enabled: true,
+      usageCount: 0,
+      lastUsed: null,
+      config: {
+        maxResolution: '1024x1024',
+        quality: 'high',
+        timeout: 60,
+        retryCount: 3
+      },
       features: ['颜色选择', '材质调整', '光泽控制']
-    },
-    {
-      id: 'background-remove',
-      name: '抠图去底',
-      description: '自动抠除背景，生成透明底图',
-      icon: '✂️',
-      category: 'edit',
-      defaultEnabled: true,
-      defaultCredits: 3,
-      features: ['智能识别', '边缘优化', '透明处理']
     }
   ]
 
@@ -157,17 +192,12 @@ const AIModelToolsPage = () => {
     loadStats()
   }, [])
 
-  // 加载工具数据
+  // 加载工具数据 - 使用硬编码数据
   const loadToolsData = async () => {
     try {
       setLoading(true)
-      // 调用后端API获取AI模特工具数据
-      const response = await aiModelToolsAPI.getAIModelTools()
-      if (response.success) {
-        setTools(response.data)
-      } else {
-        message.error(response.message || '加载工具数据失败')
-      }
+      // 使用硬编码的工具列表
+      setTools(hardcodedTools)
     } catch (error) {
       console.error('加载工具数据失败:', error)
       message.error('加载工具数据失败')
@@ -179,13 +209,13 @@ const AIModelToolsPage = () => {
   // 加载统计数据
   const loadStats = async () => {
     try {
-      // 调用后端API获取统计数据
-      const response = await aiModelToolsAPI.getAIModelToolsStats()
-      if (response.success) {
-        setStats(response.data)
-      } else {
-        console.error('加载统计数据失败:', response.message)
-      }
+      // 模拟统计数据
+      setStats({
+        totalUsage: 1250,
+        totalCredits: 8600,
+        activeTools: hardcodedTools.filter(tool => tool.enabled).length,
+        totalTools: hardcodedTools.length
+      })
     } catch (error) {
       console.error('加载统计数据失败:', error)
     }
@@ -194,19 +224,20 @@ const AIModelToolsPage = () => {
   // 切换工具状态
   const handleToggleStatus = async (toolId, enabled) => {
     try {
-      // 调用后端API切换工具状态
-      const response = await aiModelToolsAPI.toggleAIModelTool(toolId, enabled)
-      if (response.success) {
-        setTools(prev => prev.map(tool => 
-          tool.id === toolId ? { ...tool, enabled } : tool
-        ))
-        message.success(`${enabled ? '启用' : '禁用'}成功`)
-        
-        // 重新加载统计数据
-        loadStats()
-      } else {
-        message.error(response.message || '状态切换失败')
-      }
+      // 更新本地状态
+      setTools(prev => prev.map(tool => 
+        tool.id === toolId ? { ...tool, enabled } : tool
+      ))
+      
+      // 更新统计数据
+      setStats(prev => ({
+        ...prev,
+        activeTools: enabled 
+          ? prev.activeTools + 1 
+          : prev.activeTools - 1
+      }))
+      
+      message.success(`${enabled ? '启用' : '禁用'}成功`)
     } catch (error) {
       console.error('状态切换失败:', error)
       message.error('状态切换失败')
@@ -219,10 +250,10 @@ const AIModelToolsPage = () => {
     form.setFieldsValue({
       name: tool.name,
       description: tool.description,
-      credits: tool.credits,
+      credits: tool.creditCost,
       maxResolution: tool.config?.maxResolution || '1024x1024',
       quality: tool.config?.quality || 'high',
-      timeout: tool.config?.timeout || 30,
+      timeout: tool.config?.timeout || 60,
       retryCount: tool.config?.retryCount || 3
     })
     setConfigModalVisible(true)
@@ -233,43 +264,27 @@ const AIModelToolsPage = () => {
     try {
       const values = await form.validateFields()
       
-      // 调用后端API保存配置
-      const response = await aiModelToolsAPI.updateAIModelTool(currentTool.id, {
-        name: values.name,
-        description: values.description,
-        credits: values.credits,
-        config: {
-          maxResolution: values.maxResolution,
-          quality: values.quality,
-          timeout: values.timeout,
-          retryCount: values.retryCount
-        }
-      })
+      // 更新本地工具配置
+      setTools(prev => prev.map(tool => 
+        tool.id === currentTool.id 
+          ? { 
+              ...tool, 
+              name: values.name,
+              description: values.description,
+              creditCost: values.credits,
+              config: {
+                maxResolution: values.maxResolution,
+                quality: values.quality,
+                timeout: values.timeout,
+                retryCount: values.retryCount
+              }
+            } 
+          : tool
+      ))
       
-      if (response.success) {
-        setTools(prev => prev.map(tool => 
-          tool.id === currentTool.id 
-            ? { 
-                ...tool, 
-                name: values.name,
-                description: values.description,
-                credits: values.credits,
-                config: {
-                  maxResolution: values.maxResolution,
-                  quality: values.quality,
-                  timeout: values.timeout,
-                  retryCount: values.retryCount
-                }
-              } 
-            : tool
-        ))
-        
-        message.success('配置保存成功')
-        setConfigModalVisible(false)
-        setCurrentTool(null)
-      } else {
-        message.error(response.message || '配置保存失败')
-      }
+      message.success('配置保存成功')
+      setConfigModalVisible(false)
+      setCurrentTool(null)
     } catch (error) {
       console.error('配置保存失败:', error)
       message.error('配置保存失败')
@@ -286,10 +301,13 @@ const AIModelToolsPage = () => {
   const handleBatchToggle = (enabled) => {
     Modal.confirm({
       title: `确定要${enabled ? '启用' : '禁用'}所有工具吗？`,
-      content: `这将${enabled ? '启用' : '禁用'}所有9个AI模特功能`,
+      content: `这将${enabled ? '启用' : '禁用'}所有AI工具功能`,
       onOk: () => {
         setTools(prev => prev.map(tool => ({ ...tool, enabled })))
-        setStats(prev => ({ ...prev, activeTools: enabled ? 9 : 0 }))
+        setStats(prev => ({ 
+          ...prev, 
+          activeTools: enabled ? hardcodedTools.length : 0 
+        }))
         message.success(`批量${enabled ? '启用' : '禁用'}成功`)
       }
     })
@@ -301,7 +319,7 @@ const AIModelToolsPage = () => {
       title: '确定要重置所有配置吗？',
       content: '这将恢复所有工具的默认设置',
       onOk: () => {
-        loadToolsData()
+        setTools(hardcodedTools)
         message.success('配置重置成功')
       }
     })
@@ -310,9 +328,9 @@ const AIModelToolsPage = () => {
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: '24px' }}>
-        <h1>AI模特工具管理</h1>
+        <h1>AI工具管理</h1>
         <p style={{ color: '#666', marginBottom: '16px' }}>
-          管理9个AI模特生成功能的开关状态和配置参数
+          管理AI生成功能的开关状态和配置参数
         </p>
         
         {/* 统计卡片 */}
@@ -342,7 +360,7 @@ const AIModelToolsPage = () => {
               <Statistic
                 title="启用工具数"
                 value={stats.activeTools}
-                suffix="/ 9"
+                suffix={`/ ${stats.totalTools}`}
                 prefix={<ApiOutlined />}
                 valueStyle={{ color: '#1890ff' }}
               />
@@ -437,7 +455,7 @@ const AIModelToolsPage = () => {
                 fontSize: '12px',
                 color: '#666'
               }}>
-                <span>积分消耗: <strong style={{ color: '#faad14' }}>{tool.credits}</strong></span>
+                <span>积分消耗: <strong style={{ color: '#faad14' }}>{tool.creditCost}</strong></span>
                 <span>使用次数: <strong>{tool.usageCount}</strong></span>
               </div>
 
@@ -567,10 +585,10 @@ const AIModelToolsPage = () => {
             <Descriptions column={2} bordered>
               <Descriptions.Item label="工具ID">{currentTool.id}</Descriptions.Item>
               <Descriptions.Item label="类别">{currentTool.category}</Descriptions.Item>
-              <Descriptions.Item label="积分消耗">{currentTool.credits}</Descriptions.Item>
+              <Descriptions.Item label="积分消耗">{currentTool.creditCost}</Descriptions.Item>
               <Descriptions.Item label="使用次数">{currentTool.usageCount}</Descriptions.Item>
               <Descriptions.Item label="最后使用">
-                {currentTool.lastUsed?.toLocaleDateString()}
+                {currentTool.lastUsed ? new Date(currentTool.lastUsed).toLocaleDateString() : '从未使用'}
               </Descriptions.Item>
               <Descriptions.Item label="最大分辨率">
                 {currentTool.config?.maxResolution}

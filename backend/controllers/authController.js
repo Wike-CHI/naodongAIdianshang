@@ -17,15 +17,28 @@ const generateToken = (userId, type = 'user', expiresIn = '7d') => {
 // 用户注册
 const registerUser = async (req, res) => {
   try {
-    const { email, username, password } = req.body;
+    const { email, username, password, phone } = req.body;
 
-    // 检查邮箱是否已存在
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: '该邮箱已被注册'
-      });
+    // 检查邮箱是否已存在（仅当提供了邮箱时）
+    if (email) {
+      const existingUser = await User.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: '该邮箱已被注册'
+        });
+      }
+    }
+
+    // 检查手机号是否已存在（仅当提供了手机号时）
+    if (phone) {
+      const existingPhoneUser = await User.findOne({ phone });
+      if (existingPhoneUser) {
+        return res.status(400).json({
+          success: false,
+          message: '该手机号已被注册'
+        });
+      }
     }
 
     // 检查用户名是否已存在
@@ -40,6 +53,7 @@ const registerUser = async (req, res) => {
     // 创建新用户
     const user = new User({
       email,
+      phone,
       username,
       password_hash: password, // 将在pre-save中间件中加密
       credit_balance: parseInt(process.env.DEFAULT_CREDITS) || 100

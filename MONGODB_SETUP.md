@@ -96,8 +96,13 @@ MONGODB_URI=mongodb://localhost:27017/naodong_ai
 # JWT 密钥
 JWT_SECRET=your_jwt_secret_key_here
 
-# 服务器端口
-PORT=3001
+# 服务器端口（后端服务）
+# 推荐：8080 （后端代码 `server.js` 使用 `process.env.PORT || 8080`）
+PORT=8080
+
+# 注意：仓库中 3001 常用于本地运行的 nanobanana AI 服务（`NANOBANANA_API_URL`），
+# 请不要将 3001 与后端服务端口混淆；如果你在同一台机器运行 nanobanana，
+# 请为其保留 3001 或通过环境变量单独配置 `NANOBANANA_API_URL`。
 ```
 
 ## 数据库结构

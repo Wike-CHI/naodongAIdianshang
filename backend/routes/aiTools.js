@@ -4,6 +4,13 @@ const aiToolController = require('../controllers/aiToolController');
 const { validate, schemas } = require('../middleware/validation');
 const { authenticateToken, requireAdmin, optionalAuth } = require('../middleware/auth');
 
+// 添加这些调试代码
+console.log('aiToolController:', aiToolController);
+console.log('createAITool:', aiToolController.createAITool);
+console.log('authenticateToken:', typeof authenticateToken);
+console.log('requireAdmin:', typeof requireAdmin);
+console.log('validate:', typeof validate);
+
 // 获取AI工具列表（公开接口，支持可选认证）
 router.get('/', optionalAuth, validate(schemas.pagination), aiToolController.getAITools);
 

@@ -29,8 +29,16 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const login = (userData) => {
-    setUser(userData)
-    localStorage.setItem('naodong_user', JSON.stringify(userData))
+    // 确保用户数据包含所有必要字段
+    const normalizedUser = {
+      ...userData,
+      credits: userData.credits || userData.credits_balance || 0,
+      credits_balance: userData.credits_balance || userData.credits || 0,
+      membershipType: userData.membershipType || userData.role || 'user'
+    }
+    
+    setUser(normalizedUser)
+    localStorage.setItem('naodong_user', JSON.stringify(normalizedUser))
   }
 
   const logout = () => {
@@ -40,7 +48,11 @@ export const AuthProvider = ({ children }) => {
 
   const updateCredits = (newCredits) => {
     if (user) {
-      const updatedUser = { ...user, credits: newCredits }
+      const updatedUser = { 
+        ...user, 
+        credits: newCredits,
+        credits_balance: newCredits // 同时更新两个字段以确保一致性
+      }
       setUser(updatedUser)
       localStorage.setItem('naodong_user', JSON.stringify(updatedUser))
     }
@@ -48,7 +60,15 @@ export const AuthProvider = ({ children }) => {
 
   const updateUserInfo = (userInfo) => {
     if (user) {
-      const updatedUser = { ...user, ...userInfo }
+      // 确保用户数据包含所有必要字段
+      const normalizedUserInfo = {
+        ...userInfo,
+        credits: userInfo.credits || userInfo.credits_balance || user.credits || user.credits_balance || 0,
+        credits_balance: userInfo.credits_balance || userInfo.credits || user.credits_balance || user.credits || 0,
+        membershipType: userInfo.membershipType || userInfo.role || user.membershipType || user.role || 'user'
+      }
+      
+      const updatedUser = { ...user, ...normalizedUserInfo }
       setUser(updatedUser)
       localStorage.setItem('naodong_user', JSON.stringify(updatedUser))
     }

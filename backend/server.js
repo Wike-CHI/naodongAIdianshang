@@ -18,7 +18,9 @@ const FRONTEND_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
-  'http://localhost:3000'
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:8082'  // 添加管理后台端口
 ].filter(Boolean);
 
 app.use(cors({
@@ -49,6 +51,10 @@ app.use('/api/admin/ai-model-tools', aiModelToolsAdminRoutes);
 app.use('/api/admin/users', usersRoutes);
 app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/credits', creditsRoutes);
+
+// 引入控制器
+const aiToolController = require('./controllers/aiToolController');
+const subscriptionController = require('./controllers/subscriptionController');
 
 // ---------------- 内存数据 ----------------
 const memoryUsers = [
@@ -1088,9 +1094,7 @@ app.post('/api/tools/generate', upload.fields([
 });
 
 // ---------------- 订阅相关 ----------------
-app.get('/api/subscription/plans', (req, res) => {
-  res.json({ success: true, data: memorySubscriptionPlans });
-});
+app.get('/api/subscription/plans', subscriptionController.getSubscriptionPlans);
 
 // ---------------- 推广码相关 ----------------
 app.post('/api/referral/code/generate', (req, res) => {

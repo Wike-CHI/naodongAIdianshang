@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Modal, Tabs, Form, Input, Button, message, Space, Card, Avatar, Typography } from 'antd'
-import { WechatOutlined, MobileOutlined, GiftOutlined } from '@ant-design/icons'
+import { Modal, Tabs, Form, Input, Button, message, Space, Card, Avatar, Typography, Divider } from 'antd'
+import { WechatOutlined, MobileOutlined, MailOutlined, UserOutlined, LockOutlined, GiftOutlined } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { referralCodeApi, referralRelationshipApi } from '../../services/referralApi'
 import axios from 'axios'
@@ -127,6 +127,8 @@ const PhoneVerificationModal = ({ visible, onCancel, onSuccess, title = "手机�
 const LoginModal = ({ visible, onCancel }) => {
   const { login } = useAuth()
   const [phoneForm] = Form.useForm()
+  const [emailForm] = Form.useForm()
+  const [registerForm] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState('wechat')
   const [referralCode, setReferralCode] = useState('')
@@ -238,6 +240,58 @@ const LoginModal = ({ visible, onCancel }) => {
     } catch (error) {
       console.error('手机号登录失败:', error)
       message.error(error.response?.data?.message || '登录失败，请重试')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 邮箱+密码登录
+  const handleEmailLogin = async (values) => {
+    setLoading(true)
+    try {
+      const response = await axios.post(API_ENDPOINTS.AUTH.LOGIN, { 
+        email: values.email, 
+        password: values.password 
+      })
+      
+      if (response.data.success) {
+        logger.log('登录响应数据:', response.data)
+        login(response.data.data.user)
+        message.success('登录成功！')
+        onCancel()
+      } else {
+        message.error(response.data.message || '登录失败')
+      }
+    } catch (error) {
+      console.error('邮箱登录失败:', error)
+      message.error(error.response?.data?.message || '登录失败，请重试')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 邮箱+手机号注册
+  const handleRegister = async (values) => {
+    setLoading(true)
+    try {
+      const response = await axios.post(API_ENDPOINTS.AUTH.REGISTER, { 
+        email: values.email,
+        phone: values.phone,
+        username: values.username,
+        password: values.password
+      })
+      
+      if (response.data.success) {
+        logger.log('注册响应数据:', response.data)
+        login(response.data.data.user)
+        message.success('注册成功！')
+        onCancel()
+      } else {
+        message.error(response.data.message || '注册失败')
+      }
+    } catch (error) {
+      console.error('注册失败:', error)
+      message.error(error.response?.data?.message || '注册失败，请重试')
     } finally {
       setLoading(false)
     }
@@ -396,13 +450,176 @@ const LoginModal = ({ visible, onCancel }) => {
           </Form>
         </div>
       )
+    },
+    {
+      key: 'email',
+      label: (
+        <Space>
+          <MailOutlined />
+          邮箱登录
+        </Space>
+      ),
+      children: (
+        <div>
+          <ReferralCodeInput />
+          <Form form={emailForm} onFinish={handleEmailLogin} layout="vertical">
+            <Form.Item
+              name="email"
+              label="邮箱"
+              rules={[
+                { required: true, message: '请输入邮箱' },
+                { type: 'email', message: '请输入正确的邮箱地址' }
+              ]}
+            >
+              <Input 
+                prefix={<MailOutlined />} 
+                placeholder="请输入邮箱" 
+                size="large"
+              />
+            </Form.Item>
+            
+            <Form.Item
+              name="password"
+              label="密码"
+              rules={[{ required: true, message: '请输入密码' }]}
+            >
+              <Input.Password 
+                placeholder="请输入密码" 
+                size="large"
+              />
+            </Form.Item>
+            
+            <Form.Item>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                size="large" 
+                loading={loading}
+                block
+              >
+                登录
+              </Button>
+            </Form.Item>
+          </Form>
+        </div>
+      )
+    },
+    {
+      key: 'register',
+      label: (
+        <Space>
+          <UserOutlined />
+          注册账号
+        </Space>
+      ),
+      children: (
+        <div>
+          <ReferralCodeInput />
+          <Form form={registerForm} onFinish={handleRegister} layout="vertical">
+            <Form.Item
+              name="username"
+              label="用户名"
+              rules={[
+                { required: true, message: '请输入用户名' },
+                { min: 2, message: '用户名至少需要2个字符' },
+                { max: 50, message: '用户名不能超过50个字符' }
+              ]}
+            >
+              <Input 
+                prefix={<UserOutlined />} 
+                placeholder="请输入用户名" 
+                size="large"
+              />
+            </Form.Item>
+            
+            <Form.Item
+              name="email"
+              label="邮箱"
+              rules={[
+                { required: true, message: '请输入邮箱' },
+                { type: 'email', message: '请输入正确的邮箱地址' }
+              ]}
+            >
+              <Input 
+                prefix={<MailOutlined />} 
+                placeholder="请输入邮箱" 
+                size="large"
+              />
+            </Form.Item>
+            
+            <Form.Item
+              name="phone"
+              label="手机号"
+              rules={[
+                { required: true, message: '请输入手机号' },
+                { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }
+              ]}
+            >
+              <Input 
+                prefix={<MobileOutlined />} 
+                placeholder="请输入手机号" 
+                size="large"
+              />
+            </Form.Item>
+            
+            <Form.Item
+              name="password"
+              label="密码"
+              rules={[
+                { required: true, message: '请输入密码' },
+                { min: 6, message: '密码至少需要6个字符' }
+              ]}
+            >
+              <Input.Password 
+                prefix={<LockOutlined />} 
+                placeholder="请输入密码" 
+                size="large"
+              />
+            </Form.Item>
+            
+            <Form.Item
+              name="confirm"
+              label="确认密码"
+              dependencies={['password']}
+              rules={[
+                { required: true, message: '请确认密码' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('password') === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('两次输入的密码不一致'));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password 
+                placeholder="请再次输入密码" 
+                size="large"
+              />
+            </Form.Item>
+            
+            <Form.Item>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                size="large" 
+                loading={loading}
+                block
+              >
+                注册
+              </Button>
+            </Form.Item>
+          </Form>
+        </div>
+      )
     }
   ]
 
   return (
     <>
       <Modal
-        title="登录"
+        title="登录/注册"
         open={visible}
         onCancel={onCancel}
         footer={null}

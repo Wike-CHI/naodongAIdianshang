@@ -6,11 +6,11 @@ const CreditRecord = require('../models/CreditRecord');
 // 获取订阅套餐列表
 const getSubscriptionPlans = async (req, res) => {
   try {
-    const { active_only = 'true' } = req.query;
+    const { active_only } = req.query;
     
     let query = {};
     if (active_only === 'true') {
-      query.is_active = true;
+      query.active = true;
     }
 
     const plans = await SubscriptionPlan.find(query).sort({ sort_order: 1, price: 1 });
@@ -201,10 +201,11 @@ const getUserSubscriptions = async (req, res) => {
 const createSubscription = async (req, res) => {
   try {
     const { plan_id, payment_method, transaction_id, auto_renew = true } = req.body;
-    const userId = req.user._id;
+    const userId = req.user.userId; // 从JWT token中获取用户ID
 
     // 获取套餐信息
     const plan = await SubscriptionPlan.findById(plan_id);
+    console.log('套餐信息:', plan);
     if (!plan) {
       return res.status(404).json({
         success: false,
@@ -212,7 +213,8 @@ const createSubscription = async (req, res) => {
       });
     }
 
-    if (!plan.is_active) {
+    console.log('套餐是否激活:', plan.active);
+    if (!plan.active) {
       return res.status(400).json({
         success: false,
         message: '订阅套餐已停用'
@@ -221,6 +223,7 @@ const createSubscription = async (req, res) => {
 
     // 检查用户是否已有活跃订阅
     const existingSubscription = await Subscription.getCurrentSubscription(userId);
+    console.log('现有订阅:', existingSubscription);
     if (existingSubscription) {
       return res.status(400).json({
         success: false,
@@ -250,6 +253,9 @@ const createSubscription = async (req, res) => {
       endDate.setMonth(endDate.getMonth() + plan.duration_months);
     }
 
+    // 计算支付金额
+    const paymentAmount = plan.isYearlyPlan() ? plan.getYearlyMemberPrice() : plan.actual_price;
+
     // 创建订阅
     const subscription = new Subscription({
       user_id: userId,
@@ -257,7 +263,8 @@ const createSubscription = async (req, res) => {
       start_date: startDate,
       end_date: endDate,
       status: 'active',
-      payment_amount: plan.isYearlyPlan() ? plan.getYearlyMemberPrice() : plan.actual_price,
+      amount_paid: paymentAmount,
+      payment_amount: paymentAmount,
       currency: plan.currency,
       payment_method,
       transaction_id,
@@ -276,17 +283,24 @@ const createSubscription = async (req, res) => {
       creditsToAdd = plan.getYearlyMemberCredits();
     }
     
+    console.log('要添加的积分:', creditsToAdd);
     if (creditsToAdd > 0) {
       const user = await User.findById(userId);
+      console.log('用户信息:', user);
+      const balanceBefore = user.credits_balance;
       await user.addCredits(creditsToAdd);
+      const balanceAfter = user.credits_balance;
+      
+      console.log('添加积分前余额:', balanceBefore);
+      console.log('添加积分后余额:', balanceAfter);
 
       // 创建积分记录
-      await CreditRecord.create({
+      const creditRecordData = {
         user_id: userId,
         type: 'subscription',
         amount: creditsToAdd,
-        balance_before: user.credit_balance - creditsToAdd,
-        balance_after: user.credit_balance,
+        balance_before: balanceBefore,
+        balance_after: balanceAfter,
         description: plan.isYearlyPlan() ? 
           `年度会员套餐赠送积分: ${plan.name}` : 
           `订阅套餐赠送积分: ${plan.name}`,
@@ -295,13 +309,23 @@ const createSubscription = async (req, res) => {
           plan_id,
           plan_name: plan.name
         }
-      });
+      };
+      
+      console.log('积分记录数据:', creditRecordData);
+      await CreditRecord.create(creditRecordData);
     }
 
-    // 更新用户角色（如果套餐包含高级权限）
-    if (plan.benefits.priority_processing || plan.benefits.advanced_features) {
-      await User.findByIdAndUpdate(userId, { role: 'premium' });
+    // 更新用户角色和会员类型（如果套餐包含高级权限）
+    const updateData = {
+      role: plan.benefits.priority_processing || plan.benefits.advanced_features ? 'premium' : 'user'
+    };
+    
+    // 如果是年度会员套餐，设置会员类型为vip
+    if (plan.isYearlyPlan()) {
+      updateData.membershipType = 'vip';
     }
+    
+    await User.findByIdAndUpdate(userId, updateData);
 
     res.status(201).json({
       success: true,

@@ -8,6 +8,14 @@ import logger from '../../utils/logger'
 
 const { Title, Text } = Typography
 
+// 定义积分套餐的唯一ID
+const creditPackages = [
+  { id: 'pkg-100', credits: 100, price: 10, bonus: 0 },
+  { id: 'pkg-300', credits: 300, price: 25, bonus: 50 },
+  { id: 'pkg-500', credits: 500, price: 40, bonus: 100 },
+  { id: 'pkg-1000', credits: 1000, price: 70, bonus: 300 }
+]
+
 const SubscriptionModal = ({ visible, onClose }) => {
   const { user, updateCredits } = useAuth()
   const [loading, setLoading] = useState(false)
@@ -20,12 +28,14 @@ const SubscriptionModal = ({ visible, onClose }) => {
       try {
         const response = await axios.get(API_ENDPOINTS.SUBSCRIPTION.PLANS)
         if (response.data.success) {
-          setSubscriptionPlans(response.data.data)
+          // 确保设置的是数组格式的数据
+          const plans = response.data.data.plans || response.data.data || []
+          setSubscriptionPlans(Array.isArray(plans) ? plans : [])
         } else {
           // 如果API失败，使用默认套餐
           setSubscriptionPlans([
             {
-              id: 1,
+              id: 'free',
               name: '基础版',
               price: 0,
               credits: 100,
@@ -34,7 +44,7 @@ const SubscriptionModal = ({ visible, onClose }) => {
               type: 'free'
             },
             {
-              id: 2,
+              id: 'pro',
               name: '专业版',
               price: 29,
               credits: 1000,
@@ -43,7 +53,7 @@ const SubscriptionModal = ({ visible, onClose }) => {
               type: 'pro'
             },
             {
-              id: 3,
+              id: 'enterprise',
               name: '企业版',
               price: 99,
               credits: 5000,
@@ -58,7 +68,7 @@ const SubscriptionModal = ({ visible, onClose }) => {
         // 使用默认套餐
         setSubscriptionPlans([
           {
-            id: 1,
+            id: 'free',
             name: '基础版',
             price: 0,
             credits: 100,
@@ -67,7 +77,7 @@ const SubscriptionModal = ({ visible, onClose }) => {
             type: 'free'
           },
           {
-            id: 2,
+            id: 'pro',
             name: '专业版',
             price: 29,
             credits: 1000,
@@ -76,7 +86,7 @@ const SubscriptionModal = ({ visible, onClose }) => {
             type: 'pro'
           },
           {
-            id: 3,
+            id: 'enterprise',
             name: '企业版',
             price: 99,
             credits: 5000,
@@ -120,13 +130,6 @@ const SubscriptionModal = ({ visible, onClose }) => {
     }
   }
 
-  const creditPackages = [
-    { credits: 100, price: 10, bonus: 0 },
-    { credits: 300, price: 25, bonus: 50 },
-    { credits: 500, price: 40, bonus: 100 },
-    { credits: 1000, price: 70, bonus: 300 }
-  ]
-
   const handleBuyCredits = async (pkg) => {
     if (!user) {
       message.warning('请先登录')
@@ -148,6 +151,75 @@ const SubscriptionModal = ({ visible, onClose }) => {
       setLoading(false)
     }
   }
+
+  // 获取权益列表
+  const getBenefitsList = (plan) => {
+    // 如果是features数组（对象数组）
+    if (Array.isArray(plan.features) && plan.features.length > 0) {
+      return plan.features.map((feature, index) => ({
+        key: feature._id || index,
+        content: feature.name || feature.description || '未知权益'
+      }));
+    }
+    
+    // 如果是benefits对象中的特定字段
+    if (plan.benefits) {
+      const benefits = [];
+      
+      // 处理monthly_credits
+      if (plan.benefits.monthly_credits) {
+        benefits.push({
+          key: 'monthly_credits',
+          content: `每月${plan.benefits.monthly_credits}积分`
+        });
+      }
+      
+      // 处理priority_processing
+      if (plan.benefits.priority_processing) {
+        benefits.push({
+          key: 'priority_processing',
+          content: '优先处理'
+        });
+      }
+      
+      // 处理advanced_features
+      if (plan.benefits.advanced_features) {
+        benefits.push({
+          key: 'advanced_features',
+          content: '高级功能'
+        });
+      }
+      
+      // 处理api_access
+      if (plan.benefits.api_access) {
+        benefits.push({
+          key: 'api_access',
+          content: 'API访问权限'
+        });
+      }
+      
+      // 处理dedicated_support
+      if (plan.benefits.dedicated_support) {
+        benefits.push({
+          key: 'dedicated_support',
+          content: '专属客服'
+        });
+      }
+      
+      // 处理batch_processing
+      if (plan.benefits.batch_processing) {
+        benefits.push({
+          key: 'batch_processing',
+          content: '批量处理'
+        });
+      }
+      
+      return benefits;
+    }
+    
+    // 默认返回空数组
+    return [];
+  };
 
   return (
     <Modal
@@ -172,7 +244,7 @@ const SubscriptionModal = ({ visible, onClose }) => {
 
           <Row gutter={[24, 24]} justify="center">
             {subscriptionPlans.map((plan) => (
-              <Col key={plan.id} xs={24} sm={12} lg={8}>
+              <Col key={plan._id || plan.id} xs={24} sm={12} lg={8}>
                 <Card
                   className={plan.popular ? 'popular-plan' : ''}
                   style={{ 
@@ -200,28 +272,30 @@ const SubscriptionModal = ({ visible, onClose }) => {
                     <Title level={5}>{plan.name}</Title>
                     <div style={{ marginBottom: '8px' }}>
                       <Text delete type="secondary" style={{ fontSize: '14px' }}>
-                        ¥{plan.originalPrice}
+                        ¥{plan.original_price}
                       </Text>
                     </div>
                     <div style={{ marginBottom: '8px' }}>
                       <span style={{ fontSize: '28px', fontWeight: 'bold', color: '#1890ff' }}>
                         ¥{plan.price}
                       </span>
-                      <Text type="secondary">/{plan.duration}</Text>
+                      <Text type="secondary">/{plan.billing_cycle === 'yearly' ? '年' : '月'}</Text>
                     </div>
                     <Tag color="red">
-                      立省 ¥{plan.originalPrice - plan.price}
+                      立省 ¥{plan.original_price - plan.price}
                     </Tag>
                   </div>
 
                   <List
                     size="small"
-                    dataSource={plan.benefits || plan.features || []}
+                    dataSource={getBenefitsList(plan)}
                     renderItem={(benefit) => (
-                      <List.Item>
+                      <List.Item key={benefit.key}>
                         <Space>
                           <CheckOutlined style={{ color: '#52c41a' }} />
-                          <Text style={{ fontSize: '12px' }}>{benefit}</Text>
+                          <Text style={{ fontSize: '12px' }}>
+                            {benefit.content}
+                          </Text>
                         </Space>
                       </List.Item>
                     )}
@@ -255,8 +329,8 @@ const SubscriptionModal = ({ visible, onClose }) => {
           </div>
 
           <Row gutter={[16, 16]} justify="center">
-            {creditPackages.map((pkg, index) => (
-              <Col key={index} xs={12} sm={8} lg={6}>
+            {creditPackages.map((pkg) => (
+              <Col key={pkg.id} xs={12} sm={8} lg={6}>
                 <Card 
                   size="small"
                   style={{ textAlign: 'center' }}
@@ -300,12 +374,20 @@ const SubscriptionModal = ({ visible, onClose }) => {
         {/* 说明信息 */}
         <Card style={{ marginTop: '32px', background: '#fafafa' }}>
           <Title level={5}>购买说明</Title>
-          <List size="small">
-            <List.Item>• 积分永久有效，不会过期</List.Item>
-            <List.Item>• VIP会员享受生成费用折扣优惠</List.Item>
-            <List.Item>• 支持支付宝、微信支付</List.Item>
-            <List.Item>• 如有问题，请联系客服</List.Item>
-          </List>
+          <List
+            size="small"
+            dataSource={[
+              { key: '1', content: '积分永久有效，不会过期' },
+              { key: '2', content: 'VIP会员享受生成费用折扣优惠' },
+              { key: '3', content: '支持支付宝、微信支付' },
+              { key: '4', content: '如有问题，请联系客服' }
+            ]}
+            renderItem={(item) => (
+              <List.Item key={item.key}>
+                <Text>• {item.content}</Text>
+              </List.Item>
+            )}
+          />
         </Card>
       </div>
     </Modal>
