@@ -1,0 +1,21 @@
+{
+  "name": "naodong-ai-tests",
+  "version": "1.0.0",
+  "description": "Automated tests for Naodong AI website and admin panel",
+  "main": "index.js",
+  "scripts": {
+    "test": "node run-tests.js",
+    "test:all": "node run-tests.js all",
+    "test:frontend": "node run-tests.js frontend",
+    "test:admin": "node run-tests.js admin",
+    "test:backend": "node run-tests.js backend",
+    "test:frontend-detailed": "node run-tests.js frontend-detailed",
+    "test:admin-detailed": "node run-tests.js admin-detailed"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "chai": "^4.3.7",
+    "mocha": "^10.2.0",
+    "puppeteer": "^24.27.0"
+  }
+}

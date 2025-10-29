@@ -107,7 +107,11 @@ const Subscription = () => {
       await new Promise(resolve => setTimeout(resolve, 2000))
       
       // 模拟支付成功，更新用户状态
-      message.success(`成功订阅${plan.name}！`)
+      if (plan.is_yearly) {
+        message.success(`成功订阅${plan.name}年度会员！`)
+      } else {
+        message.success(`成功订阅${plan.name}！`)
+      }
       
       // 这里应该调用真实的API更新用户会员状态
       logger.log('订阅成功:', plan)
@@ -125,6 +129,13 @@ const Subscription = () => {
     { credits: 300, price: 25, bonus: 50 },
     { credits: 500, price: 40, bonus: 100 },
     { credits: 1000, price: 70, bonus: 300 }
+  ]
+
+  // 年度会员专属积分包
+  const yearlyMemberCreditPackages = [
+    { credits: 12000, price: 999, bonus: 2400, label: '年度会员专享' }, // 12个月积分+额外2400积分
+    { credits: 6000, price: 599, bonus: 1200, label: '年度会员专享' },  // 6个月积分+额外1200积分
+    { credits: 3000, price: 399, bonus: 600, label: '年度会员专享' }    // 3个月积分+额外600积分
   ]
 
   const handleBuyCredits = async (pkg) => {
@@ -192,20 +203,44 @@ const Subscription = () => {
 
                     <div style={{ textAlign: 'center', marginBottom: '24px' }}>
                       <Title level={4}>{plan.name}</Title>
-                      <div style={{ marginBottom: '8px' }}>
-                        <Text delete type="secondary" style={{ fontSize: '14px' }}>
-                          ¥{plan.originalPrice}
-                        </Text>
-                      </div>
-                      <div style={{ marginBottom: '8px' }}>
-                        <span style={{ fontSize: '32px', fontWeight: 'bold', color: '#1890ff' }}>
-                          ¥{plan.price}
-                        </span>
-                        <Text type="secondary">/{plan.duration}</Text>
-                      </div>
-                      <Tag color="red">
-                        立省 ¥{plan.originalPrice - plan.price}
-                      </Tag>
+                      {plan.is_yearly ? (
+                        <div>
+                          <div style={{ marginBottom: '8px' }}>
+                            <Text delete type="secondary" style={{ fontSize: '14px' }}>
+                              ¥{plan.original_price || plan.price * 12}
+                            </Text>
+                          </div>
+                          <div style={{ marginBottom: '8px' }}>
+                            <span style={{ fontSize: '32px', fontWeight: 'bold', color: '#1890ff' }}>
+                              ¥{plan.yearly_price || plan.price}
+                            </span>
+                            <Text type="secondary">/年</Text>
+                          </div>
+                          {plan.original_price && plan.yearly_price && (
+                            <Tag color="red">
+                              立省 ¥{plan.original_price - plan.yearly_price}
+                            </Tag>
+                          )}
+                          <Tag color="gold">年度会员</Tag>
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ marginBottom: '8px' }}>
+                            <Text delete type="secondary" style={{ fontSize: '14px' }}>
+                              ¥{plan.originalPrice}
+                            </Text>
+                          </div>
+                          <div style={{ marginBottom: '8px' }}>
+                            <span style={{ fontSize: '32px', fontWeight: 'bold', color: '#1890ff' }}>
+                              ¥{plan.price}
+                            </span>
+                            <Text type="secondary">/{plan.duration || '月'}</Text>
+                          </div>
+                          <Tag color="red">
+                            立省 ¥{plan.originalPrice - plan.price}
+                          </Tag>
+                        </div>
+                      )}
                     </div>
 
                     <List
@@ -230,7 +265,7 @@ const Subscription = () => {
                       onClick={() => handleSubscribe(plan)}
                       disabled={user?.membershipType === 'vip'}
                     >
-                      {user?.membershipType === 'vip' ? '已是VIP会员' : '立即订阅'}
+                      {user?.membershipType === 'vip' ? '已是VIP会员' : plan.is_yearly ? '立即订阅年度会员' : '立即订阅'}
                     </Button>
                   </Card>
                 </Col>
@@ -289,6 +324,64 @@ const Subscription = () => {
                 </Col>
               ))}
             </Row>
+
+            {/* 年度会员专属积分包 */}
+            {user?.membershipType === 'vip' && (
+              <div style={{ marginTop: '32px' }}>
+                <Title level={4} style={{ textAlign: 'center', marginBottom: '24px' }}>
+                  <CrownOutlined style={{ color: '#faad14', marginRight: '8px' }} />
+                  年度会员专享积分包
+                </Title>
+                <Row gutter={[16, 16]} justify="center">
+                  {yearlyMemberCreditPackages.map((pkg, index) => (
+                    <Col key={`yearly-${index}`} xs={12} sm={8} lg={6}>
+                      <Card 
+                        size="small"
+                        style={{ textAlign: 'center', border: '2px solid #faad14' }}
+                        hoverable
+                      >
+                        <div style={{ marginBottom: '12px' }}>
+                          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
+                            {pkg.credits}
+                          </div>
+                          <Text type="secondary">积分</Text>
+                          {pkg.bonus > 0 && (
+                            <div>
+                              <Tag color="orange" size="small">
+                                +{pkg.bonus} 赠送
+                              </Tag>
+                            </div>
+                          )}
+                          {pkg.label && (
+                            <div>
+                              <Tag color="gold" size="small">
+                                {pkg.label}
+                              </Tag>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div style={{ marginBottom: '16px' }}>
+                          <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                            ¥{pkg.price}
+                          </Text>
+                        </div>
+
+                        <Button
+                          type="primary"
+                          size="small"
+                          block
+                          loading={loading}
+                          onClick={() => handleBuyCredits(pkg)}
+                        >
+                          立即充值
+                        </Button>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              </div>
+            )}
           </div>
 
           {/* 说明信息 */}

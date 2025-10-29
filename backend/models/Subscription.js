@@ -72,6 +72,15 @@ const subscriptionSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // 年度会员特定字段
+  is_yearly_member: {
+    type: Boolean,
+    default: false
+  },
+  yearly_credits_granted: {
+    type: Number,
+    default: 0
+  },
   usage_stats: {
     total_generations: {
       type: Number,

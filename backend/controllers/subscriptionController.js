@@ -231,7 +231,24 @@ const createSubscription = async (req, res) => {
     // 计算订阅时间
     const startDate = new Date();
     const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + plan.duration);
+    
+    // 检查是否为年度会员套餐
+    let grantedCredits = plan.benefits.monthly_credits || 0;
+    let isYearlyMember = false;
+    let yearlyCreditsGranted = 0;
+    
+    if (plan.isYearlyPlan()) {
+      // 年度会员套餐
+      isYearlyMember = true;
+      // 年度会员默认获得12个月的积分
+      yearlyCreditsGranted = plan.getYearlyMemberCredits();
+      grantedCredits = yearlyCreditsGranted;
+      // 设置订阅时长为12个月
+      endDate.setMonth(endDate.getMonth() + plan.getYearlyMemberDuration());
+    } else {
+      // 普通套餐
+      endDate.setMonth(endDate.getMonth() + plan.duration_months);
+    }
 
     // 创建订阅
     const subscription = new Subscription({
@@ -240,29 +257,39 @@ const createSubscription = async (req, res) => {
       start_date: startDate,
       end_date: endDate,
       status: 'active',
-      payment_amount: plan.actual_price,
+      payment_amount: plan.isYearlyPlan() ? plan.getYearlyMemberPrice() : plan.actual_price,
       currency: plan.currency,
       payment_method,
       transaction_id,
       auto_renew,
-      granted_credits: plan.benefits.monthly_credits || 0
+      granted_credits: grantedCredits,
+      is_yearly_member: isYearlyMember,
+      yearly_credits_granted: yearlyCreditsGranted
     });
 
     await subscription.save();
 
     // 给用户添加积分
-    if (plan.benefits.monthly_credits > 0) {
+    let creditsToAdd = plan.benefits.monthly_credits;
+    if (plan.isYearlyPlan()) {
+      // 年度会员获得12个月的积分
+      creditsToAdd = plan.getYearlyMemberCredits();
+    }
+    
+    if (creditsToAdd > 0) {
       const user = await User.findById(userId);
-      await user.addCredits(plan.benefits.monthly_credits);
+      await user.addCredits(creditsToAdd);
 
       // 创建积分记录
       await CreditRecord.create({
         user_id: userId,
         type: 'subscription',
-        amount: plan.benefits.monthly_credits,
-        balance_before: user.credit_balance - plan.benefits.monthly_credits,
+        amount: creditsToAdd,
+        balance_before: user.credit_balance - creditsToAdd,
         balance_after: user.credit_balance,
-        description: `订阅套餐赠送积分: ${plan.name}`,
+        description: plan.isYearlyPlan() ? 
+          `年度会员套餐赠送积分: ${plan.name}` : 
+          `订阅套餐赠送积分: ${plan.name}`,
         metadata: {
           subscription_id: subscription._id,
           plan_id,
@@ -369,22 +396,32 @@ const renewSubscription = async (req, res) => {
     await subscription.renew(payment_method, transaction_id);
 
     // 给用户添加积分
-    if (subscription.plan_id.benefits.monthly_credits > 0) {
+    let creditsToAdd = subscription.plan_id.benefits.monthly_credits;
+    const plan = subscription.plan_id;
+    
+    if (plan.isYearlyPlan()) {
+      // 年度会员获得12个月的积分
+      creditsToAdd = plan.getYearlyMemberCredits();
+    }
+    
+    if (creditsToAdd > 0) {
       const user = await User.findById(subscription.user_id);
-      await user.addCredits(subscription.plan_id.benefits.monthly_credits);
+      await user.addCredits(creditsToAdd);
 
       // 创建积分记录
       await CreditRecord.create({
         user_id: subscription.user_id,
         type: 'subscription',
-        amount: subscription.plan_id.benefits.monthly_credits,
-        balance_before: user.credit_balance - subscription.plan_id.benefits.monthly_credits,
+        amount: creditsToAdd,
+        balance_before: user.credit_balance - creditsToAdd,
         balance_after: user.credit_balance,
-        description: `订阅续费赠送积分: ${subscription.plan_id.name}`,
+        description: plan.isYearlyPlan() ? 
+          `年度会员续费赠送积分: ${plan.name}` : 
+          `订阅续费赠送积分: ${plan.name}`,
         metadata: {
           subscription_id: subscription._id,
-          plan_id: subscription.plan_id._id,
-          plan_name: subscription.plan_id.name
+          plan_id: plan._id,
+          plan_name: plan.name
         }
       });
     }

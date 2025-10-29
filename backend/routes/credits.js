@@ -25,22 +25,23 @@ router.get('/leaderboard', authenticateToken, creditController.getCreditLeaderbo
 // 导出积分记录
 router.get('/export', authenticateToken, creditController.exportCreditRecords);
 
+// 注意：以下路由需要在creditController中实现对应的方法
 // 管理员获取积分规则
-router.get('/rules', authenticateToken, requireAdmin, creditController.getCreditRules);
+// router.get('/rules', authenticateToken, requireAdmin, creditController.getCreditRules);
 
 // 管理员创建积分规则
-router.post('/rules', authenticateToken, requireAdmin, creditController.createCreditRule);
+// router.post('/rules', authenticateToken, requireAdmin, creditController.createCreditRule);
 
 // 管理员更新积分规则
-router.put('/rules/:id', authenticateToken, requireAdmin, creditController.updateCreditRule);
+// router.put('/rules/:id', authenticateToken, requireAdmin, creditController.updateCreditRule);
 
 // 管理员删除积分规则
-router.delete('/rules/:id', authenticateToken, requireAdmin, creditController.deleteCreditRule);
+// router.delete('/rules/:id', authenticateToken, requireAdmin, creditController.deleteCreditRule);
 
 // 管理员获取积分交易记录
-router.get('/transactions', authenticateToken, requireAdmin, creditController.getCreditTransactions);
+// router.get('/transactions', authenticateToken, requireAdmin, creditController.getCreditTransactions);
 
 // 管理员获取积分图表数据
-router.get('/chart-data', authenticateToken, requireAdmin, creditController.getCreditChartData);
+// router.get('/chart-data', authenticateToken, requireAdmin, creditController.getCreditChartData);
 
 module.exports = router;

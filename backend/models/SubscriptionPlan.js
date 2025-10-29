@@ -79,6 +79,20 @@ const subscriptionPlanSchema = new mongoose.Schema({
       default: true
     }
   }],
+  // 年度会员特定权益
+  yearly_benefits: {
+    extra_credits: {
+      type: Number,
+      default: 0
+    },
+    exclusive_features: [{
+      type: String
+    }],
+    priority_support: {
+      type: Boolean,
+      default: false
+    }
+  },
   limitations: {
     daily_generation_limit: {
       type: Number,
@@ -136,6 +150,15 @@ const subscriptionPlanSchema = new mongoose.Schema({
   cancellation_policy: {
     type: String,
     default: '可随时取消，剩余时间按比例退款'
+  },
+  // 年度会员特定字段
+  is_yearly: {
+    type: Boolean,
+    default: false
+  },
+  yearly_price: {
+    type: Number,
+    default: null
   }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
@@ -184,6 +207,60 @@ subscriptionPlanSchema.methods.getTier = function() {
 subscriptionPlanSchema.methods.getYearlyPrice = function() {
   if (this.billing_cycle === 'yearly') return this.actual_price;
   return this.actual_price * 12 * 0.8; // 年付8折
+};
+
+// 实例方法：是否为年度会员套餐
+subscriptionPlanSchema.methods.isYearlyPlan = function() {
+  return this.is_yearly === true;
+};
+
+// 实例方法：获取年度会员价格
+subscriptionPlanSchema.methods.getYearlyMemberPrice = function() {
+  if (this.isYearlyPlan() && this.yearly_price) {
+    return this.yearly_price;
+  }
+  // 默认年度会员价格299元
+  return 299;
+};
+
+// 实例方法：获取年度会员积分
+subscriptionPlanSchema.methods.getYearlyMemberCredits = function() {
+  if (this.isYearlyPlan()) {
+    // 年度会员默认赠送12个月的积分
+    return this.benefits.monthly_credits * 12;
+  }
+  return this.benefits.monthly_credits;
+};
+
+// 实例方法：获取年度会员时长（月）
+subscriptionPlanSchema.methods.getYearlyMemberDuration = function() {
+  if (this.isYearlyPlan()) {
+    return 12; // 12个月
+  }
+  return this.duration_months;
+};
+
+// 实例方法：获取年度会员描述
+subscriptionPlanSchema.methods.getYearlyMemberDescription = function() {
+  if (this.isYearlyPlan()) {
+    return `${this.name} - 年度会员，包含12个月积分和专属权益`;
+  }
+  return this.description;
+};
+
+// 实例方法：获取年度会员折扣信息
+subscriptionPlanSchema.methods.getYearlyMemberDiscount = function() {
+  if (this.isYearlyPlan() && this.price && this.yearly_price) {
+    const monthlyCost = this.price * 12;
+    const discount = ((monthlyCost - this.yearly_price) / monthlyCost * 100).toFixed(1);
+    return {
+      monthlyCost: monthlyCost,
+      yearlyPrice: this.yearly_price,
+      discountPercentage: discount,
+      savings: monthlyCost - this.yearly_price
+    };
+  }
+  return null;
 };
 
 // 创建索引
