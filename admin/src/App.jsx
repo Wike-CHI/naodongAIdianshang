@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage'
 import AdminLayout from './components/AdminLayout'
 import Dashboard from './pages/Dashboard'
 import ToolsPage from './pages/ToolsPage'
+import AIModelToolsPage from './pages/AIModelToolsPage'
 import UsersPage from './pages/UsersPage'
 import ApisPage from './pages/ApisPage'
 import CreditsPage from './pages/CreditsPage'
@@ -27,6 +28,7 @@ function App() {
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="tools" element={<ToolsPage />} />
+            <Route path="ai-model-tools" element={<AIModelToolsPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="apis" element={<ApisPage />} />
             <Route path="credits" element={<CreditsPage />} />

@@ -48,7 +48,7 @@ export const referralCodeApi = {
   // 生成推广码
   generateCode: async (userId) => {
     try {
-      const response = await apiClient.post('/referral/code/generate', { userId });
+      const response = await apiClient.post('/api/referral/code/generate', { userId });
       return response;
     } catch (error) {
       console.error('生成推广码失败:', error);
@@ -62,7 +62,7 @@ export const referralCodeApi = {
   // 验证推广码
   validateCode: async (code) => {
     try {
-      const response = await apiClient.post('/referral/code/validate', { code });
+      const response = await apiClient.post('/api/referral/code/validate', { code });
       return response;
     } catch (error) {
       console.error('验证推广码失败:', error);
@@ -79,7 +79,7 @@ export const referralRelationshipApi = {
   // 建立推广关系
   createRelationship: async (refereeId, referralCode) => {
     try {
-      const response = await apiClient.post('/referral/relationship', { refereeId, referralCode });
+      const response = await apiClient.post('/api/referral/relationship', { refereeId, referralCode });
       return response;
     } catch (error) {
       console.error('建立推广关系失败:', error);
@@ -93,7 +93,7 @@ export const referralRelationshipApi = {
   // 获取推广统计
   getStats: async (userId) => {
     try {
-      const response = await apiClient.get(`/referral/stats/${userId}`);
+      const response = await apiClient.get(`/api/referral/stats/${userId}`);
       return response;
     } catch (error) {
       console.error('获取推广统计失败:', error);
@@ -110,7 +110,7 @@ export const pointsApi = {
   // 计算推广积分
   calculateReferral: async (refereeId, amount) => {
     try {
-      const response = await apiClient.post('/referral/points/calculate', { refereeId, amount });
+      const response = await apiClient.post('/api/referral/points/calculate', { refereeId, amount });
       return response;
     } catch (error) {
       console.error('计算推广积分失败:', error);
@@ -124,7 +124,7 @@ export const pointsApi = {
   // 获取积分历史
   getHistory: async (userId, page = 1, pageSize = 10) => {
     try {
-      const response = await apiClient.get(`/referral/points/history/${userId}`, {
+      const response = await apiClient.get(`/api/referral/points/history/${userId}`, {
         params: { page, pageSize }
       });
       return response;
@@ -143,7 +143,7 @@ export const systemConfigApi = {
   // 获取系统配置
   getConfig: async () => {
     try {
-      const response = await apiClient.get('/referral/config');
+      const response = await apiClient.get('/api/referral/config');
       return response;
     } catch (error) {
       console.error('获取系统配置失败:', error);
@@ -157,7 +157,7 @@ export const systemConfigApi = {
   // 更新系统配置
   updateConfig: async (configKey, configValue) => {
     try {
-      const response = await apiClient.put('/referral/config', { configKey, configValue });
+      const response = await apiClient.put('/api/referral/config', { configKey, configValue });
       return response;
     } catch (error) {
       console.error('更新系统配置失败:', error);
@@ -174,7 +174,7 @@ export const adminApi = {
   // 获取推广系统概览数据
   getOverview: async () => {
     try {
-      const response = await apiClient.get('/admin/referral/overview');
+      const response = await apiClient.get('/api/admin/referral/overview');
       return response;
     } catch (error) {
       throw new Error(error.message || '获取概览数据失败');
@@ -184,7 +184,7 @@ export const adminApi = {
   // 获取所有推广关系
   getAllRelationships: async (page = 1, pageSize = 20, filters = {}) => {
     try {
-      const response = await apiClient.get('/admin/referral/relationships', {
+      const response = await apiClient.get('/api/admin/referral/relationships', {
         params: {
           page,
           pageSize,
@@ -200,7 +200,7 @@ export const adminApi = {
   // 删除推广关系
   deleteRelationship: async (relationshipId) => {
     try {
-      const response = await apiClient.delete(`/admin/referral/relationships/${relationshipId}`);
+      const response = await apiClient.delete(`/api/admin/referral/relationships/${relationshipId}`);
       return response;
     } catch (error) {
       throw new Error(error.message || '删除推广关系失败');
@@ -210,7 +210,7 @@ export const adminApi = {
   // 更新推广关系状态
   updateRelationshipStatus: async (relationshipId, status) => {
     try {
-      const response = await apiClient.put(`/admin/referral/relationships/${relationshipId}/status`, {
+      const response = await apiClient.put(`/api/admin/referral/relationships/${relationshipId}/status`, {
         status
       });
       return response;
@@ -225,7 +225,7 @@ export const adminSystemConfigApi = {
   // 获取系统配置
   getConfig: async () => {
     try {
-      const response = await apiClient.get('/admin/system/config');
+      const response = await apiClient.get('/api/admin/system/config');
       return response;
     } catch (error) {
       throw new Error(error.message || '获取系统配置失败');
@@ -235,7 +235,7 @@ export const adminSystemConfigApi = {
   // 更新系统配置
   updateConfig: async (key, value) => {
     try {
-      const response = await apiClient.put('/admin/system/config', {
+      const response = await apiClient.put('/api/admin/system/config', {
         key,
         value
       });
@@ -248,7 +248,7 @@ export const adminSystemConfigApi = {
   // 重置系统配置
   resetConfig: async () => {
     try {
-      const response = await apiClient.post('/admin/system/config/reset');
+      const response = await apiClient.post('/api/admin/system/config/reset');
       return response;
     } catch (error) {
       throw new Error(error.message || '重置系统配置失败');
@@ -261,7 +261,7 @@ export const referralApi = {
   // 获取用户推广数据
   getUserReferralData: async (userId) => {
     try {
-      const response = await apiClient.get(`/referral/user/${userId}`);
+      const response = await apiClient.get(`/api/referral/user/${userId}`);
       return response;
     } catch (error) {
       console.error('获取用户推广数据失败:', error);
@@ -275,7 +275,7 @@ export const referralApi = {
   // 获取推广统计
   getReferralStats: async (userId, options = {}) => {
     try {
-      const response = await apiClient.get(`/referral/stats/${userId}`, {
+      const response = await apiClient.get(`/api/referral/stats/${userId}`, {
         params: options
       });
       return response;
@@ -291,7 +291,7 @@ export const referralApi = {
   // 获取推广列表
   getReferralList: async (userId, options = {}) => {
     try {
-      const response = await apiClient.get(`/referral/list/${userId}`, {
+      const response = await apiClient.get(`/api/referral/list/${userId}`, {
         params: options
       });
       return response;
@@ -307,7 +307,7 @@ export const referralApi = {
   // 获取积分历史
   getCreditHistory: async (userId) => {
     try {
-      const response = await apiClient.get(`/referral/credits/${userId}`);
+      const response = await apiClient.get(`/api/referral/credits/${userId}`);
       return response;
     } catch (error) {
       console.error('获取积分历史失败:', error);

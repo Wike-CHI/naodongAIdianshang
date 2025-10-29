@@ -20,7 +20,8 @@ import {
   LogoutOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  HomeOutlined
+  HomeOutlined,
+  RobotOutlined
 } from '@ant-design/icons'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -46,6 +47,12 @@ const AdminLayout = () => {
       icon: <ToolOutlined />,
       label: 'AI工具管理',
       title: 'AI工具管理'
+    },
+    {
+      key: '/admin/ai-model-tools',
+      icon: <RobotOutlined />,
+      label: 'AI模特工具',
+      title: 'AI模特工具管理'
     },
     {
       key: '/admin/users',
@@ -247,6 +254,7 @@ const AdminLayout = () => {
             <div className="description">
               {getCurrentPageTitle() === '仪表板' && '系统概览和关键指标展示'}
               {getCurrentPageTitle() === 'AI工具管理' && '管理AI工具配置、提示词模板和API绑定'}
+              {getCurrentPageTitle() === 'AI模特工具管理' && '专门管理9个AI模特功能的开关、配置和统计'}
               {getCurrentPageTitle() === '用户管理' && '查看用户信息、调整积分和查看生成记录'}
               {getCurrentPageTitle() === 'API接口管理' && '配置API接口、参数映射和密钥管理'}
               {getCurrentPageTitle() === '积分与会员管理' && '管理积分规则、会员套餐和财务记录'}

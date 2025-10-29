@@ -17,6 +17,7 @@ const FRONTEND_ORIGINS = [
   process.env.FRONTEND_URL,
   'http://localhost:5173',
   'http://localhost:5174',
+  'http://localhost:5175',
   'http://localhost:3000'
 ].filter(Boolean);
 
@@ -32,6 +33,14 @@ if (!USE_MEMORY_DB) {
 } else {
   logger.log('🔄 正在使用内存数据模式运行后端服务');
 }
+
+// 引入路由
+const authRoutes = require('./routes/auth');
+const aiGenerationRoutes = require('./routes/aiGeneration');
+const aiModelToolsAdminRoutes = require('./routes/aiModelToolsAdmin');
+app.use('/api/auth', authRoutes);
+app.use('/api/ai', aiGenerationRoutes);
+app.use('/api/admin/ai-model-tools', aiModelToolsAdminRoutes);
 
 // ---------------- 内存数据 ----------------
 const memoryUsers = [
@@ -503,6 +512,454 @@ app.get('/api/health', (req, res) => {
 });
 
 // ---------------- 认证相关 ----------------
+// 管理员登录
+app.post('/api/admin/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  
+  // 简单的管理员验证
+  if (username === 'admin' && password === 'admin123') {
+    const token = jwt.sign(
+      { userId: 'admin-1', type: 'admin' },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    res.json({
+      success: true,
+      message: '登录成功',
+      data: {
+        user: {
+          id: 'admin-1',
+          username: 'admin',
+          role: 'admin'
+        },
+        token
+      }
+    });
+  } else {
+    res.status(401).json({
+      success: false,
+      message: '用户名或密码错误'
+    });
+  }
+});
+
+// 管理员token验证
+app.post('/api/admin/auth/verify', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: '未提供认证token'
+    });
+  }
+  
+  try {
+    // 验证JWT token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // 检查是否为管理员token
+    if (decoded.type === 'admin') {
+      res.json({
+        success: true,
+        data: {
+          user: {
+            id: decoded.userId,
+            username: 'admin',
+            role: 'admin'
+          }
+        }
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        message: '无效的管理员token'
+      });
+    }
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      message: 'token验证失败'
+    });
+  }
+});
+
+// 仪表板统计数据接口
+app.get('/api/admin/dashboard/stats', (req, res) => {
+  try {
+    // 计算统计数据
+    const totalUsers = memoryUsers.length;
+    const activeUsers = Math.floor(totalUsers * 0.7); // 假设70%为活跃用户
+    const totalCredits = memoryUsers.reduce((sum, user) => sum + (user.credits || 0), 0);
+    const todayGeneration = Math.floor(Math.random() * 100) + 50; // 模拟今日生成数
+
+    res.json({
+      success: true,
+      data: {
+        totalUsers,
+        activeUsers,
+        totalCredits,
+        todayGeneration
+      }
+    });
+  } catch (error) {
+    logger.error('获取仪表板统计数据失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取统计数据失败'
+    });
+  }
+});
+
+// 仪表板图表数据接口
+app.get('/api/admin/dashboard/charts', (req, res) => {
+  try {
+    const { days = 7 } = req.query;
+    
+    // 生成模拟的使用趋势数据
+    const usage = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      usage.push({
+        date: date.toISOString().split('T')[0],
+        users: Math.floor(Math.random() * 50) + 20,
+        generations: Math.floor(Math.random() * 200) + 100,
+        credits: Math.floor(Math.random() * 1000) + 500
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        usage
+      }
+    });
+  } catch (error) {
+    logger.error('获取仪表板图表数据失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取图表数据失败'
+    });
+  }
+});
+
+// 仪表板最近活动接口
+app.get('/api/admin/dashboard/activities', (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+    
+    // 生成模拟的最近活动数据
+    const activities = [
+      {
+        id: 1,
+        user: '用户001',
+        action: '使用了模特图裂变工具',
+        time: '2分钟前',
+        avatarSeed: '1'
+      },
+      {
+        id: 2,
+        user: '用户002',
+        action: '购买了高级会员',
+        time: '5分钟前',
+        avatarSeed: '2'
+      },
+      {
+        id: 3,
+        user: '用户003',
+        action: '使用了商品图场景更换',
+        time: '8分钟前',
+        avatarSeed: '3'
+      },
+      {
+        id: 4,
+        user: '用户004',
+        action: '充值了1000积分',
+        time: '12分钟前',
+        avatarSeed: '4'
+      },
+      {
+        id: 5,
+        user: '用户005',
+        action: '使用了抠图去底工具',
+        time: '15分钟前',
+        avatarSeed: '5'
+      },
+      {
+        id: 6,
+        user: '用户006',
+        action: '使用了商品换色工具',
+        time: '18分钟前',
+        avatarSeed: '6'
+      },
+      {
+        id: 7,
+        user: '用户007',
+        action: '注册成为新用户',
+        time: '25分钟前',
+        avatarSeed: '7'
+      },
+      {
+        id: 8,
+        user: '用户008',
+        action: '使用了姿态变换工具',
+        time: '30分钟前',
+        avatarSeed: '8'
+      }
+    ];
+
+    const limitedActivities = activities.slice(0, parseInt(limit));
+
+    res.json({
+      success: true,
+      data: limitedActivities
+    });
+  } catch (error) {
+    logger.error('获取仪表板活动数据失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取活动数据失败'
+    });
+  }
+});
+
+// AI工具管理接口
+app.get('/api/admin/ai-tools', (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = '', category = '', status = '' } = req.query;
+    
+    let filteredTools = [...memoryTools];
+    
+    // 搜索过滤
+    if (search) {
+      filteredTools = filteredTools.filter(tool => 
+        tool.name.toLowerCase().includes(search.toLowerCase()) ||
+        tool.description.toLowerCase().includes(search.toLowerCase())
+      );
+    }
+    
+    // 分类过滤
+    if (category) {
+      filteredTools = filteredTools.filter(tool => tool.category === category);
+    }
+    
+    // 状态过滤 (为工具添加状态字段)
+    filteredTools = filteredTools.map(tool => ({
+      ...tool,
+      status: tool.status || 'active', // 默认状态为active
+      createdAt: tool.createdAt || new Date().toISOString(),
+      updatedAt: tool.updatedAt || new Date().toISOString()
+    }));
+    
+    if (status) {
+      filteredTools = filteredTools.filter(tool => tool.status === status);
+    }
+    
+    // 分页
+    const startIndex = (parseInt(page) - 1) * parseInt(limit);
+    const endIndex = startIndex + parseInt(limit);
+    const paginatedTools = filteredTools.slice(startIndex, endIndex);
+    
+    res.json({
+      success: true,
+      data: {
+        tools: paginatedTools,
+        pagination: {
+          current: parseInt(page),
+          pageSize: parseInt(limit),
+          total: filteredTools.length,
+          totalPages: Math.ceil(filteredTools.length / parseInt(limit))
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('获取AI工具列表失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取工具列表失败'
+    });
+  }
+});
+
+// 获取单个AI工具详情
+app.get('/api/admin/ai-tools/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const tool = memoryTools.find(t => t.id === id);
+    
+    if (!tool) {
+      return res.status(404).json({
+        success: false,
+        message: '工具不存在'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        ...tool,
+        status: tool.status || 'active',
+        createdAt: tool.createdAt || new Date().toISOString(),
+        updatedAt: tool.updatedAt || new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    logger.error('获取AI工具详情失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取工具详情失败'
+    });
+  }
+});
+
+// 创建新的AI工具
+app.post('/api/admin/ai-tools', (req, res) => {
+  try {
+    const { name, description, category, icon, creditCost } = req.body;
+    
+    if (!name || !description || !category || !creditCost) {
+      return res.status(400).json({
+        success: false,
+        message: '请填写完整的工具信息'
+      });
+    }
+    
+    const newTool = {
+      id: `tool-${Date.now()}`,
+      name,
+      description,
+      category,
+      icon: icon || '🔧',
+      creditCost: parseInt(creditCost),
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    memoryTools.push(newTool);
+    
+    res.json({
+      success: true,
+      message: '工具创建成功',
+      data: newTool
+    });
+  } catch (error) {
+    logger.error('创建AI工具失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '创建工具失败'
+    });
+  }
+});
+
+// 更新AI工具
+app.put('/api/admin/ai-tools/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, category, icon, creditCost, status } = req.body;
+    
+    const toolIndex = memoryTools.findIndex(t => t.id === id);
+    if (toolIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: '工具不存在'
+      });
+    }
+    
+    // 更新工具信息
+    memoryTools[toolIndex] = {
+      ...memoryTools[toolIndex],
+      ...(name && { name }),
+      ...(description && { description }),
+      ...(category && { category }),
+      ...(icon && { icon }),
+      ...(creditCost && { creditCost: parseInt(creditCost) }),
+      ...(status && { status }),
+      updatedAt: new Date().toISOString()
+    };
+    
+    res.json({
+      success: true,
+      message: '工具更新成功',
+      data: memoryTools[toolIndex]
+    });
+  } catch (error) {
+    logger.error('更新AI工具失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '更新工具失败'
+    });
+  }
+});
+
+// 删除AI工具
+app.delete('/api/admin/ai-tools/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const toolIndex = memoryTools.findIndex(t => t.id === id);
+    
+    if (toolIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: '工具不存在'
+      });
+    }
+    
+    memoryTools.splice(toolIndex, 1);
+    
+    res.json({
+      success: true,
+      message: '工具删除成功'
+    });
+  } catch (error) {
+    logger.error('删除AI工具失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '删除工具失败'
+    });
+  }
+});
+
+// 切换AI工具状态
+app.patch('/api/admin/ai-tools/:id/status', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    if (!status || !['active', 'inactive'].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: '无效的状态值'
+      });
+    }
+    
+    const toolIndex = memoryTools.findIndex(t => t.id === id);
+    if (toolIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: '工具不存在'
+      });
+    }
+    
+    memoryTools[toolIndex].status = status;
+    memoryTools[toolIndex].updatedAt = new Date().toISOString();
+    
+    res.json({
+      success: true,
+      message: '工具状态更新成功',
+      data: memoryTools[toolIndex]
+    });
+  } catch (error) {
+    logger.error('切换AI工具状态失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '状态更新失败'
+    });
+  }
+});
+
 app.post('/api/auth/login', (req, res) => {
   const { phone, email, password } = req.body || {};
   if (!phone && !email) {

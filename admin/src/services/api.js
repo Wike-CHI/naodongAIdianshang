@@ -269,28 +269,34 @@ export const apiManagementAPI = {
   deleteKey: (id) => apiClient.delete(`${API_ENDPOINTS.API_KEYS}/${id}`)
 };
 
-// 推荐系统相关API
-export const referralAPI = {
-  // 获取推荐系统概览
-  getOverview: () => apiClient.get(API_ENDPOINTS.REFERRAL_OVERVIEW),
+// AI模特工具管理API
+export const aiModelToolsAPI = {
+  // 获取AI模特工具列表
+  getAIModelTools: () => apiClient.get('/api/admin/ai-model-tools'),
   
-  // 获取推荐关系列表
-  getRelationships: (params) => apiClient.get(API_ENDPOINTS.REFERRAL_RELATIONSHIPS, { params }),
+  // 获取AI模特工具详情
+  getAIModelTool: (id) => apiClient.get(`/api/admin/ai-model-tools/${id}`),
   
-  // 删除推荐关系
-  deleteRelationship: (id) => apiClient.delete(API_ENDPOINTS.REFERRAL_RELATIONSHIP_BY_ID(id)),
+  // 更新AI模特工具配置
+  updateAIModelTool: (id, data) => apiClient.put(`/api/admin/ai-model-tools/${id}`, data),
   
-  // 更新推荐关系状态
-  updateRelationshipStatus: (id, status) => apiClient.put(API_ENDPOINTS.REFERRAL_RELATIONSHIP_STATUS(id), { status }),
+  // 批量更新AI模特工具状态
+  batchUpdateStatus: (data) => apiClient.post('/api/admin/ai-model-tools/batch-status', data),
   
-  // 获取系统配置
-  getSystemConfig: () => apiClient.get(API_ENDPOINTS.SYSTEM_CONFIG),
+  // 重置AI模特工具配置
+  resetAIModelTool: (id) => apiClient.post(`/api/admin/ai-model-tools/${id}/reset`),
   
-  // 更新系统配置
-  updateSystemConfig: (config) => apiClient.put(API_ENDPOINTS.SYSTEM_CONFIG, config),
+  // 批量重置AI模特工具配置
+  batchReset: (ids) => apiClient.post('/api/admin/ai-model-tools/batch-reset', { ids }),
   
-  // 重置系统配置
-  resetSystemConfig: () => apiClient.post(API_ENDPOINTS.SYSTEM_CONFIG_RESET)
+  // 获取AI模特工具统计数据
+  getAIModelToolsStats: () => apiClient.get('/api/admin/ai-model-tools/stats'),
+  
+  // 获取AI模特工具使用历史
+  getAIModelToolHistory: (id, params) => apiClient.get(`/api/admin/ai-model-tools/${id}/history`, { params }),
+  
+  // 测试AI模特工具配置
+  testAIModelTool: (id, data) => apiClient.post(`/api/admin/ai-model-tools/${id}/test`, data)
 };
 
 // 导出所有API
@@ -304,7 +310,7 @@ export default {
   systemAPI,
   fileAPI,
   apiManagementAPI,
-  referralAPI
+  aiModelToolsAPI
 };
 
 // 为了兼容现有代码，也导出单独的API

@@ -210,7 +210,7 @@ const Subscription = () => {
 
                     <List
                       size="small"
-                      dataSource={plan.benefits}
+                      dataSource={plan.benefits || plan.features || []}
                       renderItem={(benefit) => (
                         <List.Item>
                           <Space>

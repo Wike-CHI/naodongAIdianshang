@@ -328,10 +328,10 @@ const ToolsPage = () => {
       width: 150,
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="查看详情">
+          <Tooltip key="view" title="查看详情">
             <Button type="text" size="small" icon={<EyeOutlined />} />
           </Tooltip>
-          <Tooltip title="编辑">
+          <Tooltip key="edit" title="编辑">
             <Button 
               type="text" 
               size="small" 
@@ -340,6 +340,7 @@ const ToolsPage = () => {
             />
           </Tooltip>
           <Popconfirm
+            key="delete"
             title="确定要删除这个工具吗？"
             onConfirm={() => handleDelete(record._id)}
             okText="确定"
@@ -378,10 +379,10 @@ const ToolsPage = () => {
               style={{ width: 120 }}
               onChange={(value) => handleFilterChange('category', value)}
             >
-              <Option value="image">图像处理</Option>
-              <Option value="text">文本生成</Option>
-              <Option value="video">视频处理</Option>
-              <Option value="audio">音频处理</Option>
+              <Option key="image" value="image">图像处理</Option>
+              <Option key="text" value="text">文本生成</Option>
+              <Option key="video" value="video">视频处理</Option>
+              <Option key="audio" value="audio">音频处理</Option>
             </Select>
             <Select
               placeholder="状态筛选"
@@ -389,8 +390,8 @@ const ToolsPage = () => {
               style={{ width: 120 }}
               onChange={(value) => handleFilterChange('status', value)}
             >
-              <Option value="enabled">已启用</Option>
-              <Option value="disabled">已禁用</Option>
+              <Option key="enabled" value="enabled">已启用</Option>
+              <Option key="disabled" value="disabled">已禁用</Option>
             </Select>
           </Space>
         </div>
@@ -422,7 +423,7 @@ const ToolsPage = () => {
           columns={columns}
           dataSource={tools}
           loading={loading}
-          rowKey="_id"
+          rowKey={(record) => record._id || record.id || Math.random().toString(36)}
           pagination={{
             ...pagination,
             showSizeChanger: true,
@@ -481,10 +482,10 @@ const ToolsPage = () => {
             rules={[{ required: true, message: '请选择工具类别' }]}
           >
             <Select placeholder="请选择工具类别">
-              <Option value="image">图像处理</Option>
-              <Option value="text">文本生成</Option>
-              <Option value="video">视频处理</Option>
-              <Option value="audio">音频处理</Option>
+              <Option key="image" value="image">图像处理</Option>
+              <Option key="text" value="text">文本生成</Option>
+              <Option key="video" value="video">视频处理</Option>
+              <Option key="audio" value="audio">音频处理</Option>
             </Select>
           </Form.Item>
 
@@ -550,13 +551,13 @@ const ToolsPage = () => {
                   mode="multiple"
                   placeholder="选择支持的分辨率"
                   options={[
-                    { label: '512x512', value: '512x512' },
-                    { label: '768x768', value: '768x768' },
-                    { label: '1024x1024', value: '1024x1024' },
-                    { label: '1280x720', value: '1280x720' },
-                    { label: '1920x1080', value: '1920x1080' },
-                    { label: '512x768', value: '512x768' },
-                    { label: '768x512', value: '768x512' }
+                    { key: '512x512', label: '512x512', value: '512x512' },
+                    { key: '768x768', label: '768x768', value: '768x768' },
+                    { key: '1024x1024', label: '1024x1024', value: '1024x1024' },
+                    { key: '1280x720', label: '1280x720', value: '1280x720' },
+                    { key: '1920x1080', label: '1920x1080', value: '1920x1080' },
+                    { key: '512x768', label: '512x768', value: '512x768' },
+                    { key: '768x512', label: '768x512', value: '768x512' }
                   ]}
                 />
               </Form.Item>
@@ -566,11 +567,11 @@ const ToolsPage = () => {
                 label="默认分辨率"
               >
                 <Select placeholder="选择默认分辨率">
-                  <Option value="512x512">512x512</Option>
-                  <Option value="768x768">768x768</Option>
-                  <Option value="1024x1024">1024x1024</Option>
-                  <Option value="1280x720">1280x720</Option>
-                  <Option value="1920x1080">1920x1080</Option>
+                  <Option key="512x512" value="512x512">512x512</Option>
+                  <Option key="768x768" value="768x768">768x768</Option>
+                  <Option key="1024x1024" value="1024x1024">1024x1024</Option>
+                  <Option key="1280x720" value="1280x720">1280x720</Option>
+                  <Option key="1920x1080" value="1920x1080">1920x1080</Option>
                 </Select>
               </Form.Item>
 
@@ -594,10 +595,10 @@ const ToolsPage = () => {
                   mode="multiple"
                   placeholder="选择支持的图片格式"
                   options={[
-                    { label: 'JPEG', value: 'jpeg' },
-                    { label: 'PNG', value: 'png' },
-                    { label: 'WEBP', value: 'webp' },
-                    { label: 'GIF', value: 'gif' }
+                    { key: 'jpeg', label: 'JPEG', value: 'jpeg' },
+                    { key: 'png', label: 'PNG', value: 'png' },
+                    { key: 'webp', label: 'WEBP', value: 'webp' },
+                    { key: 'gif', label: 'GIF', value: 'gif' }
                   ]}
                 />
               </Form.Item>

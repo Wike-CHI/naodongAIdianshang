@@ -159,14 +159,12 @@ const ReferralManagement = () => {
     },
     {
       title: '被推广用户',
-      dataIndex: ['referredUser', 'username'],
-      key: 'referredUser',
-      render: (text, record) => (
+      dataIndex: 'referredUsername',
+      key: 'referredUsername',
+      render: (username) => (
         <Space>
-          <span>{text}</span>
-          <Tag color={record.referredUser.membershipType === 'premium' ? 'gold' : 'default'}>
-            {record.referredUser.membershipType === 'premium' ? '会员' : '普通'}
-          </Tag>
+          <span>{username || '未填写'}</span>
+          <Tag color="default">普通</Tag>
         </Space>
       )
     },
