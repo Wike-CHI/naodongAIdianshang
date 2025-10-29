@@ -3,17 +3,17 @@ import { message } from 'antd';
 import AIToolWorkspace from '../components/Common/AIToolWorkspace';
 import aiModelService from '../services/aiModelService';
 
-const ProductColorChange = () => {
+const PoseVariation = () => {
   const [generating, setGenerating] = useState(false);
 
   const handleGenerate = async (params) => {
     setGenerating(true);
     try {
-      // 调用商品换色生成服务
-      const result = await aiModelService.generateColorChange(params);
+      // 调用姿态变换生成服务
+      const result = await aiModelService.generatePoseVariation(params);
       return result;
     } catch (error) {
-      console.error('商品换色生成失败:', error);
+      console.error('姿态变换生成失败:', error);
       throw error;
     } finally {
       setGenerating(false);
@@ -21,9 +21,9 @@ const ProductColorChange = () => {
   };
 
   return (
-    <div className="product-color-change-page">
+    <div className="pose-variation-page">
       <AIToolWorkspace 
-        toolId="color-change"
+        toolId="pose-variation"
         onGenerate={handleGenerate}
         generating={generating}
       />
@@ -31,4 +31,4 @@ const ProductColorChange = () => {
   );
 };
 
-export default ProductColorChange;
+export default PoseVariation;

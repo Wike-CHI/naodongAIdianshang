@@ -11,7 +11,7 @@ const { Content } = Layout
 const { Title, Text } = Typography
 
 const Subscription = () => {
-  const { user, updateCredits } = useAuth()
+  const { user, updateUserInfo, updateCredits } = useAuth()
   const [loading, setLoading] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState(null)
   const [subscriptionPlans, setSubscriptionPlans] = useState([])
@@ -22,7 +22,7 @@ const Subscription = () => {
       try {
         const response = await axios.get(API_ENDPOINTS.SUBSCRIPTION.PLANS)
         if (response.data.success) {
-          setSubscriptionPlans(response.data.data)
+          setSubscriptionPlans(response.data.data.plans || response.data.data)
         } else {
           // 如果API失败，使用默认套餐
           setSubscriptionPlans([
@@ -103,20 +103,42 @@ const Subscription = () => {
     setLoading(true)
 
     try {
-      // 模拟支付过程
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // 模拟支付成功，更新用户状态
-      if (plan.is_yearly) {
+      // 调用真实API创建订阅
+      const token = localStorage.getItem('token')
+      const response = await axios.post(API_ENDPOINTS.SUBSCRIPTION.SUBSCRIBE, {
+        plan_id: plan._id || plan.id,
+        payment_method: 'alipay', // 默认支付方式
+        transaction_id: `txn_${Date.now()}`, // 模拟交易ID
+        auto_renew: true
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.data.success) {
         message.success(`成功订阅${plan.name}年度会员！`)
+        
+        // 获取更新后的用户信息
+        try {
+          const userResponse = await axios.get(API_ENDPOINTS.AUTH.CURRENT_USER, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+          
+          if (userResponse.data.success) {
+            // 更新用户信息和积分
+            updateUserInfo(userResponse.data.data.user)
+          }
+        } catch (error) {
+          console.error('获取更新后的用户信息失败:', error)
+        }
       } else {
-        message.success(`成功订阅${plan.name}！`)
+        message.error(response.data.message || '订阅失败')
       }
-      
-      // 这里应该调用真实的API更新用户会员状态
-      logger.log('订阅成功:', plan)
-      
     } catch (error) {
+      console.error('订阅失败:', error)
       message.error('订阅失败，请重试')
     } finally {
       setLoading(false)
@@ -177,7 +199,7 @@ const Subscription = () => {
 
             <Row gutter={[24, 24]} justify="center">
               {subscriptionPlans.map((plan) => (
-                <Col key={plan.id} xs={24} sm={12} lg={8}>
+                <Col key={plan._id || plan.id} xs={24} sm={12} lg={8}>
                   <Card
                     className={plan.popular ? 'popular-plan' : ''}
                     style={{ 
@@ -236,9 +258,11 @@ const Subscription = () => {
                             </span>
                             <Text type="secondary">/{plan.duration || '月'}</Text>
                           </div>
-                          <Tag color="red">
-                            立省 ¥{plan.originalPrice - plan.price}
-                          </Tag>
+                          {plan.originalPrice && (
+                            <Tag color="red">
+                              立省 ¥{plan.originalPrice - plan.price}
+                            </Tag>
+                          )}
                         </div>
                       )}
                     </div>
@@ -261,7 +285,7 @@ const Subscription = () => {
                       type={plan.popular ? 'primary' : 'default'}
                       size="large"
                       block
-                      loading={loading && selectedPlan?.id === plan.id}
+                      loading={loading && selectedPlan?._id === plan._id}
                       onClick={() => handleSubscribe(plan)}
                       disabled={user?.membershipType === 'vip'}
                     >

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, Typography, Form, Button, message } from 'antd'
+import { Card, Typography, Form, Button, message, Select, Slider, Radio, Space } from 'antd'
 import { ThunderboltOutlined } from '@ant-design/icons'
 import { useToolContext } from '../../contexts/ToolContext'
 import { useAuth } from '../../contexts/AuthContext'
@@ -7,9 +7,10 @@ import ImageUpload from '../Common/ImageUpload'
 import PromptInput from '../Common/PromptInput'
 
 const { Title, Text } = Typography
+const { Option } = Select
 
 const WorkArea = () => {
-  const { selectedTool, generateImage, isGenerating } = useToolContext()
+  const { selectedTool, generateImage, isGenerating, commonOptions } = useToolContext()
   const { user, isAuthenticated, updateCredits } = useAuth()
   const [form] = Form.useForm()
   const [formData, setFormData] = useState({})
@@ -116,6 +117,55 @@ const WorkArea = () => {
               multiple={false}
               maxCount={1}
             />
+          </Form.Item>
+
+          {/* 统一的选项配置 */}
+          {/* 分辨率选项 */}
+          <Form.Item
+            name="resolution"
+            label={commonOptions.resolution.label}
+            initialValue={commonOptions.resolution.default}
+          >
+            <Select>
+              {commonOptions.resolution.options.map(option => (
+                <Option key={option.value} value={option.value}>
+                  {option.label}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          {/* 生成数量选项 */}
+          <Form.Item
+            name="quantity"
+            label={commonOptions.quantity.label}
+            initialValue={commonOptions.quantity.default}
+          >
+            <Slider
+              min={commonOptions.quantity.min}
+              max={commonOptions.quantity.max}
+              marks={{
+                [commonOptions.quantity.min]: commonOptions.quantity.min,
+                [commonOptions.quantity.max]: commonOptions.quantity.max
+              }}
+            />
+          </Form.Item>
+
+          {/* 生成模式选项 */}
+          <Form.Item
+            name="mode"
+            label={commonOptions.mode.label}
+            initialValue={commonOptions.mode.default}
+          >
+            <Radio.Group>
+              <Space direction="vertical">
+                {commonOptions.mode.options.map(option => (
+                  <Radio key={option.value} value={option.value}>
+                    {option.label}
+                  </Radio>
+                ))}
+              </Space>
+            </Radio.Group>
           </Form.Item>
 
           {/* 正向提示词 - 必填 */}

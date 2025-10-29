@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { message } from 'antd';
 import AIToolWorkspace from '../components/Common/AIToolWorkspace';
-import { aiModelService } from '../services/aiModelService';
+import aiModelService from '../services/aiModelService';
 
 const AIModel = () => {
   const [generating, setGenerating] = useState(false);

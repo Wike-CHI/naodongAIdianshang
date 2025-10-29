@@ -57,7 +57,7 @@ const AIModelToolsPage = () => {
   const [currentTool, setCurrentTool] = useState(null)
   const [form] = Form.useForm()
 
-  // 统一的通用选项配置
+  // 统一的通用选项配置 - 与前端保持一致
   const commonOptions = {
     resolution: {
       id: 'resolution',
@@ -107,19 +107,6 @@ const AIModelToolsPage = () => {
         optionSlots: 3,
         promptSlot: 1
       },
-      // 工具特定的第三个选项
-      thirdOption: {
-        id: 'model-features',
-        label: '模特特征',
-        type: 'select',
-        options: [
-          { value: 'asian-female', label: '亚洲女性' },
-          { value: 'european-female', label: '欧美女性' },
-          { value: 'asian-male', label: '亚洲男性' },
-          { value: 'child', label: '儿童' }
-        ],
-        default: 'asian-female'
-      },
       features: ['商品图片输入', '模特风格选择', '背景场景设置']
     },
     {
@@ -136,15 +123,6 @@ const AIModelToolsPage = () => {
         imageSlots: 2,
         optionSlots: 3,
         promptSlot: 1
-      },
-      thirdOption: {
-        id: 'fit-level',
-        label: '版型适配',
-        type: 'slider',
-        min: 0,
-        max: 100,
-        default: 80,
-        unit: '%'
       },
       features: ['服装图片', '模特替换', '版型保持']
     },
@@ -163,18 +141,6 @@ const AIModelToolsPage = () => {
         optionSlots: 3,
         promptSlot: 1
       },
-      thirdOption: {
-        id: 'accessory-type',
-        label: '配件类型',
-        type: 'select',
-        options: [
-          { value: 'glasses', label: '眼镜' },
-          { value: 'hat', label: '帽子' },
-          { value: 'earring', label: '耳环' },
-          { value: 'necklace', label: '项链' }
-        ],
-        default: 'glasses'
-      },
       features: ['配件图片', '佩戴位置', '尺寸调整']
     },
     {
@@ -191,19 +157,6 @@ const AIModelToolsPage = () => {
         imageSlots: 2,
         optionSlots: 3,
         promptSlot: 1
-      },
-      thirdOption: {
-        id: 'target-pose',
-        label: '目标姿态',
-        type: 'select',
-        options: [
-          { value: 'standing', label: '站立姿态' },
-          { value: 'walking', label: '行走姿态' },
-          { value: 'sitting', label: '坐姿' },
-          { value: 'running', label: '跑步姿态' },
-          { value: 'dancing', label: '舞蹈姿态' }
-        ],
-        default: 'standing'
       },
       features: ['姿态选择', '动作调整', '自然度控制']
     },
@@ -222,19 +175,6 @@ const AIModelToolsPage = () => {
         optionSlots: 3,
         promptSlot: 1
       },
-      thirdOption: {
-        id: 'shoe-type',
-        label: '鞋靴类型',
-        type: 'select',
-        options: [
-          { value: 'sneakers', label: '运动鞋' },
-          { value: 'heels', label: '高跟鞋' },
-          { value: 'boots', label: '靴子' },
-          { value: 'sandals', label: '凉鞋' },
-          { value: 'slippers', label: '拖鞋' }
-        ],
-        default: 'sneakers'
-      },
       features: ['鞋靴图片', '脚部匹配', '角度调整']
     },
     {
@@ -252,19 +192,6 @@ const AIModelToolsPage = () => {
         optionSlots: 3,
         promptSlot: 1
       },
-      thirdOption: {
-        id: 'scene-type',
-        label: '场景类型',
-        type: 'select',
-        options: [
-          { value: 'outdoor', label: '户外场景' },
-          { value: 'indoor', label: '室内场景' },
-          { value: 'studio', label: '影棚场景' },
-          { value: 'seasonal', label: '季节场景' },
-          { value: 'festival', label: '节日场景' }
-        ],
-        default: 'studio'
-      },
       features: ['场景选择', '光线调整', '氛围设置']
     },
     {
@@ -281,19 +208,6 @@ const AIModelToolsPage = () => {
         imageSlots: 2,
         optionSlots: 3,
         promptSlot: 1
-      },
-      thirdOption: {
-        id: 'color-palette',
-        label: '色彩方案',
-        type: 'select',
-        options: [
-          { value: 'spring', label: '春季色系' },
-          { value: 'summer', label: '夏季色系' },
-          { value: 'autumn', label: '秋季色系' },
-          { value: 'winter', label: '冬季色系' },
-          { value: 'custom', label: '自定义色系' }
-        ],
-        default: 'spring'
       },
       features: ['颜色选择', '材质调整', '光泽控制']
     }
@@ -679,15 +593,6 @@ const AIModelToolsPage = () => {
               <Descriptions.Item label="图片上传窗口数量">2</Descriptions.Item>
               <Descriptions.Item label="可选项窗口数量">3</Descriptions.Item>
               <Descriptions.Item label="提示词窗口数量">1</Descriptions.Item>
-            </Descriptions>
-
-            <Divider>工具特定选项</Divider>
-            <Descriptions column={1} bordered>
-              <Descriptions.Item label={currentTool.thirdOption?.label}>
-                {currentTool.thirdOption?.type === 'select' 
-                  ? currentTool.thirdOption?.options.map(opt => opt.label).join(', ')
-                  : `${currentTool.thirdOption?.min || 0} - ${currentTool.thirdOption?.max || 100}`}
-              </Descriptions.Item>
             </Descriptions>
 
             <Divider>功能特性</Divider>

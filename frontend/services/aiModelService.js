@@ -198,21 +198,19 @@ class AIModelService {
   }
 
   // 获取生成历史
-  async getGenerationHistory(page = 1, limit = 20, toolId = null) {
+  async getGenerationHistory(userId, page = 1, limit = 20) {
     try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString()
+      const response = await fetch(`${this.baseUrl}/history/${userId}?page=${page}&limit=${limit}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        signal: AbortSignal.timeout(this.timeout)
       });
-      
-      if (toolId) {
-        params.append('toolId', toolId);
-      }
 
-      const response = await fetch(`${this.baseUrl}/history?${params}`);
-      
       if (!response.ok) {
-        throw new Error('获取历史记录失败');
+        const errorData = await response.json();
+        throw new Error(errorData.error || '获取历史记录失败');
       }
 
       const result = await response.json();
@@ -224,60 +222,33 @@ class AIModelService {
     }
   }
 
-  // 获取工具状态
-  async getToolStatus() {
+  // 获取单个生成结果
+  async getGenerationResult(generationId) {
     try {
-      const response = await fetch(`${this.baseUrl}/health`);
-      const result = await response.json();
-      return result;
-    } catch (error) {
-      console.error('获取工具状态失败:', error);
-      return { status: 'error', error: error.message };
-    }
-  }
+      const response = await fetch(`${this.baseUrl}/result/${generationId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        signal: AbortSignal.timeout(this.timeout)
+      });
 
-  // 获取支持的模型列表
-  async getSupportedModels() {
-    try {
-      const response = await fetch(`${this.baseUrl}/models`);
-      const result = await response.json();
-      return result.success ? result.data : [];
-    } catch (error) {
-      console.error('获取模型列表失败:', error);
-      return [];
-    }
-  }
-
-  // 获取工具配置
-  async getToolConfig(toolId) {
-    try {
-      const mappedToolId = this.toolMapping[toolId];
-      if (!mappedToolId) {
-        throw new Error(`不支持的工具类型: ${toolId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '获取生成结果失败');
       }
 
-      const response = await fetch(`${this.baseUrl}/tools/${mappedToolId}/config`);
       const result = await response.json();
-      return result.success ? result.data : null;
-    } catch (error) {
-      console.error('获取工具配置失败:', error);
-      return null;
-    }
-  }
+      return result;
 
-  // 获取生成统计
-  async getGenerationStats() {
-    try {
-      const response = await fetch(`${this.baseUrl}/stats`);
-      const result = await response.json();
-      return result.success ? result.data : null;
     } catch (error) {
-      console.error('获取生成统计失败:', error);
-      return null;
+      console.error('获取生成结果失败:', error);
+      throw error;
     }
   }
 }
 
 // 创建单例实例
-export const aiModelService = new AIModelService();
+const aiModelService = new AIModelService();
+
 export default aiModelService;
