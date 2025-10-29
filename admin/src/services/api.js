@@ -65,10 +65,10 @@ export const dashboardAPI = {
   getStats: () => apiClient.get(API_ENDPOINTS.DASHBOARD_STATS),
   
   // 获取图表数据
-  getChartData: (params) => apiClient.get(API_ENDPOINTS.DASHBOARD_CHART_DATA, { params }),
+  getChartData: (params) => apiClient.get(API_ENDPOINTS.DASHBOARD_CHARTS, { params }),
   
   // 获取最近活动
-  getRecentActivities: (params) => apiClient.get(API_ENDPOINTS.DASHBOARD_RECENT_ACTIVITIES, { params })
+  getRecentActivities: (params) => apiClient.get(API_ENDPOINTS.RECENT_ACTIVITIES, { params })
 };
 
 // 用户管理相关API
