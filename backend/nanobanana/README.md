@@ -1,81 +1,171 @@
-# 🎨 AI 图片生成中心
+# NanoBanana API - AI图片生成中心
 
-[English Version](./README.en.md)
+一个支持多模型的AI图片生成API服务，基于Node.js构建。
 
-一个先进、一体化的 AI 图片生成 Web 应用平台。本项目提供了一个直观的 **Web 用户界面**，让您可以与一系列强大的文生图模型进行交互，包括 **Qwen-Image (通义万相)、Flux、Kontext、Krea**，以及多模态模型 **Nano Banana**。
+## 🌟 核心功能
 
-项目基于强大的 Deno 后端构建，旨在提供一个无缝衔接且具备专业级水准的创作体验。
+- **多模型支持**: 集成OpenRouter和ModelScope平台的多种AI图像生成模型
+- **统一API接口**: 提供一致的RESTful API接口
+- **模块化架构**: 服务层抽离，便于维护和扩展
+- **环境配置**: 支持环境变量配置，安全可靠
+- **CORS支持**: 支持跨域访问，便于前端集成
+- **健康检查**: 提供服务状态监控接口
 
----
+## 🚀 快速开始
 
-## ✨ 核心功能
+### 环境要求
 
-*   **多模型支持**: 在主界面即可无缝切换多种业界顶尖的图片生成模型。
-*   **直观的 Web UI**: 拥有一个干净、现代化且响应式的用户界面，专为专业创作流程而设计。
-*   **高级生成控制**:
-    *   **文生图**: 完全掌控正向/负向提示词、分辨率、采样步数、引导系数 (CFG) 和随机种子。
-    *   **多模态 (Nano Banana)**: 结合上传的图片和文本提示词，执行图生图、图文理解等任务。
-*   **批量生成**: 一次最多可生成4张图片。应用能够智能处理 API 的速率限制，通过在**并发请求**（适用于Flux等模型）和**串行请求**（适用于Qwen等模型）之间自动切换，确保任务成功率。
-*   **智能会话记忆**:
-    *   **输入持久化**: 您为每个模型设置的所有提示词和参数，都会在当前会话中被记住。即使来回切换模型，您的工作内容也不会丢失。
-    *   **后台任务**: 您可以为一个模型开启生成任务，然后立即切换到其他模型进行操作。应用会持续追踪正在运行的任务，当您切回来时，它会自动恢复视图——如果任务仍在运行，则显示实时进度；如果已完成，则展示结果。
-*   **专业级用户体验**:
-    *   **浅色 & 深色模式**: 内置主题切换功能，满足您的视觉偏好。
-    *   **动态进度更新**: 在生成多张图片时，获得实时反馈（例如：“正在生成 2/4 张图片...”）。
-    *   **全屏预览**: 点击任何一张生成的图片，即可在弹窗中进行全屏预览。
-*   **智能 API Key 处理**:
-    *   在部署时将 `OPENROUTER_API_KEYS` 和 `MODELSCOPE_API_KEY` 设置为环境变量，前端将自动隐藏密钥输入框，打造一个清爽、可供分享的界面。
-    *   如果未设置环境变量，也支持在UI中直接输入。
-    *   环境变量支持多个API密钥（用逗号分隔），以实现随机、无状态的负载均衡。
+- Node.js 18.0+
+- npm 或 yarn
 
----
+### 安装依赖
 
-## 🚀 部署到 Deno Deploy
+```bash
+npm install
+```
 
-1.  **Fork 本项目**: 将此仓库 Fork 到您自己的 GitHub 账户。
-2.  **登录 Deno Deploy**: 使用您的 GitHub 账号登录 [Deno Deploy Dashboard](https://dash.deno.com/projects)。
-3.  **创建新项目**:
-    *   点击 "New Project"。
-    *   选择您刚刚 Fork 的 GitHub 仓库。
-    *   选择 `main` 分支和 `main.ts` 作为入口文件。
-4.  **(推荐) 添加环境变量**:
-    *   进入项目的 "Settings" -> "Environment Variables"。
-    *   添加 `MODELSCOPE_API_KEY`，值为您的 ModelScope 密钥（用于 Qwen, Flux 等）。
-    *   添加 `OPENROUTER_API_KEYS`，值为您的 OpenRouter 密钥（用于 Nano Banana）。
-    *   *提示: 您可以添加多个由逗号分隔的密钥 (例如 `key1,key2,key3`) 来实现负载均衡。*
-    *   **没有密钥？**
-        *   [如何注册 ModelScope API 密钥](https://x230rpqk6u.feishu.cn/wiki/AJxKwmleQiUovZkZZOJc4mp4n5g)
-        *   [如何注册 OpenRouter API 密钥](https://x230rpqk6u.feishu.cn/wiki/FptCw2H1ViN7QwkhT16cMTDPnCe)
-5.  **部署**: 点击 "Link" 或 "Deploy" 按钮，您的 AI 图片生成中心就上线了！
+### 环境配置
 
----
+1. 复制环境变量示例文件：
+```bash
+cp .env.example .env
+```
 
-## 🛠️ 如何使用
+2. 编辑 `.env` 文件，配置API密钥：
+```env
+PORT=3001
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+MODELSCOPE_API_KEY=your_modelscope_api_key_here
+NODE_ENV=development
+```
 
-1.  打开您部署后的 `*.deno.dev` URL。
-2.  如果您没有在部署时设置环境变量，请在所选模型的“设置”区域输入对应的 API Key。（如没有密钥，请参考上方“部署”部分的教程链接）。
-3.  **对于文生图模型 (Qwen, Flux 等)**:
-    *   输入您的正向和负向提示词。
-    *   调整分辨率、步数、引导系数等参数。
-    *   选择您想生成的图片数量。
-    *   点击“生成”。
-4.  **对于 Nano Banana (多模态模型)**:
-    *   （可选）上传一张或多张图片。
-    *   输入您的文本提示词。
-    *   点击“生成”。
+### 启动服务
 
----
+```bash
+# 开发模式（自动重启）
+npm run dev
 
-## 💻 技术栈
+# 生产模式
+npm start
+```
 
--   **前端**: 原生 HTML, CSS, JavaScript (无框架)
--   **后端**: Deno, Deno Standard Library
--   **AI 模型**:
-    *   [魔搭 (ModelScope)](https://modelscope.cn/): `Qwen/Qwen-Image`, `MusePublic/FLUX.1` 等
-    *   [OpenRouter](https://openrouter.ai/): `google/gemini-2.5-flash-image-preview` (用于 Nano Banana)
+服务启动后，访问 http://localhost:3001/health 检查服务状态。
 
----
+## 📚 API文档
 
-## 📜 许可证
+详细的API接口文档请参考 [API_CONTRACT.md](./API_CONTRACT.md)
 
-本项目采用 [MIT License](LICENSE) 开源。
+### 主要接口
+
+- `GET /health` - 健康检查
+- `GET /api/key-status` - OpenRouter API密钥状态
+- `GET /api/modelscope-key-status` - ModelScope API密钥状态
+- `POST /generate` - 图片生成接口
+
+### 快速示例
+
+```bash
+# 使用Nano Banana模型生成图片
+curl -X POST http://localhost:3001/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "一只可爱的小猫咪",
+    "model": "nanobanana"
+  }'
+
+# 使用ModelScope模型生成图片
+curl -X POST http://localhost:3001/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "美丽的风景画",
+    "model": "qwen-vl-plus",
+    "negative_prompt": "模糊，低质量"
+  }'
+```
+
+## 🏗️ 项目结构
+
+```
+nanobanana/
+├── services/                 # 服务层
+│   ├── openRouterService.js  # OpenRouter API服务
+│   └── modelScopeService.js  # ModelScope API服务
+├── static/                   # 静态文件（前端界面）
+├── server.js                 # 主服务器文件
+├── package.json              # 项目配置
+├── .env.example              # 环境变量示例
+├── API_CONTRACT.md           # API接口契约文档
+└── README.md                 # 项目说明
+```
+
+## 🔧 支持的模型
+
+### OpenRouter模型
+- **nanobanana**: 基于 `google/gemini-2.5-flash-image-preview`
+
+### ModelScope模型
+- 支持ModelScope平台的各种图像生成模型
+- 包括Qwen-Image、Flux等主流模型
+
+## 🛠️ 开发说明
+
+### 服务层架构
+
+项目采用模块化架构，将不同的API服务抽离到独立的服务类中：
+
+- `OpenRouterService`: 处理OpenRouter API调用
+- `ModelScopeService`: 处理ModelScope API调用
+
+### 添加新模型
+
+1. 在对应的服务类中添加新模型支持
+2. 更新 `server.js` 中的路由逻辑
+3. 更新API文档
+
+### 环境变量
+
+| 变量名 | 描述 | 默认值 |
+|--------|------|--------|
+| PORT | 服务端口 | 3001 |
+| OPENROUTER_API_KEY | OpenRouter API密钥 | - |
+| MODELSCOPE_API_KEY | ModelScope API密钥 | - |
+| NODE_ENV | 运行环境 | development |
+
+## 🔍 故障排除
+
+### 常见问题
+
+1. **API密钥无效**
+   - 检查 `.env` 文件中的API密钥是否正确
+   - 访问 `/api/key-status` 检查密钥状态
+
+2. **端口占用**
+   - 修改 `.env` 文件中的 `PORT` 配置
+   - 或使用 `PORT=3002 npm start` 临时指定端口
+
+3. **模型调用失败**
+   - 检查网络连接
+   - 确认API密钥有足够的配额
+   - 查看控制台错误日志
+
+### 日志调试
+
+服务会在控制台输出详细的调试信息，包括：
+- API请求和响应
+- 错误信息
+- 任务状态
+
+## 📄 许可证
+
+MIT License
+
+## 🤝 贡献
+
+欢迎提交Issue和Pull Request来改进项目。
+
+## 📞 支持
+
+如有问题，请查看：
+1. [API接口文档](./API_CONTRACT.md)
+2. 控制台错误日志
+3. 提交Issue到项目仓库
