@@ -42,41 +42,4 @@ const optionalAuth = (req, res, next) => {
   next();
 };
 
-// 管理员权限验证中间件
-const requireAdmin = async (req, res, next) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: '需要登录'
-      });
-    }
-
-    // 检查用户是否为管理员
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: '用户不存在'
-      });
-    }
-
-    if (!user.is_admin) {
-      return res.status(403).json({
-        success: false,
-        message: '需要管理员权限'
-      });
-    }
-
-    next();
-  } catch (error) {
-    console.error('Admin auth error:', error);
-    res.status(500).json({
-      success: false,
-      message: '权限验证失败',
-      error: error.message
-    });
-  }
-};
-
-module.exports = { authenticateToken, optionalAuth, requireAdmin };
+module.exports = { authenticateToken, optionalAuth };
