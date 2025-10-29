@@ -185,7 +185,7 @@ const Profile = () => {
                     <Col span={12}>
                       <Statistic
                         title="剩余积分"
-                        value={user.credits || user.credits_balance || 0}
+                        value={user.credits}
                         prefix={<WalletOutlined />}
                         valueStyle={{ color: '#52c41a' }}
                       />
@@ -193,10 +193,10 @@ const Profile = () => {
                     <Col span={12}>
                       <Statistic
                         title="会员状态"
-                        value={user.membershipType === 'vip' ? 'VIP' : (user.role === 'premium' ? '高级' : '普通')}
+                        value={user.membershipType === 'vip' ? 'VIP' : '普通'}
                         prefix={<CrownOutlined />}
                         valueStyle={{ 
-                          color: user.membershipType === 'vip' || user.role === 'premium' ? '#faad14' : '#666' 
+                          color: user.membershipType === 'vip' ? '#faad14' : '#666' 
                         }}
                       />
                     </Col>

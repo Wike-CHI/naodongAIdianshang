@@ -2,7 +2,41 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 
 const ToolContext = createContext()
 
+// 统一的通用选项配置 - 所有AI工具模块都使用相同的三个选项
+const commonOptions = {
+  resolution: {
+    id: 'resolution',
+    label: '分辨率',
+    type: 'select',
+    options: [
+      { value: '0.5k', label: '0.5K (960×540)', width: 960, height: 540 },
+      { value: '1080p', label: '1080P (1920×1080)', width: 1920, height: 1080 },
+      { value: '2k', label: '2K (2560×1440)', width: 2560, height: 1440 }
+    ],
+    default: '1080p'
+  },
+  quantity: {
+    id: 'quantity',
+    label: '生成数量',
+    type: 'slider',
+    min: 1,
+    max: 4,
+    default: 1
+  },
+  mode: {
+    id: 'mode',
+    label: '生成模式',
+    type: 'radio',
+    options: [
+      { value: 'fast', label: '快速模式' },
+      { value: 'ultra', label: '极速模式' }
+    ],
+    default: 'fast'
+  }
+}
+
 // 硬编码的AI工具列表 - 不允许增删，但允许改查
+// 所有工具都遵循统一的界面布局：2个图片上传窗口，3个可选项窗口，1个提示词窗口
 const hardcodedTools = [
   {
     id: 'ai-model',
@@ -159,6 +193,7 @@ export const ToolProvider = ({ children }) => {
 
   const value = {
     tools: hardcodedTools, // 始终使用硬编码工具列表
+    commonOptions, // 添加通用选项配置
     selectedTool,
     setSelectedTool,
     selectTool,

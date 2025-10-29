@@ -57,6 +57,39 @@ const AIModelToolsPage = () => {
   const [currentTool, setCurrentTool] = useState(null)
   const [form] = Form.useForm()
 
+  // 统一的通用选项配置
+  const commonOptions = {
+    resolution: {
+      id: 'resolution',
+      label: '分辨率',
+      type: 'select',
+      options: [
+        { value: '0.5k', label: '0.5K (960×540)', width: 960, height: 540 },
+        { value: '1080p', label: '1080P (1920×1080)', width: 1920, height: 1080 },
+        { value: '2k', label: '2K (2560×1440)', width: 2560, height: 1440 }
+      ],
+      default: '1080p'
+    },
+    quantity: {
+      id: 'quantity',
+      label: '生成数量',
+      type: 'slider',
+      min: 1,
+      max: 4,
+      default: 1
+    },
+    mode: {
+      id: 'mode',
+      label: '生成模式',
+      type: 'radio',
+      options: [
+        { value: 'fast', label: '快速模式' },
+        { value: 'ultra', label: '极速模式' }
+      ],
+      default: 'fast'
+    }
+  }
+
   // 硬编码的AI工具列表 - 与前端保持一致
   const hardcodedTools = [
     {
@@ -69,11 +102,23 @@ const AIModelToolsPage = () => {
       enabled: true,
       usageCount: 0,
       lastUsed: null,
-      config: {
-        maxResolution: '1024x1024',
-        quality: 'high',
-        timeout: 60,
-        retryCount: 3
+      inputConfig: {
+        imageSlots: 2,
+        optionSlots: 3,
+        promptSlot: 1
+      },
+      // 工具特定的第三个选项
+      thirdOption: {
+        id: 'model-features',
+        label: '模特特征',
+        type: 'select',
+        options: [
+          { value: 'asian-female', label: '亚洲女性' },
+          { value: 'european-female', label: '欧美女性' },
+          { value: 'asian-male', label: '亚洲男性' },
+          { value: 'child', label: '儿童' }
+        ],
+        default: 'asian-female'
       },
       features: ['商品图片输入', '模特风格选择', '背景场景设置']
     },
@@ -87,11 +132,19 @@ const AIModelToolsPage = () => {
       enabled: true,
       usageCount: 0,
       lastUsed: null,
-      config: {
-        maxResolution: '1024x1024',
-        quality: 'high',
-        timeout: 60,
-        retryCount: 3
+      inputConfig: {
+        imageSlots: 2,
+        optionSlots: 3,
+        promptSlot: 1
+      },
+      thirdOption: {
+        id: 'fit-level',
+        label: '版型适配',
+        type: 'slider',
+        min: 0,
+        max: 100,
+        default: 80,
+        unit: '%'
       },
       features: ['服装图片', '模特替换', '版型保持']
     },
@@ -105,11 +158,22 @@ const AIModelToolsPage = () => {
       enabled: true,
       usageCount: 0,
       lastUsed: null,
-      config: {
-        maxResolution: '1024x1024',
-        quality: 'high',
-        timeout: 60,
-        retryCount: 3
+      inputConfig: {
+        imageSlots: 2,
+        optionSlots: 3,
+        promptSlot: 1
+      },
+      thirdOption: {
+        id: 'accessory-type',
+        label: '配件类型',
+        type: 'select',
+        options: [
+          { value: 'glasses', label: '眼镜' },
+          { value: 'hat', label: '帽子' },
+          { value: 'earring', label: '耳环' },
+          { value: 'necklace', label: '项链' }
+        ],
+        default: 'glasses'
       },
       features: ['配件图片', '佩戴位置', '尺寸调整']
     },
@@ -123,11 +187,23 @@ const AIModelToolsPage = () => {
       enabled: true,
       usageCount: 0,
       lastUsed: null,
-      config: {
-        maxResolution: '1024x1024',
-        quality: 'high',
-        timeout: 60,
-        retryCount: 3
+      inputConfig: {
+        imageSlots: 2,
+        optionSlots: 3,
+        promptSlot: 1
+      },
+      thirdOption: {
+        id: 'target-pose',
+        label: '目标姿态',
+        type: 'select',
+        options: [
+          { value: 'standing', label: '站立姿态' },
+          { value: 'walking', label: '行走姿态' },
+          { value: 'sitting', label: '坐姿' },
+          { value: 'running', label: '跑步姿态' },
+          { value: 'dancing', label: '舞蹈姿态' }
+        ],
+        default: 'standing'
       },
       features: ['姿态选择', '动作调整', '自然度控制']
     },
@@ -141,11 +217,23 @@ const AIModelToolsPage = () => {
       enabled: true,
       usageCount: 0,
       lastUsed: null,
-      config: {
-        maxResolution: '1024x1024',
-        quality: 'high',
-        timeout: 60,
-        retryCount: 3
+      inputConfig: {
+        imageSlots: 2,
+        optionSlots: 3,
+        promptSlot: 1
+      },
+      thirdOption: {
+        id: 'shoe-type',
+        label: '鞋靴类型',
+        type: 'select',
+        options: [
+          { value: 'sneakers', label: '运动鞋' },
+          { value: 'heels', label: '高跟鞋' },
+          { value: 'boots', label: '靴子' },
+          { value: 'sandals', label: '凉鞋' },
+          { value: 'slippers', label: '拖鞋' }
+        ],
+        default: 'sneakers'
       },
       features: ['鞋靴图片', '脚部匹配', '角度调整']
     },
@@ -159,11 +247,23 @@ const AIModelToolsPage = () => {
       enabled: true,
       usageCount: 0,
       lastUsed: null,
-      config: {
-        maxResolution: '1024x1024',
-        quality: 'high',
-        timeout: 60,
-        retryCount: 3
+      inputConfig: {
+        imageSlots: 2,
+        optionSlots: 3,
+        promptSlot: 1
+      },
+      thirdOption: {
+        id: 'scene-type',
+        label: '场景类型',
+        type: 'select',
+        options: [
+          { value: 'outdoor', label: '户外场景' },
+          { value: 'indoor', label: '室内场景' },
+          { value: 'studio', label: '影棚场景' },
+          { value: 'seasonal', label: '季节场景' },
+          { value: 'festival', label: '节日场景' }
+        ],
+        default: 'studio'
       },
       features: ['场景选择', '光线调整', '氛围设置']
     },
@@ -177,11 +277,23 @@ const AIModelToolsPage = () => {
       enabled: true,
       usageCount: 0,
       lastUsed: null,
-      config: {
-        maxResolution: '1024x1024',
-        quality: 'high',
-        timeout: 60,
-        retryCount: 3
+      inputConfig: {
+        imageSlots: 2,
+        optionSlots: 3,
+        promptSlot: 1
+      },
+      thirdOption: {
+        id: 'color-palette',
+        label: '色彩方案',
+        type: 'select',
+        options: [
+          { value: 'spring', label: '春季色系' },
+          { value: 'summer', label: '夏季色系' },
+          { value: 'autumn', label: '秋季色系' },
+          { value: 'winter', label: '冬季色系' },
+          { value: 'custom', label: '自定义色系' }
+        ],
+        default: 'spring'
       },
       features: ['颜色选择', '材质调整', '光泽控制']
     }
@@ -250,11 +362,7 @@ const AIModelToolsPage = () => {
     form.setFieldsValue({
       name: tool.name,
       description: tool.description,
-      credits: tool.creditCost,
-      maxResolution: tool.config?.maxResolution || '1024x1024',
-      quality: tool.config?.quality || 'high',
-      timeout: tool.config?.timeout || 60,
-      retryCount: tool.config?.retryCount || 3
+      credits: tool.creditCost
     })
     setConfigModalVisible(true)
   }
@@ -271,13 +379,7 @@ const AIModelToolsPage = () => {
               ...tool, 
               name: values.name,
               description: values.description,
-              creditCost: values.credits,
-              config: {
-                maxResolution: values.maxResolution,
-                quality: values.quality,
-                timeout: values.timeout,
-                retryCount: values.retryCount
-              }
+              creditCost: values.credits
             } 
           : tool
       ))
@@ -523,43 +625,23 @@ const AIModelToolsPage = () => {
             <InputNumber min={1} max={100} style={{ width: '100%' }} />
           </Form.Item>
 
-          <Form.Item
-            name="maxResolution"
-            label="最大分辨率"
-          >
-            <Select>
-              <Option value="512x512">512x512</Option>
-              <Option value="768x768">768x768</Option>
-              <Option value="1024x1024">1024x1024</Option>
-              <Option value="1536x1536">1536x1536</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="quality"
-            label="生成质量"
-          >
-            <Select>
-              <Option value="low">低质量</Option>
-              <Option value="medium">中等质量</Option>
-              <Option value="high">高质量</Option>
-              <Option value="ultra">超高质量</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="timeout"
-            label="超时时间(秒)"
-          >
-            <Slider min={10} max={120} marks={{ 10: '10s', 30: '30s', 60: '60s', 120: '120s' }} />
-          </Form.Item>
-
-          <Form.Item
-            name="retryCount"
-            label="重试次数"
-          >
-            <InputNumber min={0} max={5} style={{ width: '100%' }} />
-          </Form.Item>
+          {/* 显示统一的输入配置信息 */}
+          <Alert
+            message="统一界面配置"
+            description={
+              <div>
+                <p>每个工具都遵循统一的界面布局：</p>
+                <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                  <li>2个图片上传窗口</li>
+                  <li>3个可选项窗口（分辨率、生成数量、生成模式）</li>
+                  <li>1个提示词窗口</li>
+                </ul>
+              </div>
+            }
+            type="info"
+            showIcon
+            style={{ marginBottom: '16px' }}
+          />
         </Form>
       </Modal>
 
@@ -590,14 +672,21 @@ const AIModelToolsPage = () => {
               <Descriptions.Item label="最后使用">
                 {currentTool.lastUsed ? new Date(currentTool.lastUsed).toLocaleDateString() : '从未使用'}
               </Descriptions.Item>
-              <Descriptions.Item label="最大分辨率">
-                {currentTool.config?.maxResolution}
-              </Descriptions.Item>
-              <Descriptions.Item label="生成质量">
-                {currentTool.config?.quality}
-              </Descriptions.Item>
-              <Descriptions.Item label="超时时间">
-                {currentTool.config?.timeout}秒
+            </Descriptions>
+
+            <Divider>统一界面配置</Divider>
+            <Descriptions column={1} bordered>
+              <Descriptions.Item label="图片上传窗口数量">2</Descriptions.Item>
+              <Descriptions.Item label="可选项窗口数量">3</Descriptions.Item>
+              <Descriptions.Item label="提示词窗口数量">1</Descriptions.Item>
+            </Descriptions>
+
+            <Divider>工具特定选项</Divider>
+            <Descriptions column={1} bordered>
+              <Descriptions.Item label={currentTool.thirdOption?.label}>
+                {currentTool.thirdOption?.type === 'select' 
+                  ? currentTool.thirdOption?.options.map(opt => opt.label).join(', ')
+                  : `${currentTool.thirdOption?.min || 0} - ${currentTool.thirdOption?.max || 100}`}
               </Descriptions.Item>
             </Descriptions>
 
