@@ -2,6 +2,7 @@ const Subscription = require('../models/Subscription');
 const SubscriptionPlan = require('../models/SubscriptionPlan');
 const User = require('../models/User');
 const CreditRecord = require('../models/CreditRecord');
+const mongoose = require('mongoose');
 
 // 获取订阅套餐列表
 const getSubscriptionPlans = async (req, res) => {
@@ -199,14 +200,20 @@ const getUserSubscriptions = async (req, res) => {
 
 // 创建订阅
 const createSubscription = async (req, res) => {
+  // 开始事务
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
     const { plan_id, payment_method, transaction_id, auto_renew = true } = req.body;
     const userId = req.user.userId; // 从JWT token中获取用户ID
 
     // 获取套餐信息
-    const plan = await SubscriptionPlan.findById(plan_id);
+    const plan = await SubscriptionPlan.findById(plan_id).session(session);
     console.log('套餐信息:', plan);
     if (!plan) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({
         success: false,
         message: '订阅套餐不存在'
@@ -215,6 +222,8 @@ const createSubscription = async (req, res) => {
 
     console.log('套餐是否激活:', plan.active);
     if (!plan.active) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         success: false,
         message: '订阅套餐已停用'
@@ -225,6 +234,8 @@ const createSubscription = async (req, res) => {
     const existingSubscription = await Subscription.getCurrentSubscription(userId);
     console.log('现有订阅:', existingSubscription);
     if (existingSubscription) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         success: false,
         message: '您已有活跃的订阅，请先取消当前订阅'
@@ -274,7 +285,7 @@ const createSubscription = async (req, res) => {
       yearly_credits_granted: yearlyCreditsGranted
     });
 
-    await subscription.save();
+    await subscription.save({ session });
 
     // 给用户添加积分
     let creditsToAdd = plan.benefits.monthly_credits;
@@ -284,11 +295,17 @@ const createSubscription = async (req, res) => {
     }
     
     console.log('要添加的积分:', creditsToAdd);
+    let updatedUser = null;
+    let creditRecord = null;
+    
     if (creditsToAdd > 0) {
-      const user = await User.findById(userId);
+      const user = await User.findById(userId).session(session);
       console.log('用户信息:', user);
       const balanceBefore = user.credits_balance;
-      await user.addCredits(creditsToAdd);
+      
+      // 更新用户积分
+      user.credits_balance += creditsToAdd;
+      updatedUser = await user.save({ session });
       const balanceAfter = user.credits_balance;
       
       console.log('添加积分前余额:', balanceBefore);
@@ -312,7 +329,8 @@ const createSubscription = async (req, res) => {
       };
       
       console.log('积分记录数据:', creditRecordData);
-      await CreditRecord.create(creditRecordData);
+      creditRecord = await CreditRecord.create([creditRecordData], { session });
+      creditRecord = creditRecord[0]; // create返回数组，取第一个元素
     }
 
     // 更新用户角色和会员类型（如果套餐包含高级权限）
@@ -325,14 +343,37 @@ const createSubscription = async (req, res) => {
       updateData.membershipType = 'vip';
     }
     
-    await User.findByIdAndUpdate(userId, updateData);
+    // 如果updatedUser已经存在（积分已更新），则更新它；否则查找用户
+    if (!updatedUser) {
+      updatedUser = await User.findByIdAndUpdate(
+        userId, 
+        updateData, 
+        { new: true, session }
+      );
+    } else {
+      // 合并更新数据
+      Object.assign(updatedUser, updateData);
+      updatedUser = await updatedUser.save({ session });
+    }
+
+    // 提交事务
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(201).json({
       success: true,
       message: '订阅创建成功',
-      data: { subscription }
+      data: { 
+        subscription,
+        user: updatedUser,
+        creditRecord
+      }
     });
   } catch (error) {
+    // 回滚事务
+    await session.abortTransaction();
+    session.endSession();
+    
     console.error('Create subscription error:', error);
     res.status(500).json({
       success: false,
@@ -390,12 +431,18 @@ const cancelSubscription = async (req, res) => {
 
 // 续费订阅
 const renewSubscription = async (req, res) => {
+  // 开始事务
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  
   try {
     const { id } = req.params;
     const { payment_method, transaction_id } = req.body;
     
-    const subscription = await Subscription.findById(id).populate('plan_id');
+    const subscription = await Subscription.findById(id).populate('plan_id').session(session);
     if (!subscription) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(404).json({
         success: false,
         message: '订阅不存在'
@@ -404,6 +451,8 @@ const renewSubscription = async (req, res) => {
 
     // 权限检查
     if (req.userType !== 'admin' && subscription.user_id.toString() !== req.user._id.toString()) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(403).json({
         success: false,
         message: '无权续费此订阅'
@@ -411,6 +460,8 @@ const renewSubscription = async (req, res) => {
     }
 
     if (!['expired', 'cancelled'].includes(subscription.status)) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({
         success: false,
         message: '只能续费已过期或已取消的订阅'
@@ -428,17 +479,23 @@ const renewSubscription = async (req, res) => {
       creditsToAdd = plan.getYearlyMemberCredits();
     }
     
+    let updatedUser = null;
+    let creditRecord = null;
+    
     if (creditsToAdd > 0) {
-      const user = await User.findById(subscription.user_id);
-      await user.addCredits(creditsToAdd);
+      const user = await User.findById(subscription.user_id).session(session);
+      const balanceBefore = user.credits_balance;
+      user.credits_balance += creditsToAdd;
+      updatedUser = await user.save({ session });
+      const balanceAfter = user.credits_balance;
 
       // 创建积分记录
-      await CreditRecord.create({
+      const creditRecordData = {
         user_id: subscription.user_id,
         type: 'subscription',
         amount: creditsToAdd,
-        balance_before: user.credit_balance - creditsToAdd,
-        balance_after: user.credit_balance,
+        balance_before: balanceBefore,
+        balance_after: balanceAfter,
         description: plan.isYearlyPlan() ? 
           `年度会员续费赠送积分: ${plan.name}` : 
           `订阅续费赠送积分: ${plan.name}`,
@@ -447,14 +504,30 @@ const renewSubscription = async (req, res) => {
           plan_id: plan._id,
           plan_name: plan.name
         }
-      });
+      };
+      
+      creditRecord = await CreditRecord.create([creditRecordData], { session });
+      creditRecord = creditRecord[0]; // create返回数组，取第一个元素
     }
+
+    // 提交事务
+    await session.commitTransaction();
+    session.endSession();
 
     res.json({
       success: true,
-      message: '订阅续费成功'
+      message: '订阅续费成功',
+      data: {
+        subscription,
+        user: updatedUser,
+        creditRecord
+      }
     });
   } catch (error) {
+    // 回滚事务
+    await session.abortTransaction();
+    session.endSession();
+    
     console.error('Renew subscription error:', error);
     res.status(500).json({
       success: false,

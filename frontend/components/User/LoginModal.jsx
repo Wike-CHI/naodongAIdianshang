@@ -173,8 +173,8 @@ const LoginModal = ({ visible, onCancel }) => {
     return () => clearTimeout(timer)
   }
 
-  // 完成登录流程
-  const completeLogin = async (userData, phone) => {
+  // 完成登录流程（可接收 token）
+  const completeLogin = async (userData, phone, token) => {
     try {
       // 更新用户信息，包含手机号
       const updatedUserData = {
@@ -188,7 +188,15 @@ const LoginModal = ({ visible, onCancel }) => {
         await referralRelationshipApi.createRelationship(updatedUserData.id, referralCode)
       }
       
-      login(updatedUserData)
+      // 将 token 传给 context，context 会负责持久化和设置 axios header
+      if (token) {
+        login(updatedUserData, token)
+      } else if (userData && userData.token) {
+        login(updatedUserData, userData.token)
+      } else {
+        login(updatedUserData)
+      }
+
       message.success('登录成功！')
       onCancel()
     } catch (error) {
@@ -231,7 +239,7 @@ const LoginModal = ({ visible, onCancel }) => {
       if (response.data.success) {
         // 直接完成登录，手机号已验证
         logger.log('登录响应数据:', response.data)
-        login(response.data.data.user)
+        login(response.data.data.user, response.data.data.token)
         message.success('登录成功！')
         onCancel()
       } else {
@@ -256,7 +264,7 @@ const LoginModal = ({ visible, onCancel }) => {
       
       if (response.data.success) {
         logger.log('登录响应数据:', response.data)
-        login(response.data.data.user)
+        login(response.data.data.user, response.data.data.token)
         message.success('登录成功！')
         onCancel()
       } else {
@@ -283,7 +291,7 @@ const LoginModal = ({ visible, onCancel }) => {
       
       if (response.data.success) {
         logger.log('注册响应数据:', response.data)
-        login(response.data.data.user)
+        login(response.data.data.user, response.data.data.token)
         message.success('注册成功！')
         onCancel()
       } else {

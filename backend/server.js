@@ -20,7 +20,9 @@ const FRONTEND_ORIGINS = [
   'http://localhost:5175',
   'http://localhost:3000',
   'http://localhost:3001',
-  'http://localhost:8082'  // 添加管理后台端口
+  'http://localhost:3002',
+  'http://localhost:3003',  // 添加前端端口
+  'http://localhost:8082'   // 添加管理后台端口
 ].filter(Boolean);
 
 app.use(cors({

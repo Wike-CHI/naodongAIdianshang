@@ -56,7 +56,7 @@ const registerUser = async (req, res) => {
       phone,
       username,
       password_hash: password, // 将在pre-save中间件中加密
-      credit_balance: parseInt(process.env.DEFAULT_CREDITS) || 100
+      credits_balance: parseInt(process.env.DEFAULT_CREDITS) || 100
     });
 
     await user.save();
@@ -90,68 +90,7 @@ const loginUser = async (req, res) => {
   try {
     const { email, phone, password } = req.body;
 
-    // 检查是否使用内存数据库
-    const useMemoryDB = process.env.USE_MEMORY_DB === 'true';
-    
-    if (useMemoryDB) {
-      // 使用内存数据库
-      const memoryUsers = global.memoryUsers || [
-        {
-          id: 1,
-          phone: '13800138000',
-          password: '123456', // 简化密码验证
-          username: 'testuser',
-          email: 'test@example.com',
-          credits: 100,
-          createdAt: new Date()
-        }
-      ];
-      
-      let user;
-      if (phone) {
-        user = memoryUsers.find(u => u.phone === phone);
-      } else if (email) {
-        user = memoryUsers.find(u => u.email === email);
-      } else {
-        return res.status(400).json({
-          success: false,
-          message: '请提供邮箱或手机号'
-        });
-      }
-
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: phone ? '手机号或密码错误' : '邮箱或密码错误'
-        });
-      }
-
-      // 简化密码验证
-      if (user.password !== password) {
-        return res.status(401).json({
-          success: false,
-          message: phone ? '手机号或密码错误' : '邮箱或密码错误'
-        });
-      }
-
-      // 生成令牌
-      const token = generateToken(user.id, 'user');
-
-      // 返回用户信息（不包含密码）
-      const userResponse = { ...user };
-      delete userResponse.password;
-
-      return res.json({
-        success: true,
-        message: '登录成功',
-        data: {
-          user: userResponse,
-          token
-        }
-      });
-    }
-
-    // 原有的MongoDB逻辑
+    // 始终使用MongoDB数据库
     let user;
     if (phone) {
       user = await User.findOne({ phone });
@@ -216,68 +155,38 @@ const loginUser = async (req, res) => {
 };
 
 // 管理员登录
-const loginAdmin = async (req, res) => {
+const adminLogin = async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // 查找管理员
-    const admin = await AdminUser.findOne({ username });
-    if (!admin) {
+    const adminUser = await AdminUser.findOne({ username });
+    if (!adminUser) {
       return res.status(401).json({
         success: false,
         message: '用户名或密码错误'
       });
     }
 
-    // 检查账户锁定状态
-    if (admin.isLocked()) {
-      const lockTimeRemaining = Math.ceil((admin.locked_until - new Date()) / 1000 / 60);
-      return res.status(423).json({
-        success: false,
-        message: `账户已被锁定，请在 ${lockTimeRemaining} 分钟后重试`
-      });
-    }
-
-    // 检查账户状态
-    if (!admin.is_active) {
-      return res.status(401).json({
-        success: false,
-        message: '账户已被禁用，请联系超级管理员'
-      });
-    }
-
-    // 验证密码
-    const isValidPassword = await admin.validatePassword(password);
+    const isValidPassword = await adminUser.validatePassword(password);
     if (!isValidPassword) {
-      // 增加登录失败次数
-      await admin.incrementLoginAttempts();
-      
       return res.status(401).json({
         success: false,
         message: '用户名或密码错误'
       });
     }
 
-    // 重置登录失败次数
-    admin.login_attempts = 0;
-    admin.locked_until = null;
-    await admin.save();
-
-    // 更新最后登录时间
-    await admin.updateLastLogin();
-
-    // 生成令牌
-    const token = generateToken(admin._id, 'admin');
-
-    // 返回管理员信息（不包含密码）
-    const adminResponse = admin.toObject();
-    delete adminResponse.password_hash;
+    // 生成管理员令牌
+    const token = generateToken(adminUser._id, 'admin');
 
     res.json({
       success: true,
-      message: '登录成功',
+      message: '管理员登录成功',
       data: {
-        admin: adminResponse,
+        user: {
+          id: adminUser._id,
+          username: adminUser.username,
+          role: adminUser.role
+        },
         token
       }
     });
@@ -293,14 +202,7 @@ const loginAdmin = async (req, res) => {
 // 获取当前用户信息
 const getCurrentUser = async (req, res) => {
   try {
-    let user;
-    
-    if (req.userType === 'admin') {
-      user = await AdminUser.findById(req.user._id).select('-password_hash');
-    } else {
-      user = await User.findById(req.user._id).select('-password_hash');
-    }
-
+    const user = await User.findById(req.user.userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -308,11 +210,14 @@ const getCurrentUser = async (req, res) => {
       });
     }
 
+    // 返回用户信息（不包含密码）
+    const userResponse = user.toObject();
+    delete userResponse.password_hash;
+
     res.json({
       success: true,
       data: {
-        user,
-        user_type: req.userType
+        user: userResponse
       }
     });
   } catch (error) {
@@ -327,23 +232,40 @@ const getCurrentUser = async (req, res) => {
 // 刷新令牌
 const refreshToken = async (req, res) => {
   try {
-    const { user } = req;
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: '缺少刷新令牌'
+      });
+    }
+
+    // 验证刷新令牌
+    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key-here');
     
-    // 生成新令牌
-    const token = generateToken(user._id, req.userType);
+    // 检查用户是否存在
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    // 生成新的访问令牌
+    const newToken = generateToken(user._id, 'user');
 
     res.json({
       success: true,
-      message: '令牌刷新成功',
       data: {
-        token
+        token: newToken
       }
     });
   } catch (error) {
-    console.error('Token refresh error:', error);
-    res.status(500).json({
+    console.error('Refresh token error:', error);
+    res.status(401).json({
       success: false,
-      message: '令牌刷新失败'
+      message: '无效的刷新令牌'
     });
   }
 };
@@ -351,11 +273,19 @@ const refreshToken = async (req, res) => {
 // 修改密码
 const changePassword = async (req, res) => {
   try {
-    const { current_password, new_password } = req.body;
-    const { user, userType } = req;
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.userId;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
 
     // 验证当前密码
-    const isValidPassword = await user.validatePassword(current_password);
+    const isValidPassword = await user.validatePassword(currentPassword);
     if (!isValidPassword) {
       return res.status(400).json({
         success: false,
@@ -364,7 +294,7 @@ const changePassword = async (req, res) => {
     }
 
     // 更新密码
-    user.password_hash = new_password; // 将在pre-save中间件中加密
+    user.password_hash = newPassword;
     await user.save();
 
     res.json({
@@ -375,7 +305,7 @@ const changePassword = async (req, res) => {
     console.error('Change password error:', error);
     res.status(500).json({
       success: false,
-      message: '密码修改失败'
+      message: '修改密码失败'
     });
   }
 };
@@ -390,31 +320,35 @@ const requestPasswordReset = async (req, res) => {
       // 为了安全，即使用户不存在也返回成功消息
       return res.json({
         success: true,
-        message: '如果该邮箱已注册，您将收到密码重置邮件'
+        message: '如果该邮箱存在，重置链接已发送'
       });
     }
 
     // 生成重置令牌
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1小时后过期
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    
+    // 设置令牌过期时间（1小时）
+    const resetTokenExpires = Date.now() + 3600000;
 
-    user.reset_password_token = resetToken;
-    user.reset_password_expires = resetTokenExpiry;
+    // 保存令牌到用户文档
+    user.reset_password_token = resetTokenHash;
+    user.reset_password_expires = resetTokenExpires;
     await user.save();
 
     // TODO: 发送重置邮件
-    // 这里应该集成邮件服务发送重置链接
-    logger.log(`Password reset token for ${email}: ${resetToken}`);
+    // 这里应该发送包含重置链接的邮件到用户邮箱
+    // 重置链接格式: http://frontend-url/reset-password?token=resetToken
 
     res.json({
       success: true,
-      message: '如果该邮箱已注册，您将收到密码重置邮件'
+      message: '密码重置链接已发送到您的邮箱'
     });
   } catch (error) {
-    console.error('Password reset request error:', error);
+    console.error('Request password reset error:', error);
     res.status(500).json({
       success: false,
-      message: '密码重置请求失败'
+      message: '请求密码重置失败'
     });
   }
 };
@@ -422,11 +356,14 @@ const requestPasswordReset = async (req, res) => {
 // 确认密码重置
 const confirmPasswordReset = async (req, res) => {
   try {
-    const { token, password } = req.body;
+    const { token, newPassword } = req.body;
 
+    // 验证令牌
+    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    
     const user = await User.findOne({
-      reset_password_token: token,
-      reset_password_expires: { $gt: new Date() }
+      reset_password_token: resetTokenHash,
+      reset_password_expires: { $gt: Date.now() }
     });
 
     if (!user) {
@@ -437,9 +374,9 @@ const confirmPasswordReset = async (req, res) => {
     }
 
     // 更新密码
-    user.password_hash = password; // 将在pre-save中间件中加密
-    user.reset_password_token = null;
-    user.reset_password_expires = null;
+    user.password_hash = newPassword;
+    user.reset_password_token = undefined;
+    user.reset_password_expires = undefined;
     await user.save();
 
     res.json({
@@ -447,7 +384,7 @@ const confirmPasswordReset = async (req, res) => {
       message: '密码重置成功'
     });
   } catch (error) {
-    console.error('Password reset confirmation error:', error);
+    console.error('Confirm password reset error:', error);
     res.status(500).json({
       success: false,
       message: '密码重置失败'
@@ -458,18 +395,26 @@ const confirmPasswordReset = async (req, res) => {
 // 邮箱验证
 const verifyEmail = async (req, res) => {
   try {
-    const { token } = req.params;
+    const { token } = req.body;
 
-    const user = await User.findOne({ email_verification_token: token });
+    // 验证令牌
+    const verificationTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    
+    const user = await User.findOne({
+      verification_token: verificationTokenHash,
+      email_verified: false
+    });
+
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: '验证令牌无效'
+        message: '验证令牌无效或已过期'
       });
     }
 
-    user.is_email_verified = true;
-    user.email_verification_token = null;
+    // 更新用户邮箱验证状态
+    user.email_verified = true;
+    user.verification_token = undefined;
     await user.save();
 
     res.json({
@@ -477,7 +422,7 @@ const verifyEmail = async (req, res) => {
       message: '邮箱验证成功'
     });
   } catch (error) {
-    console.error('Email verification error:', error);
+    console.error('Verify email error:', error);
     res.status(500).json({
       success: false,
       message: '邮箱验证失败'
@@ -488,41 +433,52 @@ const verifyEmail = async (req, res) => {
 // 重新发送验证邮件
 const resendVerificationEmail = async (req, res) => {
   try {
-    const { user } = req;
+    const userId = req.user.userId;
+    const user = await User.findById(userId);
 
-    if (user.is_email_verified) {
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    if (user.email_verified) {
       return res.status(400).json({
         success: false,
-        message: '邮箱已经验证过了'
+        message: '邮箱已验证'
       });
     }
 
     // 生成新的验证令牌
     const verificationToken = crypto.randomBytes(32).toString('hex');
-    user.email_verification_token = verificationToken;
+    const verificationTokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
+    
+    user.verification_token = verificationTokenHash;
     await user.save();
 
     // TODO: 发送验证邮件
-    logger.log(`Email verification token for ${user.email}: ${verificationToken}`);
+    // 这里应该发送包含验证链接的邮件到用户邮箱
+    // 验证链接格式: http://frontend-url/verify-email?token=verificationToken
 
     res.json({
       success: true,
-      message: '验证邮件已发送'
+      message: '验证邮件已重新发送'
     });
   } catch (error) {
     console.error('Resend verification email error:', error);
     res.status(500).json({
       success: false,
-      message: '发送验证邮件失败'
+      message: '重新发送验证邮件失败'
     });
   }
 };
 
-// 登出（客户端处理，服务端记录）
+// 登出
 const logout = async (req, res) => {
   try {
-    // 这里可以添加令牌黑名单逻辑
-    // 或者记录登出日志
+    // 在JWT模式下，登出主要在前端清除令牌
+    // 如果使用了刷新令牌存储，这里可以清除刷新令牌
     
     res.json({
       success: true,
@@ -538,9 +494,9 @@ const logout = async (req, res) => {
 };
 
 module.exports = {
-  register: registerUser,
-  login: loginUser,
-  adminLogin: loginAdmin,
+  registerUser,
+  loginUser,
+  adminLogin,
   getCurrentUser,
   refreshToken,
   changePassword,

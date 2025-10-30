@@ -5,10 +5,10 @@ const { validate, schemas } = require('../middleware/validation');
 const { authenticateToken, optionalAuth } = require('../middleware/auth');
 
 // 用户注册
-router.post('/register', validate(schemas.userRegister), authController.register);
+router.post('/register', validate(schemas.userRegister), authController.registerUser);
 
 // 用户登录
-router.post('/login', validate(schemas.userLogin), authController.login);
+router.post('/login', validate(schemas.userLogin), authController.loginUser);
 
 // 管理员登录
 router.post('/admin-login', validate(schemas.adminLogin), authController.adminLogin);

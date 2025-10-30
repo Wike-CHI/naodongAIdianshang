@@ -119,20 +119,24 @@ const Subscription = () => {
       if (response.data.success) {
         message.success(`成功订阅${plan.name}年度会员！`)
         
-        // 获取更新后的用户信息
-        try {
-          const userResponse = await axios.get(API_ENDPOINTS.AUTH.CURRENT_USER, {
-            headers: {
-              'Authorization': `Bearer ${token}`
+        // 直接使用后端返回的更新后的用户信息
+        if (response.data.data.user) {
+          updateUserInfo(response.data.data.user)
+        } else {
+          // 如果后端没有返回用户信息，则获取更新后的用户信息
+          try {
+            const userResponse = await axios.get(API_ENDPOINTS.AUTH.CURRENT_USER, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            })
+            
+            if (userResponse.data.success) {
+              updateUserInfo(userResponse.data.data.user)
             }
-          })
-          
-          if (userResponse.data.success) {
-            // 更新用户信息和积分
-            updateUserInfo(userResponse.data.data.user)
+          } catch (error) {
+            console.error('获取更新后的用户信息失败:', error)
           }
-        } catch (error) {
-          console.error('获取更新后的用户信息失败:', error)
         }
       } else {
         message.error(response.data.message || '订阅失败')
