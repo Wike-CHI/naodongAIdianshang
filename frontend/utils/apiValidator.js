@@ -18,7 +18,7 @@ export const validateUserObject = (user) => {
     phone: user.phone || null,
     credits: user.credits_balance !== undefined ? user.credits_balance : (user.credits || 0),
     credits_balance: user.credits_balance !== undefined ? user.credits_balance : (user.credits || 0),
-    membershipType: user.membershipType || user.role || 'normal',
+    membershipType: user.membershipType || (user.subscription && user.subscription.is_yearly_member ? 'vip' : user.role) || 'normal',
     is_active: user.is_active !== undefined ? user.is_active : true,
     created_at: user.created_at || null,
     avatar_url: user.avatar_url || null
@@ -44,12 +44,13 @@ export const validateSubscriptionObject = (subscription) => {
     start_date: subscription.start_date,
     end_date: subscription.end_date,
     status: subscription.status || 'active',
-    amount_paid: subscription.amount_paid || 0,
+    amount_paid: subscription.amount_paid || subscription.payment_amount || 0,
     payment_method: subscription.payment_method || '',
     transaction_id: subscription.transaction_id || '',
-    credits_granted: subscription.credits_granted || 0,
+    credits_granted: subscription.granted_credits !== undefined ? subscription.granted_credits : (subscription.credits_granted || 0),
     credits_used: subscription.credits_used || 0,
-    is_yearly_member: subscription.is_yearly_member || false
+    is_yearly_member: subscription.is_yearly_member || false,
+    yearly_credits_granted: subscription.yearly_credits_granted || 0
   };
 
   return validatedSubscription;

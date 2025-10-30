@@ -177,14 +177,6 @@ const WorkArea = () => {
             <PromptInput placeholder="请输入正向提示词，描述您想要生成的内容" />
           </Form.Item>
 
-          {/* 负向提示词 - 可选 */}
-          <Form.Item
-            name="negativePrompt"
-            label="负向提示词"
-          >
-            <PromptInput placeholder="请输入负向提示词，描述您不想要的内容（可选）" />
-          </Form.Item>
-
           <Form.Item style={{ marginTop: '32px', marginBottom: 0 }}>
             <Button
               type="primary"

@@ -267,6 +267,11 @@ const Subscription = () => {
             <Descriptions.Item label="已授予积分">
               <WalletOutlined /> {activeSubscription.credits_granted}
             </Descriptions.Item>
+            {activeSubscription.is_yearly_member && (
+              <Descriptions.Item label="年度积分额度">
+                <WalletOutlined /> {activeSubscription.yearly_credits_granted}
+              </Descriptions.Item>
+            )}
             <Descriptions.Item label="已使用积分">
               <WalletOutlined /> {activeSubscription.credits_used}
             </Descriptions.Item>

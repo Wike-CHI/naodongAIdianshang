@@ -167,7 +167,7 @@ const getCreditStats = async (req, res) => {
       }
     ]);
 
-    const recentActivity = await CreditRecord.find({ user_id: targetUserId })
+    const recentActivity = await CreditRecord.find({ user_id: targetObjectId })
       .sort({ created_at: -1 })
       .limit(10)
       .populate('user_id', 'username');

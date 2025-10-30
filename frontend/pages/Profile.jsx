@@ -47,14 +47,25 @@ const Profile = () => {
         throw new Error(historyResponse?.message || '获取积分历史失败');
       }
 
-      // 获取用户统计信息（这里模拟数据）
-      console.log('📊 获取用户统计信息');
-      setStats({
-        totalGenerations: 25,
-        totalCreditsUsed: 120,
-        favoriteTool: 'AI模特生成'
-      });
-      console.log('✅ 获取用户统计信息成功');
+      // 获取积分统计
+      console.log('📊 获取积分统计');
+      const statsResponse = await creditService.getStats();
+      if (statsResponse?.success) {
+        const { total_generations = 0, total_credits_used = 0, favorite_tool = '' } = statsResponse.data || {};
+        setStats({
+          totalGenerations: total_generations,
+          totalCreditsUsed: total_credits_used,
+          favoriteTool: favorite_tool
+        });
+        console.log('✅ 获取积分统计成功:', statsResponse.data);
+      } else {
+        console.log('ℹ️ 积分统计接口返回空');
+        setStats({
+          totalGenerations: 0,
+          totalCreditsUsed: 0,
+          favoriteTool: ''
+        });
+      }
     } catch (error) {
       console.error('❌ 获取个人资料数据失败:', error);
       setError(error.message || '获取数据失败');
