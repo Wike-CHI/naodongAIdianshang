@@ -208,6 +208,8 @@ const createSubscription = async (req, res) => {
     const { plan_id, payment_method, transaction_id, auto_renew = true } = req.body;
     const userId = req.userType === 'admin' ? req.user.id : req.user._id; // 从JWT token中获取用户ID
 
+    console.log('创建订阅请求参数:', { plan_id, payment_method, transaction_id, auto_renew, userId });
+
     // 获取套餐信息
     const plan = await SubscriptionPlan.findById(plan_id).session(session);
     console.log('套餐信息:', plan);
@@ -264,8 +266,11 @@ const createSubscription = async (req, res) => {
       endDate.setMonth(endDate.getMonth() + plan.duration_months);
     }
 
+    console.log('订阅时间计算:', { startDate, endDate, grantedCredits, isYearlyMember, yearlyCreditsGranted });
+
     // 计算支付金额
     const paymentAmount = plan.isYearlyPlan() ? plan.getYearlyMemberPrice() : plan.actual_price;
+    console.log('支付金额计算:', { paymentAmount });
 
     // 创建订阅
     const subscription = new Subscription({
@@ -285,7 +290,9 @@ const createSubscription = async (req, res) => {
       yearly_credits_granted: yearlyCreditsGranted
     });
 
+    console.log('准备保存订阅:', subscription);
     await subscription.save({ session });
+    console.log('订阅保存成功:', subscription._id);
 
     // 给用户添加积分
     let creditsToAdd = plan.benefits.monthly_credits;
@@ -301,6 +308,9 @@ const createSubscription = async (req, res) => {
     if (creditsToAdd > 0) {
       const user = await User.findById(userId).session(session);
       console.log('用户信息:', user);
+      if (!user) {
+        throw new Error('用户不存在');
+      }
       const balanceBefore = user.credits_balance;
       
       // 更新用户积分
@@ -331,6 +341,7 @@ const createSubscription = async (req, res) => {
       console.log('积分记录数据:', creditRecordData);
       creditRecord = await CreditRecord.create([creditRecordData], { session });
       creditRecord = creditRecord[0]; // create返回数组，取第一个元素
+      console.log('积分记录创建成功:', creditRecord._id);
     }
 
     // 更新用户角色和会员类型（如果套餐包含高级权限）
@@ -342,6 +353,8 @@ const createSubscription = async (req, res) => {
     if (plan.isYearlyPlan()) {
       updateData.membershipType = 'vip';
     }
+    
+    console.log('用户更新数据:', updateData);
     
     // 如果updatedUser已经存在（积分已更新），则更新它；否则查找用户
     if (!updatedUser) {
@@ -355,13 +368,16 @@ const createSubscription = async (req, res) => {
       Object.assign(updatedUser, updateData);
       updatedUser = await updatedUser.save({ session });
     }
+    
+    console.log('用户更新成功:', updatedUser);
 
     // 提交事务
     await session.commitTransaction();
     session.endSession();
+    console.log('事务提交成功');
 
     // 确保返回完整的用户信息
-    const userResponse = await User.findById(userId).session(session);
+    const userResponse = await User.findById(userId);
     const userObject = userResponse.toObject();
     delete userObject.password_hash;
 
@@ -382,7 +398,7 @@ const createSubscription = async (req, res) => {
     console.error('Create subscription error:', error);
     res.status(500).json({
       success: false,
-      message: '创建订阅失败'
+      message: '创建订阅失败: ' + error.message
     });
   }
 };

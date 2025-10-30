@@ -31,6 +31,8 @@ async function dropStaleIndexes() {
       await model.collection.dropIndex(indexName);
       if (typeof logger.log === 'function') {
         logger.log(`[startup] 已移除旧索引 ${model.collection.collectionName}.${indexName}`);
+      } else {
+        console.log(`[startup] 已移除旧索引 ${model.collection.collectionName}.${indexName}`);
       }
     } catch (error) {
       if (
@@ -51,55 +53,27 @@ async function dropStaleIndexes() {
   }
 }
 
-function extractIndexNameFromError(error) {
-  const possibleMessages = [
-    error?.errorResponse?.errmsg,
-    error?.errmsg,
-    error?.message
-  ].filter(Boolean);
-
-  for (const message of possibleMessages) {
-    const match = message.match(/name: "([^\"]+)"/);
-    if (match) {
-      return match[1];
-    }
-  }
-
-  return null;
-}
-
 async function ensureModelIndexes(model) {
   try {
     await model.init();
   } catch (error) {
-    if (error?.code === 86 || error?.codeName === 'IndexOptionsConflict') {
-      const conflictingIndexName = extractIndexNameFromError(error);
-
-      if (conflictingIndexName) {
-        try {
-          await model.collection.dropIndex(conflictingIndexName);
-          if (typeof logger.warn === 'function') {
-            logger.warn(`[startup] 重新创建索引 ${model.collection.collectionName}.${conflictingIndexName}`);
-          } else {
-            console.warn(`[startup] 重新创建索引 ${model.collection.collectionName}.${conflictingIndexName}`);
-          }
-        } catch (dropError) {
-          if (
-            dropError?.codeName !== 'IndexNotFound' &&
-            dropError?.code !== 27 &&
-            dropError?.codeName !== 'NamespaceNotFound' &&
-            dropError?.code !== 26
-          ) {
-            throw dropError;
-          }
-        }
-
+    console.error(`模型 ${model.modelName} 初始化错误:`, error.message);
+    
+    // 如果是索引冲突错误，尝试删除所有索引然后重新初始化
+    if (error?.code === 85 || error?.codeName === 'IndexOptionsConflict' || error?.code === 86 || error?.codeName === 'IndexBuildAborted') {
+      try {
+        console.log(`尝试删除 ${model.modelName} 的所有索引...`);
+        await model.collection.dropIndexes();
+        console.log(`成功删除 ${model.modelName} 的所有索引，重新初始化...`);
         await model.init();
-        return;
+        console.log(`成功重新初始化 ${model.modelName} 的索引`);
+      } catch (reinitError) {
+        console.error(`重新初始化 ${model.modelName} 索引失败:`, reinitError.message);
+        throw error; // 抛出原始错误
       }
+    } else {
+      throw error; // 抛出其他类型的错误
     }
-
-    throw error;
   }
 }
 
