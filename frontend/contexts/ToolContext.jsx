@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import aiModelService from '../services/aiModelService'
+import { message } from 'antd'
+import { useAuth } from './AuthContext'
 
 const ToolContext = createContext()
 
@@ -147,6 +150,7 @@ export const ToolProvider = ({ children }) => {
   const [selectedTool, setSelectedTool] = useState(hardcodedTools[0])
   const [generationHistory, setGenerationHistory] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
+  const { user, updateCredits } = useAuth()
 
   const fetchTools = useCallback(async () => {
     // 直接使用硬编码工具列表，不再调用后端API
@@ -166,25 +170,49 @@ export const ToolProvider = ({ children }) => {
   }
 
   const generateImage = async (params) => {
+    if (!user) {
+      message.error('请先登录')
+      return
+    }
+
+    if (user.credits < selectedTool.creditCost) {
+      message.error('积分不足，请充值后再试')
+      return
+    }
+
     setIsGenerating(true)
 
     try {
-      // 模拟API调用
-      await new Promise((resolve) => setTimeout(resolve, 3000))
+      // 调用真实的AI生成服务
+      const result = await aiModelService.generateWithTool(selectedTool.id, {
+        ...params,
+        options: {
+          resolution: params.resolution || '1080p',
+          quantity: params.quantity || 1,
+          mode: params.mode || 'fast'
+        }
+      })
 
-      const result = {
+      // 更新用户积分
+      const newCredits = user.credits - selectedTool.creditCost
+      updateCredits(newCredits)
+
+      // 将结果添加到生成历史
+      const historyItem = {
         id: Date.now().toString(),
         toolId: selectedTool.id,
         inputParams: params,
-        resultImage: `https://picsum.photos/400/600?random=${Date.now()}`,
+        resultImage: result.images?.[0]?.data_url || result.images?.[0]?.public_url || `https://picsum.photos/400/600?random=${Date.now()}`,
         createdAt: new Date(),
-        creditsCost: selectedTool.creditCost ?? 0
+        creditsCost: selectedTool.creditCost
       }
 
-      setGenerationHistory((prevHistory) => [result, ...prevHistory])
+      setGenerationHistory((prevHistory) => [historyItem, ...prevHistory])
+      message.success('生成成功！')
       return result
     } catch (error) {
       console.error('生成图片失败:', error)
+      message.error(error.message || '生成失败，请重试')
       throw error
     } finally {
       setIsGenerating(false)

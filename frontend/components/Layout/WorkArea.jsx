@@ -32,13 +32,21 @@ const WorkArea = () => {
 
     try {
       await form.validateFields()
-      const result = await generateImage(formData)
       
-      // 扣除积分
-      const newCredits = user.credits - selectedTool.creditCost
-      updateCredits(newCredits)
+      // 准备参数
+      const params = {
+        prompt: formData.positivePrompt,
+        mainImage: formData.mainImage,
+        referenceImage: formData.referenceImage,
+        options: {
+          resolution: formData.resolution,
+          quantity: formData.quantity,
+          mode: formData.mode
+        }
+      }
       
-      message.success('生成成功！')
+      // 调用真实的生成功能
+      await generateImage(params)
     } catch (error) {
       if (error.errorFields) {
         message.error('请填写必填项')
@@ -198,10 +206,9 @@ const WorkArea = () => {
             padding: '12px', 
             background: '#fff7e6', 
             border: '1px solid #ffd591',
-            borderRadius: '6px',
-            textAlign: 'center'
+            borderRadius: '4px' 
           }}>
-            <Text type="warning">请先登录后使用生成功能</Text>
+            <Text type="warning">登录后可使用生成功能并保存生成历史</Text>
           </div>
         )}
       </div>
