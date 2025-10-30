@@ -1,6 +1,7 @@
 // 推广系统API服务
 import axios from 'axios';
 import { API_ENDPOINTS } from '../config/api';
+import { validateApiResponse } from '../utils/apiValidator';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
@@ -48,8 +49,11 @@ export const referralCodeApi = {
   // 生成推广码
   generateCode: async (userId) => {
     try {
-      const response = await apiClient.post('/api/referral/code/generate', { userId });
-      return response;
+      const response = await apiClient.post(API_ENDPOINTS.REFERRAL.CODE_GENERATE, { userId });
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('生成推广码失败:', error);
       return {
@@ -62,8 +66,11 @@ export const referralCodeApi = {
   // 验证推广码
   validateCode: async (code) => {
     try {
-      const response = await apiClient.post('/api/referral/code/validate', { code });
-      return response;
+      const response = await apiClient.post(API_ENDPOINTS.REFERRAL.CODE_VALIDATE, { code });
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('验证推广码失败:', error);
       return {
@@ -79,8 +86,11 @@ export const referralRelationshipApi = {
   // 建立推广关系
   createRelationship: async (refereeId, referralCode) => {
     try {
-      const response = await apiClient.post('/api/referral/relationship', { refereeId, referralCode });
-      return response;
+      const response = await apiClient.post(API_ENDPOINTS.REFERRAL.RELATIONSHIP, { refereeId, referralCode });
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('建立推广关系失败:', error);
       return {
@@ -93,8 +103,11 @@ export const referralRelationshipApi = {
   // 获取推广统计
   getStats: async (userId) => {
     try {
-      const response = await apiClient.get(`/api/referral/stats/${userId}`);
-      return response;
+      const response = await apiClient.get(`${API_ENDPOINTS.REFERRAL.STATS}/${userId}`);
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('获取推广统计失败:', error);
       return {
@@ -111,7 +124,10 @@ export const pointsApi = {
   calculateReferral: async (refereeId, amount) => {
     try {
       const response = await apiClient.post('/api/referral/points/calculate', { refereeId, amount });
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('计算推广积分失败:', error);
       return {
@@ -124,10 +140,13 @@ export const pointsApi = {
   // 获取积分历史
   getHistory: async (userId, page = 1, pageSize = 10) => {
     try {
-      const response = await apiClient.get(`/api/referral/points/history/${userId}`, {
+      const response = await apiClient.get(`${API_ENDPOINTS.REFERRAL.CREDITS}/${userId}`, {
         params: { page, pageSize }
       });
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('获取积分历史失败:', error);
       return {
@@ -144,7 +163,10 @@ export const systemConfigApi = {
   getConfig: async () => {
     try {
       const response = await apiClient.get('/api/referral/config');
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('获取系统配置失败:', error);
       return {
@@ -158,7 +180,10 @@ export const systemConfigApi = {
   updateConfig: async (configKey, configValue) => {
     try {
       const response = await apiClient.put('/api/referral/config', { configKey, configValue });
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('更新系统配置失败:', error);
       return {
@@ -175,7 +200,10 @@ export const adminApi = {
   getOverview: async () => {
     try {
       const response = await apiClient.get('/api/admin/referral/overview');
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       throw new Error(error.message || '获取概览数据失败');
     }
@@ -191,7 +219,10 @@ export const adminApi = {
           ...filters
         }
       });
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       throw new Error(error.message || '获取推广关系失败');
     }
@@ -201,7 +232,10 @@ export const adminApi = {
   deleteRelationship: async (relationshipId) => {
     try {
       const response = await apiClient.delete(`/api/admin/referral/relationships/${relationshipId}`);
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       throw new Error(error.message || '删除推广关系失败');
     }
@@ -213,7 +247,10 @@ export const adminApi = {
       const response = await apiClient.put(`/api/admin/referral/relationships/${relationshipId}/status`, {
         status
       });
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       throw new Error(error.message || '更新推广关系状态失败');
     }
@@ -226,7 +263,10 @@ export const adminSystemConfigApi = {
   getConfig: async () => {
     try {
       const response = await apiClient.get('/api/admin/system/config');
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       throw new Error(error.message || '获取系统配置失败');
     }
@@ -239,7 +279,10 @@ export const adminSystemConfigApi = {
         key,
         value
       });
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       throw new Error(error.message || '更新系统配置失败');
     }
@@ -249,7 +292,10 @@ export const adminSystemConfigApi = {
   resetConfig: async () => {
     try {
       const response = await apiClient.post('/api/admin/system/config/reset');
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       throw new Error(error.message || '重置系统配置失败');
     }
@@ -261,8 +307,11 @@ export const referralApi = {
   // 获取用户推广数据
   getUserReferralData: async (userId) => {
     try {
-      const response = await apiClient.get(`/api/referral/user/${userId}`);
-      return response;
+      const response = await apiClient.get(`${API_ENDPOINTS.REFERRAL.USER_DATA}/${userId}`);
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('获取用户推广数据失败:', error);
       return {
@@ -275,10 +324,13 @@ export const referralApi = {
   // 获取推广统计
   getReferralStats: async (userId, options = {}) => {
     try {
-      const response = await apiClient.get(`/api/referral/stats/${userId}`, {
+      const response = await apiClient.get(`${API_ENDPOINTS.REFERRAL.STATS}/${userId}`, {
         params: options
       });
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('获取推广统计失败:', error);
       return {
@@ -291,10 +343,13 @@ export const referralApi = {
   // 获取推广列表
   getReferralList: async (userId, options = {}) => {
     try {
-      const response = await apiClient.get(`/api/referral/list/${userId}`, {
+      const response = await apiClient.get(`${API_ENDPOINTS.REFERRAL.LIST}/${userId}`, {
         params: options
       });
-      return response;
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('获取推广列表失败:', error);
       return {
@@ -307,8 +362,11 @@ export const referralApi = {
   // 获取积分历史
   getCreditHistory: async (userId) => {
     try {
-      const response = await apiClient.get(`/api/referral/credits/${userId}`);
-      return response;
+      const response = await apiClient.get(`${API_ENDPOINTS.REFERRAL.CREDITS}/${userId}`);
+      
+      // 验证API响应
+      const validatedResponse = validateApiResponse(response);
+      return validatedResponse;
     } catch (error) {
       console.error('获取积分历史失败:', error);
       return {

@@ -1,15 +1,26 @@
 const Joi = require('joi');
 
 // 验证中间件
-const validate = (schema) => {
+const validate = (schema, property = 'body') => {
   return (req, res, next) => {
-    const { error } = schema.validate(req.body);
+    const target = property === 'query' ? req.query : property === 'params' ? req.params : req.body;
+    const { error, value } = schema.validate(target, { abortEarly: false, stripUnknown: true });
+
     if (error) {
       return res.status(400).json({
         success: false,
-        message: error.details[0].message
+        message: error.details.map((detail) => detail.message).join(', ')
       });
     }
+
+    if (property === 'body') {
+      req.body = value;
+    } else if (property === 'query') {
+      req.query = value;
+    } else if (property === 'params') {
+      req.params = value;
+    }
+
     next();
   };
 };
@@ -161,6 +172,32 @@ const schemas = {
   pagination: Joi.object({
     page: Joi.number().min(1).optional(),
     limit: Joi.number().min(1).max(100).optional()
+  }),
+
+  aiGenerate: Joi.object({
+    prompt: Joi.string().allow('', null).optional(),
+    options: Joi.object({
+      resolution: Joi.string().valid('0.5k', '1080p', '2k').default('1080p'),
+      quantity: Joi.number().integer().min(1).max(4).default(1),
+      mode: Joi.string().valid('fast', 'ultra').default('fast')
+    }).default({}),
+    metadata: Joi.object({
+      toolId: Joi.string().optional(),
+      hasMain: Joi.boolean().optional(),
+      hasReference: Joi.boolean().optional()
+    }).default({})
+  }).unknown(true),
+
+  generateHistoryQuery: Joi.object({
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(50).default(20),
+    toolId: Joi.string().optional(),
+    status: Joi.string().valid('pending', 'processing', 'completed', 'failed', 'cancelled').optional(),
+    days: Joi.number().integer().min(1).max(90).optional()
+  }),
+
+  generationIdParam: Joi.object({
+    recordId: Joi.string().hex().length(24).required()
   })
 };
 

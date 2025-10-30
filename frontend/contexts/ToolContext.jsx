@@ -41,7 +41,7 @@ const hardcodedTools = [
   {
     id: 'ai-model',
     name: 'AI模特生成',
-    description: '上传服装图，生成真实模特展示效果',
+    description: '上传模特服装图与真人参考照，自动完成无缝换脸生成',
     category: 'model',
     icon: '🧍',
     creditCost: 15,

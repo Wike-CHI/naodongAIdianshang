@@ -1,1 +1,4 @@
 node_modules
+backend/generated/
+ai_service/__pycache__/
+backend/services/__pycache__/

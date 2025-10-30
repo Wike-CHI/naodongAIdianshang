@@ -1,11 +1,12 @@
-// AI模特生成服务 - 集成AI接口
+// AI模特生成服务 - 调用统一的AI中间层接口
+
 class AIModelService {
   constructor() {
     this.baseUrl = '/api/ai';
     this.timeout = 60000; // 60秒超时
   }
 
-  // 工具映射
+  // 中间层识别的工具ID映射
   toolMapping = {
     'ai-model': 'ai-model',
     'try-on-clothes': 'try-on-clothes',
@@ -18,122 +19,81 @@ class AIModelService {
     'background-removal': 'background-remove'
   };
 
-  // 提示词模板
-  promptTemplates = {
-    'ai-model': 'Professional model wearing {clothing_description}, studio lighting, fashion photography, high quality, detailed fabric texture, realistic fit',
-    'try-on-clothes': 'Model trying on {new_clothing}, same pose and lighting as reference image, realistic fit, natural draping, {fit_type} fit',
-    'glasses-tryon': 'Person wearing {accessory_type}, natural lighting, realistic placement, high detail, proper fit on face',
-    'pose-variation': 'Model in {pose_description}, maintaining clothing and appearance, professional photography, {smoothness} transition',
-    'model-video': 'Fashion model {motion_type} sequence, smooth movement, professional runway, {video_length} duration',
-    'shoe-tryon': 'Feet wearing {shoe_type}, realistic fit and lighting, detailed texture, proper proportions',
-    'scene-change': 'Product in {scene_description}, professional lighting, commercial photography, {lighting_style} atmosphere',
-    'color-change': 'Product in {target_color}, maintaining original texture and lighting, high quality, realistic material',
-    'background-removal': 'Clean product cutout, transparent background, sharp edges, professional quality, isolated object'
-  };
+  buildFormData(toolId, params = {}) {
+    const formData = new FormData();
 
-  // 默认参数
-  defaultParams = {
-    'ai-model': { width: 1024, height: 1024, steps: 30, cfg_scale: 7.5 },
-    'try-on-clothes': { width: 1024, height: 1024, steps: 25, cfg_scale: 8.0 },
-    'glasses-tryon': { width: 512, height: 512, steps: 20, cfg_scale: 7.0 },
-    'pose-variation': { width: 1024, height: 1024, steps: 35, cfg_scale: 8.5 },
-    'model-video': { width: 1024, height: 1024, steps: 40, cfg_scale: 9.0 },
-    'shoe-tryon': { width: 768, height: 768, steps: 25, cfg_scale: 7.5 },
-    'scene-change': { width: 1024, height: 768, steps: 30, cfg_scale: 8.0 },
-    'color-change': { width: 1024, height: 1024, steps: 20, cfg_scale: 6.5 },
-    'background-removal': { width: 1024, height: 1024, steps: 15, cfg_scale: 5.0 }
-  };
+    formData.append('prompt', params.prompt || '');
 
-  // 图片转Base64
-  async imageToBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
+    const options = {
+      resolution: params.options?.resolution || '1080p',
+      quantity: params.options?.quantity || 1,
+      mode: params.options?.mode || 'fast',
+      ...params.options
+    };
+    formData.append('options', JSON.stringify(options));
 
-  // 构建提示词
-  buildPrompt(template, params) {
-    let prompt = template;
-    
-    // 替换模板变量
-    prompt = prompt.replace(/\{(\w+)\}/g, (match, key) => {
-      if (params.options && params.options[key]) {
-        return params.options[key];
+    const isFaceSwap = toolId === 'ai-model';
+    const metadata = {
+      toolId,
+      hasMain: Boolean(params.mainImage?.file),
+      hasReference: Boolean(params.referenceImage?.file),
+      faceSwap: isFaceSwap,
+      faceReferenceProvided: isFaceSwap && Boolean(params.referenceImage?.file),
+      ...params.metadata
+    };
+    formData.append('metadata', JSON.stringify(metadata));
+
+    const appendFile = (wrapper) => {
+      if (wrapper?.file instanceof File) {
+        formData.append('images', wrapper.file);
       }
-      return params[key] || match;
-    });
+    };
 
-    // 添加用户自定义提示词
-    if (params.prompt && params.prompt.trim()) {
-      prompt += `, ${params.prompt}`;
+    appendFile(params.mainImage);
+    appendFile(params.referenceImage);
+
+    if (Array.isArray(params.images)) {
+      params.images.forEach(appendFile);
     }
 
-    return prompt;
+    return formData;
   }
 
-  // 通用生成方法
-  async generateWithTool(toolId, params) {
-    try {
-      const mappedToolId = this.toolMapping[toolId];
-      if (!mappedToolId) {
-        throw new Error(`不支持的工具类型: ${toolId}`);
-      }
-
-      // 准备FormData
-      const formData = new FormData();
-      
-      // 添加提示词
-      const template = this.promptTemplates[toolId] || '';
-      const prompt = this.buildPrompt(template, params);
-      formData.append('prompt', prompt);
-
-      // 添加选项参数
-      const options = {
-        ...this.defaultParams[toolId],
-        ...params.options
-      };
-      formData.append('options', JSON.stringify(options));
-
-      // 添加图片
-      if (params.images && params.images.length > 0) {
-        params.images.forEach((image, index) => {
-          if (image instanceof File) {
-            formData.append('images', image);
-          }
-        });
-      }
-
-      console.log(`调用AI生成 - 工具: ${toolId}, 提示词: ${prompt}`);
-
-      const response = await fetch(`${this.baseUrl}/generate/${mappedToolId}`, {
-        method: 'POST',
-        body: formData,
-        signal: AbortSignal.timeout(this.timeout)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '生成失败');
-      }
-
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || '生成失败');
-      }
-
-      return result;
-
-    } catch (error) {
-      console.error(`AI生成失败 - 工具: ${toolId}`, error);
-      throw error;
+  async generateWithTool(toolId, params = {}) {
+    const mappedToolId = this.toolMapping[toolId];
+    if (!mappedToolId) {
+      throw new Error(`不支持的工具类型: ${toolId}`);
     }
+
+    const formData = this.buildFormData(toolId, params);
+    console.log(`调用AI生成 - 工具: ${toolId}`);
+
+    const token = localStorage.getItem('token');
+    const headers = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/generate/${mappedToolId}`, {
+      method: 'POST',
+      body: formData,
+      headers,
+      signal: AbortSignal.timeout(this.timeout)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.detail || '生成失败');
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || '生成失败');
+    }
+
+    return result.data || result;
   }
 
-  // 具体工具方法
   async generateModel(params) {
     return this.generateWithTool('ai-model', params);
   }
@@ -166,89 +126,27 @@ class AIModelService {
     return this.generateWithTool('color-change', params);
   }
 
-  // 抠图去底
   async generateBackgroundRemoval(params) {
     return this.generateWithTool('background-removal', params);
   }
 
-  // 批量生成
-  async batchGenerate(requests) {
-    try {
-      const response = await fetch(`${this.baseUrl}/batch-generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ requests }),
-        signal: AbortSignal.timeout(this.timeout * 2) // 批量生成允许更长时间
-      });
+  async batchGenerate(requests = []) {
+    const response = await fetch(`${this.baseUrl}/batch-generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requests }),
+      signal: AbortSignal.timeout(this.timeout * 2)
+    });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '批量生成失败');
-      }
-
-      const result = await response.json();
-      return result;
-
-    } catch (error) {
-      console.error('批量生成失败:', error);
-      throw error;
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || '批量生成失败');
     }
-  }
 
-  // 获取生成历史
-  async getGenerationHistory(userId, page = 1, limit = 20) {
-    try {
-      const response = await fetch(`${this.baseUrl}/history/${userId}?page=${page}&limit=${limit}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        signal: AbortSignal.timeout(this.timeout)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '获取历史记录失败');
-      }
-
-      const result = await response.json();
-      return result;
-
-    } catch (error) {
-      console.error('获取生成历史失败:', error);
-      throw error;
-    }
-  }
-
-  // 获取单个生成结果
-  async getGenerationResult(generationId) {
-    try {
-      const response = await fetch(`${this.baseUrl}/result/${generationId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        signal: AbortSignal.timeout(this.timeout)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '获取生成结果失败');
-      }
-
-      const result = await response.json();
-      return result;
-
-    } catch (error) {
-      console.error('获取生成结果失败:', error);
-      throw error;
-    }
+    return response.json();
   }
 }
 
-// 创建单例实例
 const aiModelService = new AIModelService();
 
 export default aiModelService;

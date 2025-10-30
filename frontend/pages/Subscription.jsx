@@ -1,448 +1,443 @@
-import React, { useState, useEffect } from 'react'
-import { Layout, Card, Row, Col, Button, Typography, List, Tag, Space, Modal, message } from 'antd'
-import { CrownOutlined, CheckOutlined, StarOutlined, WalletOutlined } from '@ant-design/icons'
-import { useAuth } from '../contexts/AuthContext'
-import Header from '../components/Layout/Header'
-import axios from 'axios'
-import { API_ENDPOINTS } from '../config/api'
-import logger from '../utils/logger'
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Card, 
+  List, 
+  Button, 
+  message, 
+  Spin, 
+  Modal, 
+  Typography, 
+  Tag, 
+  Descriptions,
+  Row,
+  Col,
+  Statistic,
+  Divider,
+  Alert
+} from 'antd';
+import { 
+  CheckCircleOutlined, 
+  CrownOutlined, 
+  WalletOutlined,
+  ClockCircleOutlined,
+  CheckOutlined,
+  ExclamationCircleOutlined
+} from '@ant-design/icons';
+import subscriptionService from '../services/subscriptionService';
+import creditService from '../services/creditService';
+import { validateApiResponse } from '../utils/apiValidator';
 
-const { Content } = Layout
-const { Title, Text } = Typography
+const { Title, Text } = Typography;
 
 const Subscription = () => {
-  const { user, updateUserInfo, updateCredits } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [selectedPlan, setSelectedPlan] = useState(null)
-  const [subscriptionPlans, setSubscriptionPlans] = useState([])
+  const { user, updateUserInfo } = useAuth();
+  const navigate = useNavigate();
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [confirmingPlan, setConfirmingPlan] = useState(null);
+  const [activeSubscription, setActiveSubscription] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // 获取订阅套餐数据
   useEffect(() => {
-    const fetchSubscriptionPlans = async () => {
-      try {
-        const response = await axios.get(API_ENDPOINTS.SUBSCRIPTION.PLANS)
-        if (response.data.success) {
-          setSubscriptionPlans(response.data.data.plans || response.data.data)
-        } else {
-          // 如果API失败，使用默认套餐
-          setSubscriptionPlans([
-            {
-              id: 1,
-              name: '基础版',
-              price: 0,
-              credits: 100,
-              features: ['每日100次生成', '基础模板', '标准客服'],
-              popular: false,
-              type: 'free'
-            },
-            {
-              id: 2,
-              name: '专业版',
-              price: 29,
-              credits: 1000,
-              features: ['每日1000次生成', '高级模板', '优先客服', '无广告'],
-              popular: true,
-              type: 'pro'
-            },
-            {
-              id: 3,
-              name: '企业版',
-              price: 99,
-              credits: 5000,
-              features: ['每日5000次生成', '全部模板', '专属客服', '定制功能'],
-              popular: false,
-              type: 'enterprise'
-            }
-          ])
-        }
-      } catch (error) {
-        console.error('获取订阅套餐失败:', error)
-        // 使用默认套餐
-        setSubscriptionPlans([
-          {
-            id: 1,
-            name: '基础版',
-            price: 0,
-            credits: 100,
-            features: ['每日100次生成', '基础模板', '标准客服'],
-            popular: false,
-            type: 'free'
-          },
-          {
-            id: 2,
-            name: '专业版',
-            price: 29,
-            credits: 1000,
-            features: ['每日1000次生成', '高级模板', '优先客服', '无广告'],
-            popular: true,
-            type: 'pro'
-          },
-          {
-            id: 3,
-            name: '企业版',
-            price: 99,
-            credits: 5000,
-            features: ['每日5000次生成', '全部模板', '专属客服', '定制功能'],
-            popular: false,
-            type: 'enterprise'
-          }
-        ])
+    console.log('🔄 初始化订阅页面');
+    fetchSubscriptionData();
+  }, []);
+
+  const fetchSubscriptionData = async () => {
+    try {
+      console.log('📥 获取订阅数据');
+      setLoading(true);
+      setError(null);
+      
+      // 获取订阅套餐列表
+      const plansResponse = await subscriptionService.getSubscriptionPlans();
+      if (plansResponse?.success) {
+        const validatedPlans = plansResponse.data?.plans || [];
+        setPlans(validatedPlans);
+        console.log('✅ 获取订阅套餐列表成功:', validatedPlans.length, '个套餐');
+      } else {
+        throw new Error(plansResponse?.message || '获取订阅套餐失败');
       }
+
+      // 获取当前用户的订阅信息
+      try {
+        console.log('👤 获取用户订阅信息');
+        const subscriptionResponse = await subscriptionService.getUserSubscription();
+        if (subscriptionResponse?.success) {
+          const validatedSubscription = validateApiResponse(subscriptionResponse.data, 'subscription');
+          setActiveSubscription(validatedSubscription);
+          console.log('✅ 获取用户订阅信息成功:', validatedSubscription);
+        } else {
+          console.log('ℹ️ 用户当前没有活跃订阅');
+        }
+      } catch (subError) {
+        // 如果没有订阅，这是正常的
+        console.log('ℹ️ 用户当前没有活跃订阅:', subError.message);
+      }
+    } catch (error) {
+      console.error('❌ 获取订阅数据失败:', error);
+      setError(error.message || '获取订阅数据失败');
+      message.error(error.message || '获取订阅数据失败');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    fetchSubscriptionPlans()
-  }, [])
+  const handleSubscribe = (plan) => {
+    console.log('💳 准备订阅套餐:', plan);
+    setConfirmingPlan(plan);
+  };
 
-  const handleSubscribe = async (plan) => {
-    if (!user) {
-      message.warning('请先登录')
-      return
+  const confirmSubscription = async () => {
+    if (!confirmingPlan) {
+      console.warn('⚠️ 未选择订阅套餐');
+      return;
     }
-
-    setSelectedPlan(plan)
-    setLoading(true)
 
     try {
-      // 调用真实API创建订阅
-      const token = localStorage.getItem('token')
-      const response = await axios.post(API_ENDPOINTS.SUBSCRIPTION.SUBSCRIBE, {
-        plan_id: plan._id || plan.id,
-        payment_method: 'alipay', // 默认支付方式
-        transaction_id: `txn_${Date.now()}`, // 模拟交易ID
-        auto_renew: true
-      }, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
+      console.log('💳 开始订阅流程:', confirmingPlan);
+      setSubscriptionLoading(true);
+      setError(null);
+      
+      // 模拟支付流程
+      const transactionId = `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const subscriptionData = {
+        plan_id: confirmingPlan.id,
+        payment_method: 'wechat',
+        transaction_id: transactionId
+      };
 
-      if (response.data.success) {
-        message.success(`成功订阅${plan.name}年度会员！`)
+      console.log('📤 发送订阅请求:', subscriptionData);
+      const response = await subscriptionService.createSubscription(subscriptionData);
+      
+      if (response?.success) {
+        console.log('✅ 订阅成功:', response);
+        // 验证API响应
+        const validatedData = validateApiResponse(response.data, 'subscription');
         
-        // 直接使用后端返回的更新后的用户信息
-        if (response.data.data.user) {
-          // 确保用户对象包含所有必要的字段
+        // 更新用户信息（积分和会员状态）
+        if (validatedData.user) {
+          // 确保使用统一的积分字段
           const updatedUser = {
-            ...user,
-            ...response.data.data.user,
-            credits: response.data.data.user.credits_balance || response.data.data.user.credits || user.credits
+            ...validatedData.user,
+            credits: validatedData.user.credits_balance !== undefined ? 
+                     validatedData.user.credits_balance : 
+                     validatedData.user.credits,
+            credits_balance: validatedData.user.credits_balance !== undefined ? 
+                             validatedData.user.credits_balance : 
+                             validatedData.user.credits
           };
           updateUserInfo(updatedUser);
-        } else {
-          // 如果后端没有返回用户信息，则获取更新后的用户信息
-          try {
-            const userResponse = await axios.get(API_ENDPOINTS.AUTH.CURRENT_USER, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            })
-            
-            if (userResponse.data.success) {
-              // 确保用户对象包含所有必要的字段
-              const updatedUser = {
-                ...user,
-                ...userResponse.data.data.user,
-                credits: userResponse.data.data.user.credits_balance || userResponse.data.data.user.credits || user.credits
-              };
-              updateUserInfo(updatedUser);
-            }
-          } catch (error) {
-            console.error('获取更新后的用户信息失败:', error)
-          }
+          console.log('👤 用户信息已更新:', updatedUser);
+        }
+
+        // 更新活跃订阅信息
+        if (validatedData.subscription) {
+          setActiveSubscription(validatedData.subscription);
+          console.log('📋 活跃订阅已更新:', validatedData.subscription);
+        }
+
+        message.success(response.message || '订阅成功！');
+        setConfirmingPlan(null);
+        
+        // 可以选择跳转到个人资料页面查看更新后的信息
+        // navigate('/profile');
+      } else {
+        throw new Error(response?.message || '订阅失败');
+      }
+    } catch (error) {
+      console.error('❌ 订阅失败:', error);
+      setError(error.message || '订阅失败，请重试');
+      message.error(error.message || '订阅失败，请重试');
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!activeSubscription) {
+      console.warn('⚠️ 没有活跃订阅');
+      return;
+    }
+
+    try {
+      console.log('🚫 开始取消订阅:', activeSubscription.id);
+      const response = await subscriptionService.cancelSubscription(activeSubscription.id);
+      
+      if (response?.success) {
+        console.log('✅ 订阅已取消:', response);
+        message.success('订阅已取消');
+        setActiveSubscription(null);
+        // 更新用户信息
+        if (response.data?.user) {
+          // 确保使用统一的积分字段
+          const updatedUser = {
+            ...response.data.user,
+            credits: response.data.user.credits_balance !== undefined ? 
+                     response.data.user.credits_balance : 
+                     response.data.user.credits,
+            credits_balance: response.data.user.credits_balance !== undefined ? 
+                             response.data.user.credits_balance : 
+                             response.data.user.credits
+          };
+          updateUserInfo(updatedUser);
+          console.log('👤 用户信息已更新:', updatedUser);
         }
       } else {
-        message.error(response.data.message || '订阅失败')
+        throw new Error(response?.message || '取消订阅失败');
       }
     } catch (error) {
-      console.error('订阅失败:', error)
-      // 检查是否有响应数据
-      if (error.response && error.response.data) {
-        message.error(error.response.data.message || '订阅失败')
-      } else {
-        message.error('订阅失败，请重试')
-      }
-    } finally {
-      setLoading(false)
-      setSelectedPlan(null)
+      console.error('❌ 取消订阅失败:', error);
+      setError(error.message || '取消订阅失败');
+      message.error(error.message || '取消订阅失败');
     }
-  }
+  };
 
-  const creditPackages = [
-    { credits: 100, price: 10, bonus: 0 },
-    { credits: 300, price: 25, bonus: 50 },
-    { credits: 500, price: 40, bonus: 100 },
-    { credits: 1000, price: 70, bonus: 300 }
-  ]
+  const getMembershipLevel = (plan) => {
+    if (plan.is_yearly) return '年度会员';
+    if (plan.price > 100) return 'VIP会员';
+    if (plan.price > 50) return '高级会员';
+    return '基础会员';
+  };
 
-  // 年度会员专属积分包
-  const yearlyMemberCreditPackages = [
-    { credits: 12000, price: 999, bonus: 2400, label: '年度会员专享' }, // 12个月积分+额外2400积分
-    { credits: 6000, price: 599, bonus: 1200, label: '年度会员专享' },  // 6个月积分+额外1200积分
-    { credits: 3000, price: 399, bonus: 600, label: '年度会员专享' }    // 3个月积分+额外600积分
-  ]
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('zh-CN');
+  };
 
-  const handleBuyCredits = async (pkg) => {
-    if (!user) {
-      message.warning('请先登录')
-      return
+  const formatEndDate = (endDate) => {
+    const date = new Date(endDate);
+    const now = new Date();
+    const diffTime = date - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 0) {
+      return `${formatDate(endDate)} (剩余 ${diffDays} 天)`;
+    } else {
+      return `${formatDate(endDate)} (已过期)`;
     }
+  };
 
-    setLoading(true)
-    try {
-      // 模拟支付过程
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      const totalCredits = pkg.credits + pkg.bonus
-      updateCredits(user.credits + totalCredits)
-      message.success(`成功充值${totalCredits}积分！`)
-      
-    } catch (error) {
-      message.error('充值失败，请重试')
-    } finally {
-      setLoading(false)
-    }
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <Spin size="large" />
+        <p>加载中...</p>
+      </div>
+    );
   }
 
   return (
-    <Layout className="app-layout">
-      <Header />
-      <Content style={{ padding: '24px' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          {/* 会员套餐 */}
-          <div style={{ marginBottom: '48px' }}>
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-              <Title level={2}>
-                <CrownOutlined style={{ color: '#faad14', marginRight: '8px' }} />
-                会员套餐
-              </Title>
-              <Text type="secondary">升级VIP，享受更多特权</Text>
-            </div>
+    <div style={{ padding: '24px' }}>
+      <Title level={2}>
+        <CrownOutlined /> 会员订阅
+      </Title>
+      
+      {error && (
+        <Alert 
+          message="错误" 
+          description={error} 
+          type="error" 
+          showIcon 
+          style={{ marginBottom: '24px' }}
+        />
+      )}
+      
+      {activeSubscription ? (
+        <Card style={{ marginBottom: '24px' }}>
+          <Title level={4}>当前订阅</Title>
+          <Descriptions bordered column={1}>
+            <Descriptions.Item label="套餐名称">
+              {activeSubscription.plan_id?.name || '未知套餐'}
+            </Descriptions.Item>
+            <Descriptions.Item label="订阅状态">
+              <Tag color={activeSubscription.status === 'active' ? 'green' : 'red'}>
+                {activeSubscription.status === 'active' ? '活跃' : '已取消'}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="开始日期">
+              {formatDate(activeSubscription.start_date)}
+            </Descriptions.Item>
+            <Descriptions.Item label="结束日期">
+              {formatEndDate(activeSubscription.end_date)}
+            </Descriptions.Item>
+            <Descriptions.Item label="已授予积分">
+              <WalletOutlined /> {activeSubscription.credits_granted}
+            </Descriptions.Item>
+            <Descriptions.Item label="已使用积分">
+              <WalletOutlined /> {activeSubscription.credits_used}
+            </Descriptions.Item>
+            <Descriptions.Item label="年度会员">
+              {activeSubscription.is_yearly_member ? (
+                <Tag icon={<CheckOutlined />} color="green">是</Tag>
+              ) : (
+                '否'
+              )}
+            </Descriptions.Item>
+          </Descriptions>
+          {activeSubscription.status === 'active' && (
+            <Button 
+              type="primary" 
+              danger 
+              onClick={handleCancelSubscription}
+              style={{ marginTop: '16px' }}
+              loading={subscriptionLoading}
+            >
+              取消订阅
+            </Button>
+          )}
+        </Card>
+      ) : (
+        <Card style={{ marginBottom: '24px' }}>
+          <Text type="secondary">您当前没有活跃的订阅</Text>
+        </Card>
+      )}
 
-            <Row gutter={[24, 24]} justify="center">
-              {subscriptionPlans.map((plan) => (
-                <Col key={plan._id || plan.id} xs={24} sm={12} lg={8}>
-                  <Card
-                    className={plan.popular ? 'popular-plan' : ''}
-                    style={{ 
-                      position: 'relative',
-                      border: plan.popular ? '2px solid #1890ff' : '1px solid #d9d9d9'
-                    }}
-                  >
-                    {plan.popular && (
-                      <div style={{
-                        position: 'absolute',
-                        top: '-10px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: '#1890ff',
-                        color: 'white',
-                        padding: '4px 16px',
-                        borderRadius: '12px',
-                        fontSize: '12px'
-                      }}>
-                        <StarOutlined /> 推荐
-                      </div>
-                    )}
-
-                    <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                      <Title level={4}>{plan.name}</Title>
-                      {plan.is_yearly ? (
-                        <div>
-                          <div style={{ marginBottom: '8px' }}>
-                            <Text delete type="secondary" style={{ fontSize: '14px' }}>
-                              ¥{plan.original_price || plan.price * 12}
-                            </Text>
-                          </div>
-                          <div style={{ marginBottom: '8px' }}>
-                            <span style={{ fontSize: '32px', fontWeight: 'bold', color: '#1890ff' }}>
-                              ¥{plan.yearly_price || plan.price}
-                            </span>
-                            <Text type="secondary">/年</Text>
-                          </div>
-                          {plan.original_price && plan.yearly_price && (
-                            <Tag color="red">
-                              立省 ¥{plan.original_price - plan.yearly_price}
-                            </Tag>
-                          )}
-                          <Tag color="gold">年度会员</Tag>
-                        </div>
-                      ) : (
-                        <div>
-                          <div style={{ marginBottom: '8px' }}>
-                            <Text delete type="secondary" style={{ fontSize: '14px' }}>
-                              ¥{plan.originalPrice}
-                            </Text>
-                          </div>
-                          <div style={{ marginBottom: '8px' }}>
-                            <span style={{ fontSize: '32px', fontWeight: 'bold', color: '#1890ff' }}>
-                              ¥{plan.price}
-                            </span>
-                            <Text type="secondary">/{plan.duration || '月'}</Text>
-                          </div>
-                          {plan.originalPrice && (
-                            <Tag color="red">
-                              立省 ¥{plan.originalPrice - plan.price}
-                            </Tag>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <List
-                      size="small"
-                      dataSource={plan.benefits || plan.features || []}
-                      renderItem={(benefit) => (
-                        <List.Item>
-                          <Space>
-                            <CheckOutlined style={{ color: '#52c41a' }} />
-                            <Text>{benefit}</Text>
-                          </Space>
-                        </List.Item>
-                      )}
-                      style={{ marginBottom: '24px' }}
-                    />
-
-                    <Button
-                      type={plan.popular ? 'primary' : 'default'}
-                      size="large"
-                      block
-                      loading={loading && selectedPlan?._id === plan._id}
-                      onClick={() => handleSubscribe(plan)}
-                      disabled={user?.membershipType === 'vip'}
-                    >
-                      {user?.membershipType === 'vip' ? '已是VIP会员' : plan.is_yearly ? '立即订阅年度会员' : '立即订阅'}
-                    </Button>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </div>
-
-          {/* 积分充值 */}
-          <div>
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-              <Title level={2}>
-                <WalletOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
-                积分充值
-              </Title>
-              <Text type="secondary">购买积分，畅享AI生成服务</Text>
-            </div>
-
-            <Row gutter={[16, 16]} justify="center">
-              {creditPackages.map((pkg, index) => (
-                <Col key={index} xs={12} sm={8} lg={6}>
-                  <Card 
-                    size="small"
-                    style={{ textAlign: 'center' }}
-                    hoverable
-                  >
-                    <div style={{ marginBottom: '12px' }}>
-                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
-                        {pkg.credits}
-                      </div>
-                      <Text type="secondary">积分</Text>
-                      {pkg.bonus > 0 && (
-                        <div>
-                          <Tag color="orange" size="small">
-                            +{pkg.bonus} 赠送
-                          </Tag>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div style={{ marginBottom: '16px' }}>
-                      <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                        ¥{pkg.price}
+      <Divider />
+      
+      <Title level={3}>选择会员套餐</Title>
+      
+      <List
+        grid={{ gutter: 16, column: 3 }}
+        dataSource={plans}
+        renderItem={plan => (
+          <List.Item>
+            <Card 
+              title={
+                <div style={{ textAlign: 'center' }}>
+                  <h3>{plan.name}</h3>
+                  <Text type="secondary">{plan.description}</Text>
+                </div>
+              }
+              bordered
+              extra={
+                plan.popular ? (
+                  <Tag color="red" icon={<CheckCircleOutlined />}>推荐</Tag>
+                ) : null
+              }
+            >
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <Statistic
+                  value={plan.is_yearly && plan.yearly_price ? plan.yearly_price : plan.price}
+                  prefix="¥"
+                  suffix={plan.is_yearly && plan.yearly_price ? "/年" : "/月"}
+                  valueStyle={{ fontSize: '24px', color: '#faad14' }}
+                />
+                {plan.is_yearly && plan.yearly_price && plan.price && (
+                  <div>
+                    <Text delete type="secondary">¥{plan.price * 12}/年</Text>
+                    <br />
+                    <Text type="success">
+                      节省 ¥{plan.price * 12 - plan.yearly_price}
+                    </Text>
+                  </div>
+                )}
+              </div>
+              
+              <Divider />
+              
+              <div style={{ marginBottom: '20px' }}>
+                <Row gutter={[8, 8]}>
+                  <Col span={24}>
+                    <Text>
+                      <CheckCircleOutlined style={{ color: '#52c41a' }} /> 
+                      <strong> {plan.benefits?.monthly_credits || 0} 积分/月</strong>
+                    </Text>
+                  </Col>
+                  <Col span={24}>
+                    <Text>
+                      <CheckCircleOutlined style={{ color: '#52c41a' }} /> 
+                      会员等级: {getMembershipLevel(plan)}
+                    </Text>
+                  </Col>
+                  {plan.benefits?.priority_processing && (
+                    <Col span={24}>
+                      <Text>
+                        <CheckCircleOutlined style={{ color: '#52c41a' }} /> 
+                        优先处理
                       </Text>
-                    </div>
-
-                    <Button
-                      type="primary"
-                      size="small"
-                      block
-                      loading={loading}
-                      onClick={() => handleBuyCredits(pkg)}
-                    >
-                      立即充值
-                    </Button>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-
-            {/* 年度会员专属积分包 */}
-            {user?.membershipType === 'vip' && (
-              <div style={{ marginTop: '32px' }}>
-                <Title level={4} style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <CrownOutlined style={{ color: '#faad14', marginRight: '8px' }} />
-                  年度会员专享积分包
-                </Title>
-                <Row gutter={[16, 16]} justify="center">
-                  {yearlyMemberCreditPackages.map((pkg, index) => (
-                    <Col key={`yearly-${index}`} xs={12} sm={8} lg={6}>
-                      <Card 
-                        size="small"
-                        style={{ textAlign: 'center', border: '2px solid #faad14' }}
-                        hoverable
-                      >
-                        <div style={{ marginBottom: '12px' }}>
-                          <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
-                            {pkg.credits}
-                          </div>
-                          <Text type="secondary">积分</Text>
-                          {pkg.bonus > 0 && (
-                            <div>
-                              <Tag color="orange" size="small">
-                                +{pkg.bonus} 赠送
-                              </Tag>
-                            </div>
-                          )}
-                          {pkg.label && (
-                            <div>
-                              <Tag color="gold" size="small">
-                                {pkg.label}
-                              </Tag>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div style={{ marginBottom: '16px' }}>
-                          <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                            ¥{pkg.price}
-                          </Text>
-                        </div>
-
-                        <Button
-                          type="primary"
-                          size="small"
-                          block
-                          loading={loading}
-                          onClick={() => handleBuyCredits(pkg)}
-                        >
-                          立即充值
-                        </Button>
-                      </Card>
                     </Col>
-                  ))}
+                  )}
+                  {plan.benefits?.advanced_features && (
+                    <Col span={24}>
+                      <Text>
+                        <CheckCircleOutlined style={{ color: '#52c41a' }} /> 
+                        高级功能
+                      </Text>
+                    </Col>
+                  )}
+                  {plan.is_yearly && (
+                    <Col span={24}>
+                      <Text>
+                        <CheckCircleOutlined style={{ color: '#52c41a' }} /> 
+                        年度会员特权
+                      </Text>
+                    </Col>
+                  )}
                 </Row>
               </div>
-            )}
+              
+              <Button
+                type="primary"
+                block
+                onClick={() => handleSubscribe(plan)}
+                disabled={activeSubscription?.status === 'active' || subscriptionLoading}
+                loading={subscriptionLoading && confirmingPlan?.id === plan.id}
+              >
+                {activeSubscription?.status === 'active' ? '已有订阅' : '立即订阅'}
+              </Button>
+            </Card>
+          </List.Item>
+        )}
+      />
+
+      <Modal
+        title="确认订阅"
+        open={!!confirmingPlan}
+        onOk={confirmSubscription}
+        onCancel={() => {
+          console.log('❌ 取消订阅确认');
+          setConfirmingPlan(null);
+        }}
+        confirmLoading={subscriptionLoading}
+        okText="确认支付"
+        cancelText="取消"
+      >
+        {confirmingPlan && (
+          <div>
+            <h3>{confirmingPlan.name}</h3>
+            <p>{confirmingPlan.description}</p>
+            <Descriptions bordered column={1} size="small">
+              <Descriptions.Item label="价格">
+                ¥{confirmingPlan.is_yearly && confirmingPlan.yearly_price ? 
+                  confirmingPlan.yearly_price : confirmingPlan.price}
+                {confirmingPlan.is_yearly && confirmingPlan.yearly_price ? "/年" : "/月"}
+              </Descriptions.Item>
+              <Descriptions.Item label="包含积分">
+                <WalletOutlined /> {confirmingPlan.benefits?.monthly_credits || 0} 积分/月
+              </Descriptions.Item>
+              <Descriptions.Item label="会员等级">
+                {getMembershipLevel(confirmingPlan)}
+              </Descriptions.Item>
+              {confirmingPlan.is_yearly && (
+                <Descriptions.Item label="年度会员">
+                  <Tag icon={<CheckOutlined />} color="green">是</Tag>
+                </Descriptions.Item>
+              )}
+            </Descriptions>
+            <div style={{ marginTop: '16px' }}>
+              <Text type="secondary">
+                * 点击"确认支付"将模拟完成支付流程，实际不会扣除任何费用
+              </Text>
+            </div>
           </div>
+        )}
+      </Modal>
+    </div>
+  );
+};
 
-          {/* 说明信息 */}
-          <Card style={{ marginTop: '32px', background: '#fafafa' }}>
-            <Title level={5}>购买说明</Title>
-            <List size="small">
-              <List.Item>• 积分永久有效，不会过期</List.Item>
-              <List.Item>• VIP会员享受生成费用折扣优惠</List.Item>
-              <List.Item>• 支持支付宝、微信支付</List.Item>
-              <List.Item>• 如有问题，请联系客服</List.Item>
-            </List>
-          </Card>
-        </div>
-      </Content>
-    </Layout>
-  )
-}
-
-export default Subscription
+export default Subscription;

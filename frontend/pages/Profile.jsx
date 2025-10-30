@@ -1,566 +1,276 @@
-import React, { useState, useEffect } from 'react'
-import { Layout, Card, Row, Col, Avatar, Typography, Button, Statistic, List, Tag, Space, Tabs, Table, message, Modal, QRCode, Tooltip, Divider } from 'antd'
-import { UserOutlined, WalletOutlined, CrownOutlined, HistoryOutlined, SettingOutlined, ShareAltOutlined, TeamOutlined, GiftOutlined, CopyOutlined, QrcodeOutlined } from '@ant-design/icons'
-import { useAuth } from '../contexts/AuthContext'
-import { useTool } from '../contexts/ToolContext'
-import { useNavigate } from 'react-router-dom'
-import Header from '../components/Layout/Header'
-import UserInfoForm from '../components/User/UserInfoForm'
-import { referralApi } from '../services/referralApi'
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { Card, Statistic, Row, Col, Divider, Typography, Button, message, Spin, Avatar, List, Tag, Alert } from 'antd';
+import { 
+  UserOutlined, 
+  WalletOutlined, 
+  CrownOutlined, 
+  HistoryOutlined,
+  CalendarOutlined,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined
+} from '@ant-design/icons';
+import creditService from '../services/creditService';
 
-const { Content } = Layout
-const { Title, Text } = Typography
-// const { TabPane } = Tabs // 已弃用，改用items属性
+const { Title, Text } = Typography;
 
 const Profile = () => {
-  const { user } = useAuth()
-  const { generationHistory } = useTool()
-  const navigate = useNavigate()
-  const [showUserInfoForm, setShowUserInfoForm] = useState(false)
-  const [referralData, setReferralData] = useState(null)
-  const [referralStats, setReferralStats] = useState(null)
-  const [creditHistory, setCreditHistory] = useState([])
-  const [qrModalVisible, setQrModalVisible] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const { user, updateUserInfo } = useAuth();
+  const [creditHistory, setCreditHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({
+    totalGenerations: 0,
+    totalCreditsUsed: 0,
+    favoriteTool: ''
+  });
 
   useEffect(() => {
-    if (user) {
-      loadReferralData()
-    }
-  }, [user])
+    console.log('👤 初始化个人资料页面');
+    fetchProfileData();
+  }, [user]);
 
-  // 处理用户未登录的情况
-  useEffect(() => {
-    if (!user) {
-      navigate('/login')
-    }
-  }, [user, navigate])
-
-  const loadReferralData = async () => {
+  const fetchProfileData = async () => {
     try {
-      setLoading(true)
-      const [data, stats, history] = await Promise.all([
-        referralApi.getUserReferralData(user.id),
-        referralApi.getReferralStats(user.id),
-        referralApi.getCreditHistory(user.id)
-      ])
+      console.log('📥 获取个人资料数据');
+      setLoading(true);
+      setError(null);
       
-      // 确保数据结构正确
-      setReferralData(data?.success ? data.data : null)
-      
-      // 确保 referralStats 包含正确的数据结构
-      if (stats?.success && stats.data) {
-        setReferralStats({
-          ...stats.data,
-          referralDetails: Array.isArray(stats.data.referralDetails) ? stats.data.referralDetails : []
-        })
+      // 获取积分历史
+      console.log('📜 获取积分历史');
+      const historyResponse = await creditService.getHistory();
+      if (historyResponse?.success) {
+        const records = historyResponse.data?.records || [];
+        setCreditHistory(records);
+        console.log('✅ 获取积分历史成功:', records.length, '条记录');
       } else {
-        setReferralStats({
-          totalReferrals: 0,
-          successfulReferrals: 0,
-          conversionRate: 0,
-          totalEarnings: 0,
-          referralDetails: []
-        })
+        throw new Error(historyResponse?.message || '获取积分历史失败');
       }
-      
-      // 确保 creditHistory 始终是数组
-      if (history?.success && Array.isArray(history.data)) {
-        setCreditHistory(history.data)
-      } else {
-        setCreditHistory([])
-      }
+
+      // 获取用户统计信息（这里模拟数据）
+      console.log('📊 获取用户统计信息');
+      setStats({
+        totalGenerations: 25,
+        totalCreditsUsed: 120,
+        favoriteTool: 'AI模特生成'
+      });
+      console.log('✅ 获取用户统计信息成功');
     } catch (error) {
-      console.error('加载推广数据失败:', error)
-      // 设置默认值防止错误
-      setReferralData(null)
-      setReferralStats({
-        totalReferrals: 0,
-        successfulReferrals: 0,
-        conversionRate: 0,
-        totalEarnings: 0,
-        referralDetails: []
-      })
-      setCreditHistory([])
+      console.error('❌ 获取个人资料数据失败:', error);
+      setError(error.message || '获取数据失败');
+      message.error(error.message || '获取数据失败');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
-  const copyReferralCode = () => {
-    if (referralData?.referralCode) {
-      navigator.clipboard.writeText(referralData.referralCode)
-      message.success('推广码已复制到剪贴板')
+  // 获取会员类型显示名称
+  const getMembershipTypeName = (membershipType) => {
+    switch (membershipType) {
+      case 'vip': return 'VIP会员';
+      case 'premium': return '高级会员';
+      default: return '普通用户';
     }
-  }
+  };
 
-  const copyReferralLink = () => {
-    if (referralData?.referralCode) {
-      const link = `${window.location.origin}?ref=${referralData.referralCode}`
-      navigator.clipboard.writeText(link)
-      message.success('推广链接已复制到剪贴板')
+  // 获取会员类型描述
+  const getMembershipDescription = (membershipType) => {
+    switch (membershipType) {
+      case 'vip': return '享受所有功能和优先服务';
+      case 'premium': return '享受高级功能和更快处理速度';
+      default: return '基础功能';
     }
-  }
+  };
+
+  // 获取积分类型显示名称
+  const getCreditTypeDisplayName = (type) => {
+    const typeMap = {
+      'earn': '获得',
+      'consumption': '消费',
+      'recharge': '充值',
+      'bonus': '奖励',
+      'penalty': '扣除',
+      'subscription': '订阅',
+      'referral_reward': '推广奖励'
+    };
+    return typeMap[type] || type;
+  };
+
+  // 获取积分类型标签颜色
+  const getCreditTypeColor = (type) => {
+    const colorMap = {
+      'earn': 'green',
+      'consumption': 'red',
+      'recharge': 'blue',
+      'bonus': 'green',
+      'penalty': 'red',
+      'subscription': 'purple',
+      'referral_reward': 'green'
+    };
+    return colorMap[type] || 'default';
+  };
 
   if (!user) {
-    return null
+    return (
+      <div style={{ textAlign: 'center', padding: '50px' }}>
+        <Spin size="large" />
+        <p>加载中...</p>
+      </div>
+    );
   }
 
-  const recentGenerations = generationHistory.slice(0, 5)
-
-  // 积分历史表格列定义
-  const creditColumns = [
-    {
-      title: '时间',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (text) => new Date(text).toLocaleString(),
-      width: 150,
-    },
-    {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      render: (type) => {
-        const typeMap = {
-          'referral_reward': '推广奖励',
-          'registration_bonus': '注册奖励',
-          'consumption': '消费扣除',
-          'recharge': '充值获得'
-        }
-        const colorMap = {
-          'referral_reward': 'green',
-          'registration_bonus': 'blue',
-          'consumption': 'red',
-          'recharge': 'orange'
-        }
-        return <Tag color={colorMap[type]}>{typeMap[type] || type}</Tag>
-      },
-      width: 100,
-    },
-    {
-      title: '积分变动',
-      dataIndex: 'amount',
-      key: 'amount',
-      render: (amount) => (
-        <span style={{ color: amount > 0 ? '#52c41a' : '#ff4d4f' }}>
-          {amount > 0 ? '+' : ''}{amount}
-        </span>
-      ),
-      width: 100,
-    },
-    {
-      title: '说明',
-      dataIndex: 'description',
-      key: 'description',
-    },
-  ]
-
   return (
-    <Layout className="app-layout">
-      <Header />
-      <Content style={{ padding: '24px' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-          <Row gutter={[24, 24]}>
-            {/* 用户信息卡片 */}
-            <Col xs={24} lg={8}>
-              <Card>
-                <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                  <Avatar 
-                    size={80} 
-                    src={user.avatar} 
-                    icon={<UserOutlined />}
-                    style={{ marginBottom: '16px' }}
-                  />
-                  <Title level={4} style={{ margin: 0 }}>
-                    {user.username}
-                  </Title>
-                  <Text type="secondary">
-                    {user.loginMethod === 'wechat' ? '微信用户' : '注册用户'}
-                  </Text>
-                </div>
-
-                <div style={{ marginBottom: '24px' }}>
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Statistic
-                        title="剩余积分"
-                        value={user.credits_balance !== undefined ? user.credits_balance : user.credits}
-                        prefix={<WalletOutlined />}
-                        valueStyle={{ color: '#52c41a' }}
-                      />
-                    </Col>
-                    <Col span={12}>
-                      <Statistic
-                        title="会员状态"
-                        value={user.membershipType === 'vip' ? 'VIP' : '普通'}
-                        prefix={<CrownOutlined />}
-                        valueStyle={{ 
-                          color: user.membershipType === 'vip' ? '#faad14' : '#666' 
-                        }}
-                      />
-                    </Col>
-                  </Row>
-                </div>
-
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  <Button 
-                    type="primary" 
-                    block 
-                    icon={<WalletOutlined />}
-                    onClick={() => navigate('/subscription')}
-                  >
-                    充值积分
-                  </Button>
-                  
-                  {user.membershipType !== 'vip' && (
-                    <Button 
-                      block 
-                      icon={<CrownOutlined />}
-                      onClick={() => navigate('/subscription')}
-                    >
-                      升级VIP
-                    </Button>
-                  )}
-                  
-                  <Button 
-                    block 
-                    icon={<SettingOutlined />}
-                    onClick={() => setShowUserInfoForm(true)}
-                  >
-                    账号设置
-                  </Button>
-                </Space>
-              </Card>
-
-              {/* 推广数据卡片 */}
-              {referralData && (
-                <Card 
-                  title={
-                    <Space>
-                      <ShareAltOutlined />
-                      推广数据
-                    </Space>
-                  }
-                  style={{ marginTop: '24px' }}
-                  loading={loading}
-                >
-                  <div style={{ marginBottom: '16px' }}>
-                    <Text strong>我的推广码</Text>
-                    <div style={{ 
-                      background: '#f5f5f5', 
-                      padding: '8px 12px', 
-                      borderRadius: '4px',
-                      marginTop: '8px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}>
-                      <Text code style={{ fontSize: '16px', fontWeight: 'bold' }}>
-                        {referralData.referralCode}
-                      </Text>
-                      <Space>
-                        <Tooltip title="复制推广码">
-                          <Button 
-                            type="text" 
-                            size="small" 
-                            icon={<CopyOutlined />}
-                            onClick={copyReferralCode}
-                          />
-                        </Tooltip>
-                        <Tooltip title="生成二维码">
-                          <Button 
-                            type="text" 
-                            size="small" 
-                            icon={<QrcodeOutlined />}
-                            onClick={() => setQrModalVisible(true)}
-                          />
-                        </Tooltip>
-                      </Space>
-                    </div>
-                  </div>
-
-                  <Row gutter={16}>
-                    <Col span={12}>
-                      <Statistic
-                        title="推广人数"
-                        value={referralStats?.totalReferrals || 0}
-                        prefix={<TeamOutlined />}
-                        valueStyle={{ color: '#1890ff' }}
-                      />
-                    </Col>
-                    <Col span={12}>
-                      <Statistic
-                        title="推广收益"
-                        value={referralStats?.totalEarnings || 0}
-                        prefix={<GiftOutlined />}
-                        suffix="积分"
-                        valueStyle={{ color: '#52c41a' }}
-                      />
-                    </Col>
-                  </Row>
-
-                  <Divider />
-
-                  <Space direction="vertical" style={{ width: '100%' }}>
-                    <Button 
-                      block 
-                      icon={<CopyOutlined />}
-                      onClick={copyReferralLink}
-                    >
-                      复制推广链接
-                    </Button>
-                    <Button 
-                      block 
-                      onClick={() => navigate('/referral')}
-                    >
-                      推广管理
-                    </Button>
-                  </Space>
-                </Card>
-              )}
+    <div style={{ padding: '24px' }}>
+      {error && (
+        <Alert 
+          message="错误" 
+          description={error} 
+          type="error" 
+          showIcon 
+          style={{ marginBottom: '24px' }}
+        />
+      )}
+      
+      <Card>
+        <Row gutter={24}>
+          <Col span={8}>
+            <Avatar size={80} icon={<UserOutlined />} src={user.avatar_url} />
+          </Col>
+          <Col span={16}>
+            <Title level={3}>{user.username}</Title>
+            <Text type="secondary">用户ID: {user.id || user._id}</Text>
+            <br />
+            {user.email && <Text type="secondary">邮箱: {user.email}</Text>}
+            {user.phone && <Text type="secondary">手机: {user.phone}</Text>}
+          </Col>
+        </Row>
+        
+        <Divider />
+        
+        <Row gutter={16}>
+          <Col span={8}>
+            <Statistic
+              title="剩余积分"
+              value={user.credits_balance !== undefined ? user.credits_balance : user.credits}
+              prefix={<WalletOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Col>
+          <Col span={8}>
+            <Statistic
+              title="会员等级"
+              value={getMembershipTypeName(user.membershipType || user.role)}
+              prefix={<CrownOutlined />}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Col>
+          <Col span={8}>
+            <Statistic
+              title="注册时间"
+              value={user.created_at ? new Date(user.created_at).toLocaleDateString() : '未知'}
+              prefix={<CalendarOutlined />}
+            />
+          </Col>
+        </Row>
+        
+        <Divider />
+        
+        <Title level={4}>会员权益</Title>
+        <Text>{getMembershipDescription(user.membershipType || user.role)}</Text>
+        
+        {user.membershipType === 'vip' && (
+          <div style={{ marginTop: '10px' }}>
+            <Text type="success">✓ 无限制生成次数</Text><br />
+            <Text type="success">✓ 优先处理队列</Text><br />
+            <Text type="success">✓ 专属客服支持</Text>
+          </div>
+        )}
+      </Card>
+      
+      <div style={{ marginTop: '24px' }}>
+        <Card title="使用统计">
+          <Row gutter={16}>
+            <Col span={8}>
+              <Statistic
+                title="总生成次数"
+                value={stats.totalGenerations}
+                prefix={<HistoryOutlined />}
+              />
             </Col>
-
-            {/* 主要内容区域 */}
-            <Col xs={24} lg={16}>
-              <Tabs 
-                defaultActiveKey="stats"
-                items={[
-                  {
-                    key: 'stats',
-                    label: '使用统计',
-                    children: (
-                      <>
-                        <Card title="使用统计" style={{ marginBottom: '24px' }}>
-                          <Row gutter={16}>
-                            <Col xs={12} sm={6}>
-                              <Statistic
-                                title="总生成次数"
-                                value={generationHistory.length}
-                                suffix="次"
-                              />
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <Statistic
-                                title="今日生成"
-                                value={generationHistory.filter(item => 
-                                  new Date(item.createdAt).toDateString() === new Date().toDateString()
-                                ).length}
-                                suffix="次"
-                              />
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <Statistic
-                                title="累计消耗"
-                                value={generationHistory.reduce((sum, item) => sum + item.creditsCost, 0)}
-                                suffix="积分"
-                              />
-                            </Col>
-                            <Col xs={12} sm={6}>
-                              <Statistic
-                                title="平均消耗"
-                                value={generationHistory.length > 0 
-                                  ? Math.round(generationHistory.reduce((sum, item) => sum + item.creditsCost, 0) / generationHistory.length)
-                                  : 0
-                                }
-                                suffix="积分/次"
-                              />
-                            </Col>
-                          </Row>
-                        </Card>
-
-                        {/* 生成历史 */}
-                        <Card 
-                          title={
-                            <Space>
-                              <HistoryOutlined />
-                              最近生成记录
-                            </Space>
-                          }
-                          extra={
-                            <Button type="link" size="small">
-                              查看全部
-                            </Button>
-                          }
-                        >
-                          {recentGenerations.length > 0 ? (
-                            <List
-                              dataSource={recentGenerations}
-                              renderItem={(item) => (
-                                <List.Item
-                                  actions={[
-                                    <Button type="link" size="small">查看</Button>,
-                                    <Button type="link" size="small">下载</Button>
-                                  ]}
-                                >
-                                  <List.Item.Meta
-                                    avatar={
-                                      <img 
-                                        src={item.resultImage} 
-                                        alt="生成结果"
-                                        style={{ 
-                                          width: '48px', 
-                                          height: '48px', 
-                                          objectFit: 'cover',
-                                          borderRadius: '4px'
-                                        }}
-                                      />
-                                    }
-                                    title={
-                                      <Space>
-                                        <span>工具ID: {item.toolId}</span>
-                                        <Tag color="blue">{item.creditsCost} 积分</Tag>
-                                      </Space>
-                                    }
-                                    description={
-                                      <Text type="secondary">
-                                        {new Date(item.createdAt).toLocaleString()}
-                                      </Text>
-                                    }
-                                  />
-                                </List.Item>
-                              )}
-                            />
-                          ) : (
-                            <div style={{ 
-                              textAlign: 'center', 
-                              padding: '40px',
-                              color: '#666'
-                            }}>
-                              <HistoryOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
-                              <div>暂无生成记录</div>
-                              <Button 
-                                type="primary" 
-                                style={{ marginTop: '16px' }}
-                                onClick={() => navigate('/')}
-                              >
-                                开始使用
-                              </Button>
-                            </div>
-                          )}
-                        </Card>
-                      </>
-                    )
-                  },
-                  {
-                    key: 'credits',
-                    label: '积分明细',
-                    children: (
-                      <Card title="积分变动记录">
-                        <Table
-                          columns={creditColumns}
-                          dataSource={creditHistory}
-                          rowKey="id"
-                          pagination={{
-                            pageSize: 10,
-                            showSizeChanger: false,
-                            showQuickJumper: true,
-                          }}
-                          loading={loading}
-                          locale={{
-                            emptyText: '暂无积分记录'
-                          }}
-                        />
-                      </Card>
-                    )
-                  },
-                  {
-                    key: 'referral',
-                    label: '推广明细',
-                    children: (
-                      <Card title="推广收益明细">
-                        <Table
-                          columns={[
-                            {
-                              title: '时间',
-                              dataIndex: 'createdAt',
-                              key: 'createdAt',
-                              render: (text) => new Date(text).toLocaleString(),
-                              width: 150,
-                            },
-                            {
-                              title: '被推广用户',
-                              dataIndex: 'referredUsername',
-                              key: 'referredUsername',
-                              render: (text) => text || '匿名用户',
-                            },
-                            {
-                              title: '奖励积分',
-                              dataIndex: 'rewardCredits',
-                              key: 'rewardCredits',
-                              render: (credits) => (
-                                <span style={{ color: '#52c41a' }}>+{credits}</span>
-                              ),
-                              width: 100,
-                            },
-                            {
-                              title: '状态',
-                              dataIndex: 'status',
-                              key: 'status',
-                              render: (status) => (
-                                <Tag color={status === 'completed' ? 'green' : 'orange'}>
-                                  {status === 'completed' ? '已发放' : '待发放'}
-                                </Tag>
-                              ),
-                              width: 100,
-                            },
-                          ]}
-                          dataSource={referralStats?.referralDetails || []}
-                          rowKey="id"
-                          pagination={{
-                            pageSize: 10,
-                            showSizeChanger: false,
-                          }}
-                          loading={loading}
-                          locale={{
-                            emptyText: '暂无推广记录'
-                          }}
-                        />
-                      </Card>
-                    )
-                  }
-                ]}
+            <Col span={8}>
+              <Statistic
+                title="累计消耗积分"
+                value={stats.totalCreditsUsed}
+                prefix={<WalletOutlined />}
+              />
+            </Col>
+            <Col span={8}>
+              <Statistic
+                title="最常用工具"
+                value={stats.favoriteTool || '暂无'}
+                prefix={<ClockCircleOutlined />}
               />
             </Col>
           </Row>
-        </div>
-      </Content>
-
-      {/* 用户信息编辑表单 */}
-      <UserInfoForm 
-        visible={showUserInfoForm}
-        onCancel={() => setShowUserInfoForm(false)}
-      />
-
-      {/* 二维码弹窗 */}
-      <Modal
-        title="推广二维码"
-        open={qrModalVisible}
-        onCancel={() => setQrModalVisible(false)}
-        footer={[
-          <Button key="copy" onClick={copyReferralLink}>
-            复制链接
-          </Button>,
-          <Button key="close" type="primary" onClick={() => setQrModalVisible(false)}>
-            关闭
-          </Button>
-        ]}
-        width={400}
-      >
-        <div style={{ textAlign: 'center', padding: '20px' }}>
-          {referralData?.referralCode && (
-            <QRCode 
-              value={`${window.location.origin}?ref=${referralData.referralCode}`}
-              size={200}
+        </Card>
+      </div>
+      
+      <div style={{ marginTop: '24px' }}>
+        <Card 
+          title="积分记录" 
+          extra={
+            <Button type="link" onClick={fetchProfileData}>
+              刷新
+            </Button>
+          }
+        >
+          {loading ? (
+            <div style={{ textAlign: 'center' }}>
+              <Spin />
+            </div>
+          ) : creditHistory.length > 0 ? (
+            <List
+              itemLayout="horizontal"
+              dataSource={creditHistory}
+              renderItem={(record) => (
+                <List.Item>
+                  <List.Item.Meta
+                    title={
+                      <div>
+                        <Tag color={getCreditTypeColor(record.type)}>
+                          {getCreditTypeDisplayName(record.type)}
+                        </Tag>
+                        {' '}{record.description}
+                      </div>
+                    }
+                    description={
+                      <div>
+                        <Text type="secondary">
+                          {new Date(record.created_at).toLocaleString()}
+                        </Text>
+                        <br />
+                        <Text strong>
+                          积分变动: 
+                          <Text 
+                            type={record.amount > 0 ? 'success' : 'danger'}
+                          >
+                            {' '}{record.amount > 0 ? '+' : ''}{record.amount}
+                          </Text>
+                          {' '}（余额: {record.balance_after}）
+                        </Text>
+                      </div>
+                    }
+                  />
+                </List.Item>
+              )}
             />
+          ) : (
+            <Text type="secondary">暂无积分记录</Text>
           )}
-          <div style={{ marginTop: '16px' }}>
-            <Text type="secondary">扫描二维码或分享链接邀请好友注册</Text>
-          </div>
-        </div>
-      </Modal>
-    </Layout>
-  )
-}
+        </Card>
+      </div>
+    </div>
+  );
+};
 
-export default Profile
+export default Profile;

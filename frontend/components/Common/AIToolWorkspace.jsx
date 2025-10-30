@@ -38,7 +38,7 @@ const AIToolWorkspace = ({ toolId, onGenerate, generating = false }) => {
     mode: commonOptions.mode.default
   });
   const [prompt, setPrompt] = useState('');
-  const [result, setResult] = useState(null);
+  const [results, setResults] = useState([]);
 
   // 获取当前工具配置
   const config = tools.find(tool => tool.id === toolId) || tools[0];
@@ -53,7 +53,7 @@ const AIToolWorkspace = ({ toolId, onGenerate, generating = false }) => {
     setPrompt('');
     setMainImage(null);
     setReferenceImage(null);
-    setResult(null);
+    setResults([]);
   }, [toolId]);
 
   const handleImageUpload = (type) => (info) => {
@@ -101,11 +101,19 @@ const AIToolWorkspace = ({ toolId, onGenerate, generating = false }) => {
     };
 
     try {
-      const result = await onGenerate(params);
-      setResult(result);
+      const generationResult = await onGenerate(params);
+      if (generationResult?.images?.length) {
+        const normalizedImages = generationResult.images.map((image, index) => ({
+          ...image,
+          _localId: `${generationResult.generationId || Date.now()}-${image.index ?? index}-${Date.now()}`
+        }));
+        setResults((prev) => [...prev, ...normalizedImages]);
+      }
       message.success('生成成功！');
+      return generationResult;
     } catch (error) {
       message.error('生成失败：' + error.message);
+      throw error;
     }
   };
 
@@ -292,26 +300,33 @@ const AIToolWorkspace = ({ toolId, onGenerate, generating = false }) => {
         </div>
 
         {/* 结果展示 */}
-        {result && (
+        {results.length > 0 && (
           <>
             <Divider />
             <div className="result-section">
               <h4>生成结果</h4>
-              <div className="result-image">
-                <img src={result.imageUrl || result.content} alt="Generated" />
-                <div className="result-actions">
-                  <Button 
-                    icon={<DownloadOutlined />}
-                    onClick={() => {
-                      const link = document.createElement('a');
-                      link.href = result.imageUrl || result.content;
-                      link.download = `${config.name}_${Date.now()}.png`;
-                      link.click();
-                    }}
-                  >
-                    下载
-                  </Button>
-                </div>
+              <div className="result-gallery">
+                {results.map((image) => {
+                  const displaySrc = image.public_url || image.data_url || image.imageUrl || image.content;
+                  return (
+                    <div className="result-image" key={image._localId}>
+                      <img src={displaySrc} alt="Generated" />
+                      <div className="result-actions">
+                        <Button 
+                          icon={<DownloadOutlined />}
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = displaySrc;
+                            link.download = `${config.name}_${Date.now()}.png`;
+                            link.click();
+                          }}
+                        >
+                          下载
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </>

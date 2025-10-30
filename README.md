@@ -50,6 +50,32 @@ npm run dev
 
 访问 http://localhost:3000 查看应用
 
+### 一键启动全部服务（前端 + 管理后台 + Node 后端 + FastAPI）
+
+在根目录依次安装依赖后：
+
+```bash
+npm install
+npm install --prefix backend
+npm install --prefix admin
+pip install -r ai_service/requirements.txt
+```
+
+即可使用以下命令并行启动四个服务：
+
+```bash
+npm run dev:all
+```
+
+该命令通过 `concurrently` 同时运行：
+
+- 用户前端（Vite，端口 5173）
+- Node 后端（Express，端口 8080）
+- 管理后台（Vite，端口 8082）
+- FastAPI 中间层（Uvicorn，端口 9001）
+
+请确保 `.env` 中配置了 `AIHUBMIX_API_KEY` 等必要环境变量。
+
 ### 构建生产版本
 
 ```bash

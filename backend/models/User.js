@@ -4,21 +4,28 @@ const bcrypt = require('bcrypt');
 const userSchema = new mongoose.Schema({
   email: {
     type: String,
-    unique: true,
-    sparse: true,
+    index: {
+      unique: true,
+      partialFilterExpression: { email: { $type: 'string' } }
+    },
     lowercase: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, '请输入有效的邮箱地址']
   },
   phone: {
     type: String,
-    unique: true,
-    sparse: true,
+    index: {
+      unique: true,
+      partialFilterExpression: { phone: { $type: 'string' } }
+    },
     match: [/^1[3-9]\d{9}$/, '请输入有效的手机号码']
   },
   username: {
     type: String,
     required: [true, '用户名是必需的'],
-    unique: true,
+    index: {
+      unique: true,
+      partialFilterExpression: { username: { $type: 'string' } }
+    },
     minlength: [2, '用户名至少需要2个字符'],
     maxlength: [50, '用户名不能超过50个字符'],
     trim: true
@@ -34,7 +41,7 @@ const userSchema = new mongoose.Schema({
   },
   credits_balance: {
     type: Number,
-    default: 100,
+    default: 0,
     min: [0, '积分余额不能为负数']
   },
   role: {
@@ -65,6 +72,56 @@ const userSchema = new mongoose.Schema({
   reset_password_expires: {
     type: Date,
     default: null
+  },
+  generated_assets: {
+    type: [{
+      generation_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'AIGeneration'
+      },
+      tool_key: {
+        type: String,
+        default: null
+      },
+      tool_id: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'AiTool',
+        default: null
+      },
+      public_url: {
+        type: String,
+        default: null
+      },
+      file_name: {
+        type: String,
+        default: null
+      },
+      mime_type: {
+        type: String,
+        default: null
+      },
+      width: {
+        type: Number,
+        default: null
+      },
+      height: {
+        type: Number,
+        default: null
+      },
+      index: {
+        type: Number,
+        default: 0
+      },
+      expires_at: {
+        type: Date,
+        default: null
+      },
+      created_at: {
+        type: Date,
+        default: Date.now
+      }
+    }],
+    default: []
   }
 }, {
   timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
@@ -100,17 +157,43 @@ userSchema.methods.updateLastLogin = function() {
 };
 
 // 扣除积分
-userSchema.methods.deductCredits = async function(amount) {
+userSchema.methods.deductCredits = async function(amount, options = {}) {
   if (this.credits_balance < amount) {
     throw new Error('积分余额不足');
   }
   this.credits_balance -= amount;
+
+  if (options.record) {
+    await this.model('CreditRecord').create({
+      user_id: this._id,
+      type: 'consumption',
+      amount: -Math.abs(amount),
+      balance_before: this.credits_balance + amount,
+      balance_after: this.credits_balance,
+      description: options.description || '生成内容消耗积分',
+      metadata: options.metadata || {}
+    });
+  }
+
   return this.save();
 };
 
 // 增加积分
-userSchema.methods.addCredits = async function(amount) {
+userSchema.methods.addCredits = async function(amount, options = {}) {
   this.credits_balance += amount;
+
+  if (options.record) {
+    await this.model('CreditRecord').create({
+      user_id: this._id,
+      type: 'bonus',
+      amount: Math.abs(amount),
+      balance_before: this.credits_balance - amount,
+      balance_after: this.credits_balance,
+      description: options.description || '积分奖励',
+      metadata: options.metadata || {}
+    });
+  }
+
   return this.save();
 };
 
@@ -124,8 +207,9 @@ userSchema.methods.toJSON = function() {
   return userObject;
 };
 
-// 创建索引（注意：email、phone、username已在schema中定义为unique，会自动创建索引）
+// 创建索引
 userSchema.index({ created_at: -1 });
 userSchema.index({ is_active: 1 });
+userSchema.index({ 'generated_assets.created_at': -1 });
 
 module.exports = mongoose.model('User', userSchema);

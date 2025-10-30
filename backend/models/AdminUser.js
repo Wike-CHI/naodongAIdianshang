@@ -5,7 +5,10 @@ const adminUserSchema = new mongoose.Schema({
   username: {
     type: String,
     required: [true, '用户名是必需的'],
-    unique: true,
+    index: {
+      unique: true,
+      partialFilterExpression: { username: { $type: 'string' } }
+    },
     minlength: [3, '用户名至少需要3个字符'],
     maxlength: [30, '用户名不能超过30个字符'],
     trim: true
@@ -110,7 +113,6 @@ adminUserSchema.methods.toJSON = function() {
 };
 
 // 创建索引
-adminUserSchema.index({ username: 1 });
 adminUserSchema.index({ role: 1 });
 adminUserSchema.index({ is_active: 1 });
 

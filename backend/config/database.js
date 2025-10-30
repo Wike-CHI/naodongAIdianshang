@@ -12,13 +12,11 @@ const connectDB = async () => {
       connectionString = 'mongodb://127.0.0.1:27017/naodongai_memory';
       logger.log('🔄 使用内存数据库模式');
     } else {
-      connectionString = process.env.MONGODB_URI;
+      // 使用真实的MongoDB数据库
+      connectionString = process.env.MONGODB_URI || 'mongodb://localhost:27017/naodongai';
     }
 
-    const conn = await mongoose.connect(connectionString, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    const conn = await mongoose.connect(connectionString);
 
     logger.log(`✅ MongoDB 连接成功: ${conn.connection.host}`);
     
@@ -40,20 +38,8 @@ const connectDB = async () => {
 
   } catch (error) {
     console.error('❌ MongoDB 连接失败:', error.message);
-    logger.log('🔄 尝试创建内存用户数据...');
-    
-    // 如果连接失败，创建内存用户数据
-    await createMemoryData();
-  }
-};
-
-// 创建内存用户数据
-const createMemoryData = async () => {
-  try {
-    // 这里我们将在server.js中处理内存数据
-    logger.log('📝 将使用内存数据存储');
-  } catch (error) {
-    console.error('❌ 创建内存数据失败:', error);
+    // 如果连接失败，不创建内存用户数据，而是抛出错误
+    throw new Error('无法连接到MongoDB数据库，请确保MongoDB服务正在运行');
   }
 };
 

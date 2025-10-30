@@ -6,6 +6,11 @@ const aiGenerationSchema = new mongoose.Schema({
     ref: 'User',
     required: [true, '用户ID是必需的']
   },
+  tool_key: {
+    type: String,
+    required: [true, '工具标识是必需的'],
+    trim: true
+  },
   tool_id: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'AiTool',
@@ -29,9 +34,18 @@ const aiGenerationSchema = new mongoose.Schema({
     default: 0,
     min: [0, '使用的积分不能为负数']
   },
+  total_credits_charged: {
+    type: Number,
+    default: 0,
+    min: [0, '总积分消耗不能为负数']
+  },
   processing_time: {
     type: Number,
     default: 0
+  },
+  expires_at: {
+    type: Date,
+    default: () => new Date(Date.now() + 24 * 60 * 60 * 1000)
   },
   error_message: {
     type: String,
@@ -52,8 +66,10 @@ const aiGenerationSchema = new mongoose.Schema({
 // 创建索引
 aiGenerationSchema.index({ user_id: 1, created_at: -1 });
 aiGenerationSchema.index({ tool_id: 1 });
+aiGenerationSchema.index({ tool_key: 1 });
 aiGenerationSchema.index({ status: 1 });
 aiGenerationSchema.index({ created_at: -1 });
+aiGenerationSchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
 
 // 静态方法：获取用户生成统计
 aiGenerationSchema.statics.getUserGenerationStats = async function(userId) {

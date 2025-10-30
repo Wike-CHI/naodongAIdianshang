@@ -1,10 +1,23 @@
 const mongoose = require('mongoose');
 
 const aiToolSchema = new mongoose.Schema({
+  identifier: {
+    type: String,
+    required: [true, '工具标识是必需的'],
+    index: {
+      unique: true,
+      partialFilterExpression: { identifier: { $type: 'string' } }
+    },
+    trim: true,
+    maxlength: [60, '工具标识长度不能超过60个字符']
+  },
   name: {
     type: String,
     required: [true, '工具名称是必需的'],
-    unique: true,
+    index: {
+      unique: true,
+      partialFilterExpression: { name: { $type: 'string' } }
+    },
     trim: true,
     maxlength: [100, '工具名称不能超过100个字符']
   },
@@ -163,7 +176,7 @@ aiToolSchema.methods.getStatus = function() {
 };
 
 // 创建索引
-aiToolSchema.index({ name: 1 });
+aiToolSchema.index({ identifier: 1 });
 aiToolSchema.index({ type: 1 });
 aiToolSchema.index({ enabled: 1 });
 aiToolSchema.index({ category: 1 });

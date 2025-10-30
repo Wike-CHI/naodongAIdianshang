@@ -4,85 +4,103 @@ const AdminUser = require('../models/AdminUser');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-here';
 
-// 验证JWT token中间件
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+const authenticateToken = async (req, res, next) => {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: '访问令牌缺失'
-    });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({
-        success: false,
-        message: '访问令牌无效'
-      });
+    if (!token) {
+      return res.status(401).json({ success: false, message: '访问令牌缺失' });
     }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    if (decoded.type === 'admin') {
+      const adminUser = await AdminUser.findById(decoded.userId);
+      if (!adminUser) {
+        return res.status(401).json({ success: false, message: '管理员身份无效' });
+      }
+      req.user = {
+        id: adminUser._id.toString(),
+        type: 'admin',
+        username: adminUser.username,
+        role: adminUser.role
+      };
+      req.userType = 'admin';
+      return next();
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ success: false, message: '用户不存在或已注销' });
+    }
+
     req.user = user;
+    req.userType = 'user';
     next();
-  });
+  } catch (error) {
+    return res.status(403).json({ success: false, message: '访问令牌无效', details: error.message });
+  }
 };
 
-// 管理员权限验证中间件
 const requireAdmin = (req, res, next) => {
-  // 检查用户是否已认证
+  if (!req.user || req.userType !== 'admin') {
+    return res.status(403).json({ success: false, message: '需要管理员权限' });
+  }
+  next();
+};
+
+const requireUserOrAdmin = (req, res, next) => {
   if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: '请先登录'
-    });
+    return res.status(401).json({ success: false, message: '请先登录' });
   }
 
-  // 检查用户类型是否为管理员
-  if (req.user.type !== 'admin') {
-    return res.status(403).json({
-      success: false,
-      message: '需要管理员权限'
-    });
+  if (req.userType === 'admin') {
+    return next();
+  }
+
+  const targetUserId = req.params.id || req.params.userId || req.body.user_id;
+  if (targetUserId && req.user._id.toString() !== targetUserId.toString()) {
+    return res.status(403).json({ success: false, message: '无权访问此资源' });
   }
 
   next();
 };
 
-// 用户或管理员权限验证中间件
-const requireUserOrAdmin = (req, res, next) => {
-  // 检查用户是否已认证
-  if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: '请先登录'
-    });
-  }
-
-  // 检查是否为管理员或用户本人
-  const userId = req.params.id;
-  if (req.user.type === 'admin' || req.user._id.toString() === userId) {
-    next();
-  } else {
-    return res.status(403).json({
-      success: false,
-      message: '无权访问此资源'
-    });
-  }
-};
-
-// 可选认证中间件
-const optionalAuth = (req, res, next) => {
+const optionalAuth = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  if (token) {
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-      if (!err) {
-        req.user = user;
-      }
-    });
+  if (!token) {
+    return next();
   }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    if (decoded.type === 'admin') {
+      const adminUser = await AdminUser.findById(decoded.userId);
+      if (adminUser) {
+        req.user = {
+          id: adminUser._id.toString(),
+          type: 'admin',
+          username: adminUser.username,
+          role: adminUser.role
+        };
+        req.userType = 'admin';
+      }
+      return next();
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (user) {
+      req.user = user;
+      req.userType = 'user';
+    }
+  } catch (error) {
+    // ignore optional auth failures
+  }
+
   next();
 };
 
