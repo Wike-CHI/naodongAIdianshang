@@ -200,10 +200,6 @@ const getUserSubscriptions = async (req, res) => {
 
 // 创建订阅
 const createSubscription = async (req, res) => {
-  // 开始事务
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
     const { plan_id, payment_method, transaction_id, auto_renew = true } = req.body;
     const userId = req.userType === 'admin' ? req.user.id : req.user._id; // 从JWT token中获取用户ID
@@ -211,11 +207,9 @@ const createSubscription = async (req, res) => {
     console.log('创建订阅请求参数:', { plan_id, payment_method, transaction_id, auto_renew, userId });
 
     // 获取套餐信息
-    const plan = await SubscriptionPlan.findById(plan_id).session(session);
+    const plan = await SubscriptionPlan.findById(plan_id);
     console.log('套餐信息:', plan);
     if (!plan) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(404).json({
         success: false,
         message: '订阅套餐不存在'
@@ -224,8 +218,6 @@ const createSubscription = async (req, res) => {
 
     console.log('套餐是否激活:', plan.active);
     if (!plan.active) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({
         success: false,
         message: '订阅套餐已停用'
@@ -236,8 +228,6 @@ const createSubscription = async (req, res) => {
     const existingSubscription = await Subscription.getCurrentSubscription(userId);
     console.log('现有订阅:', existingSubscription);
     if (existingSubscription) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({
         success: false,
         message: '您已有活跃的订阅，请先取消当前订阅'
@@ -291,7 +281,7 @@ const createSubscription = async (req, res) => {
     });
 
     console.log('准备保存订阅:', subscription);
-    await subscription.save({ session });
+    await subscription.save();
     console.log('订阅保存成功:', subscription._id);
 
     // 给用户添加积分
@@ -306,18 +296,18 @@ const createSubscription = async (req, res) => {
     let creditRecord = null;
     
     if (creditsToAdd > 0) {
-      const user = await User.findById(userId).session(session);
+      const user = await User.findById(userId);
       console.log('用户信息:', user);
       if (!user) {
         throw new Error('用户不存在');
       }
       const balanceBefore = user.credits_balance;
-      
+
       // 更新用户积分
       user.credits_balance += creditsToAdd;
-      updatedUser = await user.save({ session });
+      updatedUser = await user.save();
       const balanceAfter = user.credits_balance;
-      
+
       console.log('添加积分前余额:', balanceBefore);
       console.log('添加积分后余额:', balanceAfter);
 
@@ -328,8 +318,8 @@ const createSubscription = async (req, res) => {
         amount: creditsToAdd,
         balance_before: balanceBefore,
         balance_after: balanceAfter,
-        description: plan.isYearlyPlan() ? 
-          `年度会员套餐赠送积分: ${plan.name}` : 
+        description: plan.isYearlyPlan() ?
+          `年度会员套餐赠送积分: ${plan.name}` :
           `订阅套餐赠送积分: ${plan.name}`,
         metadata: {
           subscription_id: subscription._id,
@@ -337,10 +327,9 @@ const createSubscription = async (req, res) => {
           plan_name: plan.name
         }
       };
-      
+
       console.log('积分记录数据:', creditRecordData);
-      creditRecord = await CreditRecord.create([creditRecordData], { session });
-      creditRecord = creditRecord[0]; // create返回数组，取第一个元素
+      creditRecord = await CreditRecord.create(creditRecordData);
       console.log('积分记录创建成功:', creditRecord._id);
     }
 
@@ -359,22 +348,17 @@ const createSubscription = async (req, res) => {
     // 如果updatedUser已经存在（积分已更新），则更新它；否则查找用户
     if (!updatedUser) {
       updatedUser = await User.findByIdAndUpdate(
-        userId, 
-        updateData, 
-        { new: true, session }
+        userId,
+        updateData,
+        { new: true }
       );
     } else {
       // 合并更新数据
       Object.assign(updatedUser, updateData);
-      updatedUser = await updatedUser.save({ session });
+      updatedUser = await updatedUser.save();
     }
-    
-    console.log('用户更新成功:', updatedUser);
 
-    // 提交事务
-    await session.commitTransaction();
-    session.endSession();
-    console.log('事务提交成功');
+    console.log('用户更新成功:', updatedUser);
 
     // 确保返回完整的用户信息
     const userResponse = await User.findById(userId);
@@ -384,17 +368,13 @@ const createSubscription = async (req, res) => {
     res.status(201).json({
       success: true,
       message: '订阅创建成功',
-      data: { 
+      data: {
         subscription,
-        user: userObject, // 返回完整的用户对象
+        user: userObject,
         creditRecord
       }
     });
   } catch (error) {
-    // 回滚事务
-    await session.abortTransaction();
-    session.endSession();
-    
     console.error('Create subscription error:', error);
     res.status(500).json({
       success: false,
