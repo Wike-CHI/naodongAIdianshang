@@ -5,14 +5,18 @@ const User = require('../models/User');
 const getCreditRecords = async (req, res) => {
   try {
     const { page = 1, limit = 20, type = '' } = req.query;
-    
-    const query = { user_id: req.user._id };
+
+    const targetUserId = req.userType === 'admin' && req.query.user_id
+      ? req.query.user_id
+      : req.user._id;
+
+    const query = { user_id: targetUserId };
     if (type) {
       query.type = type;
     }
 
     const skip = (page - 1) * limit;
-    
+
     const [records, total] = await Promise.all([
       CreditRecord.find(query)
         .sort({ created_at: -1 })
@@ -116,7 +120,14 @@ const adjustUserCredits = async (req, res) => {
 // 获取积分统计
 const getCreditStats = async (req, res) => {
   try {
+    const targetUserId = req.userType === 'admin' && req.query.user_id
+      ? req.query.user_id
+      : req.user._id;
+
     const stats = await CreditRecord.aggregate([
+      {
+        $match: { user_id: targetUserId }
+      },
       {
         $group: {
           _id: '$type',
@@ -129,9 +140,7 @@ const getCreditStats = async (req, res) => {
       }
     ]);
 
-    const userCount = await User.countDocuments();
-    
-    const recentActivity = await CreditRecord.find()
+    const recentActivity = await CreditRecord.find({ user_id: targetUserId })
       .sort({ created_at: -1 })
       .limit(10)
       .populate('user_id', 'username');
@@ -140,7 +149,6 @@ const getCreditStats = async (req, res) => {
       success: true,
       data: {
         stats,
-        user_count: userCount,
         recent_activity: recentActivity
       }
     });
@@ -156,7 +164,14 @@ const getCreditStats = async (req, res) => {
 // 获取积分类型统计
 const getCreditTypeStats = async (req, res) => {
   try {
+    const targetUserId = req.userType === 'admin' && req.query.user_id
+      ? req.query.user_id
+      : req.user._id;
+
     const stats = await CreditRecord.aggregate([
+      {
+        $match: { user_id: targetUserId }
+      },
       {
         $group: {
           _id: '$type',

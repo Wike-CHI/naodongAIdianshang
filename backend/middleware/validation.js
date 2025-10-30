@@ -37,8 +37,9 @@ const schemas = {
   userLogin: Joi.object({
     email: Joi.string().email(),
     phone: Joi.string().pattern(/^1[3-9]\d{9}$/),
+    username: Joi.string().min(2).max(50),
     password: Joi.string().required()
-  }).or('email', 'phone'),
+  }).or('email', 'phone', 'username'),
 
   adminLogin: Joi.object({
     username: Joi.string().required(),

@@ -176,7 +176,6 @@ aiToolSchema.methods.getStatus = function() {
 };
 
 // 创建索引
-aiToolSchema.index({ identifier: 1 });
 aiToolSchema.index({ type: 1 });
 aiToolSchema.index({ enabled: 1 });
 aiToolSchema.index({ category: 1 });

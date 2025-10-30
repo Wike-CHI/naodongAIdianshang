@@ -7,6 +7,12 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 // 获取积分记录列表
 router.get('/', authenticateToken, validate(schemas.pagination), creditController.getCreditRecords);
 
+// 获取积分历史（别名，兼容前端）
+router.get('/history', authenticateToken, validate(schemas.pagination), creditController.getCreditRecords);
+
+// 获取积分余额
+router.get('/balance', authenticateToken, creditController.getCreditBalance);
+
 // 管理员调整用户积分
 router.post('/adjust', authenticateToken, requireAdmin, validate(schemas.adjustCredits), creditController.adjustUserCredits);
 

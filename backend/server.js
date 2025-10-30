@@ -5,7 +5,7 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const logger = require('./utils/logger');
 const connectDB = require('./config/database');
-const initializeModels = require('./startup/initializeModels');
+const { initializeModels } = require('./startup/initializeModels');
 const seedToolPresets = require('./startup/seedToolPresets');
 
 const app = express();

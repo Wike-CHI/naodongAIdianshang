@@ -17,25 +17,99 @@ const models = [
   AdminUser
 ];
 
+async function dropStaleIndexes() {
+  const indexDrops = [
+    { model: User, indexName: 'username_1' },
+    { model: User, indexName: 'email_1' },
+    { model: User, indexName: 'phone_1' },
+    { model: AdminUser, indexName: 'username_1' },
+    { model: AITool, indexName: 'name_1' }
+  ];
+
+  for (const { model, indexName } of indexDrops) {
+    try {
+      await model.collection.dropIndex(indexName);
+      if (typeof logger.log === 'function') {
+        logger.log(`[startup] 已移除旧索引 ${model.collection.collectionName}.${indexName}`);
+      }
+    } catch (error) {
+      if (
+        error?.codeName === 'IndexNotFound' ||
+        error?.code === 27 ||
+        error?.codeName === 'NamespaceNotFound' ||
+        error?.code === 26
+      ) {
+        continue;
+      }
+
+      if (typeof logger.warn === 'function') {
+        logger.warn(`[startup] 删除索引 ${model.collection.collectionName}.${indexName} 失败`, error);
+      } else {
+        console.warn(`[startup] 删除索引 ${model.collection.collectionName}.${indexName} 失败`, error);
+      }
+    }
+  }
+}
+
+function extractIndexNameFromError(error) {
+  const possibleMessages = [
+    error?.errorResponse?.errmsg,
+    error?.errmsg,
+    error?.message
+  ].filter(Boolean);
+
+  for (const message of possibleMessages) {
+    const match = message.match(/name: "([^\"]+)"/);
+    if (match) {
+      return match[1];
+    }
+  }
+
+  return null;
+}
+
+async function ensureModelIndexes(model) {
+  try {
+    await model.init();
+  } catch (error) {
+    if (error?.code === 86 || error?.codeName === 'IndexOptionsConflict') {
+      const conflictingIndexName = extractIndexNameFromError(error);
+
+      if (conflictingIndexName) {
+        try {
+          await model.collection.dropIndex(conflictingIndexName);
+          if (typeof logger.warn === 'function') {
+            logger.warn(`[startup] 重新创建索引 ${model.collection.collectionName}.${conflictingIndexName}`);
+          } else {
+            console.warn(`[startup] 重新创建索引 ${model.collection.collectionName}.${conflictingIndexName}`);
+          }
+        } catch (dropError) {
+          if (
+            dropError?.codeName !== 'IndexNotFound' &&
+            dropError?.code !== 27 &&
+            dropError?.codeName !== 'NamespaceNotFound' &&
+            dropError?.code !== 26
+          ) {
+            throw dropError;
+          }
+        }
+
+        await model.init();
+        return;
+      }
+    }
+
+    throw error;
+  }
+}
+
 async function initializeModels() {
   try {
-    await Promise.all(models.map((model) => model.init()))
-      .catch(async (error) => {
-        if (error?.codeName === 'IndexOptionsConflict') {
-          // 当索引存在但选项不同的时候，逐个初始化可以避免批量失败
-          for (const model of models) {
-            try {
-              await model.init();
-            } catch (innerError) {
-              if (innerError?.codeName !== 'IndexOptionsConflict') {
-                throw innerError;
-              }
-            }
-          }
-        } else {
-          throw error;
-        }
-      });
+    await dropStaleIndexes();
+
+    for (const model of models) {
+      await ensureModelIndexes(model);
+    }
 
     if (typeof logger.log === 'function') {
       logger.log('✅ Mongoose 模型初始化完成');
@@ -52,4 +126,4 @@ async function initializeModels() {
   }
 }
 
-module.exports = initializeModels;
+module.exports = { initializeModels, dropStaleIndexes, ensureModelIndexes };

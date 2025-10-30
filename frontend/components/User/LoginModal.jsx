@@ -125,7 +125,7 @@ const PhoneVerificationModal = ({ visible, onCancel, onSuccess, title = "手机�
 }
 
 const LoginModal = ({ visible, onCancel }) => {
-  const { login } = useAuth()
+  const { login, register } = useAuth()
   const [phoneForm] = Form.useForm()
   const [emailForm] = Form.useForm()
   const [registerForm] = Form.useForm()
@@ -176,29 +176,24 @@ const LoginModal = ({ visible, onCancel }) => {
   // 完成登录流程（可接收 token）
   const completeLogin = async (userData, phone, token) => {
     try {
-      // 更新用户信息，包含手机号
       const updatedUserData = {
         ...userData,
-        phone: phone,
+        phone,
         phoneVerified: true
       }
 
-      // 如果有推广码，建立推广关系
       if (referralCode && referralInfo) {
         await referralRelationshipApi.createRelationship(updatedUserData.id, referralCode)
       }
-      
-      // 将 token 传给 context，context 会负责持久化和设置 axios header
-      if (token) {
-        login(updatedUserData, token)
-      } else if (userData && userData.token) {
-        login(updatedUserData, userData.token)
-      } else {
-        login(updatedUserData)
-      }
 
-      message.success('登录成功！')
-      onCancel()
+      const result = await login({ phone, password: token || userData.password })
+
+      if (result.success) {
+        message.success('登录成功！')
+        onCancel()
+      } else {
+        message.error(result.error || '登录失败')
+      }
     } catch (error) {
       message.error('登录失败，请重试')
     }
@@ -231,42 +226,49 @@ const LoginModal = ({ visible, onCancel }) => {
   const handlePhoneLogin = async (values) => {
     setLoading(true)
     try {
-      const response = await axios.post(API_ENDPOINTS.AUTH.LOGIN, { 
-        phone: values.phone, 
-        password: values.password 
-      })
+      const result = await login({ phone: values.phone, password: values.password })
       
-      if (response.data.success) {
-        // 直接完成登录，手机号已验证
-        logger.log('登录响应数据:', response.data)
-        login(response.data.data.user, response.data.data.token)
+      if (result.success) {
         message.success('登录成功！')
         onCancel()
       } else {
-        message.error(response.data.message || '登录失败')
+        message.error(result.error || '登录失败')
       }
     } catch (error) {
       console.error('手机号登录失败:', error)
-      message.error(error.response?.data?.message || '登录失败，请重试')
+      message.error(error?.message || '登录失败，请重试')
     } finally {
       setLoading(false)
     }
   }
 
-  // 邮箱+密码登录
+  // 邮箱/用户名 + 密码登录
   const handleEmailLogin = async (values) => {
     setLoading(true)
     try {
-      const response = await axios.post(API_ENDPOINTS.AUTH.LOGIN, { 
-        email: values.email, 
-        password: values.password 
-      })
-      
+      const payload = {};
+
+      if (values.email) {
+        payload.email = values.email;
+      }
+
+      if (values.username) {
+        payload.username = values.username;
+      }
+
+      payload.password = values.password;
+
+      const response = await axios.post(API_ENDPOINTS.AUTH.LOGIN, payload);
+
       if (response.data.success) {
         logger.log('登录响应数据:', response.data)
-        login(response.data.data.user, response.data.data.token)
-        message.success('登录成功！')
-        onCancel()
+        const result = await login(payload)
+        if (result.success) {
+          message.success('登录成功！')
+          onCancel()
+        } else {
+          message.error(result.error || '登录失败')
+        }
       } else {
         message.error(response.data.message || '登录失败')
       }
@@ -291,9 +293,13 @@ const LoginModal = ({ visible, onCancel }) => {
       
       if (response.data.success) {
         logger.log('注册响应数据:', response.data)
-        login(response.data.data.user, response.data.data.token)
-        message.success('注册成功！')
-        onCancel()
+        const result = await login({ email: values.email, phone: values.phone, username: values.username, password: values.password })
+        if (result.success) {
+          message.success('注册成功！')
+          onCancel()
+        } else {
+          message.error(result.error || '登录失败')
+        }
       } else {
         message.error(response.data.message || '注册失败')
       }
@@ -474,34 +480,58 @@ const LoginModal = ({ visible, onCancel }) => {
             <Form.Item
               name="email"
               label="邮箱"
+              rules={[{ type: 'email', message: '请输入正确的邮箱地址' }]}
+            >
+              <Input
+                prefix={<MailOutlined />}
+                placeholder="邮箱（可选）"
+                size="large"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="username"
+              label="用户名"
               rules={[
-                { required: true, message: '请输入邮箱' },
-                { type: 'email', message: '请输入正确的邮箱地址' }
+                { min: 2, message: '用户名至少2个字符' },
+                { max: 50, message: '用户名最多50个字符' }
               ]}
             >
-              <Input 
-                prefix={<MailOutlined />} 
-                placeholder="请输入邮箱" 
+              <Input
+                prefix={<UserOutlined />}
+                placeholder="用户名（可选）"
                 size="large"
               />
             </Form.Item>
-            
+
             <Form.Item
-              name="password"
-              label="密码"
-              rules={[{ required: true, message: '请输入密码' }]}
+              shouldUpdate={(prev, curr) => prev.email !== curr.email || prev.username !== curr.username}
+              noStyle
             >
-              <Input.Password 
-                placeholder="请输入密码" 
-                size="large"
-              />
+              {({ getFieldValue }) => {
+                const hasIdentifier = Boolean(getFieldValue('email')) || Boolean(getFieldValue('username'));
+                return (
+                  <Form.Item
+                    name="password"
+                    label="密码"
+                    rules={[
+                      { required: hasIdentifier, message: '请输入密码' }
+                    ]}
+                  >
+                    <Input.Password
+                      placeholder="请输入密码"
+                      size="large"
+                    />
+                  </Form.Item>
+                );
+              }}
             </Form.Item>
-            
+
             <Form.Item>
-              <Button 
-                type="primary" 
-                htmlType="submit" 
-                size="large" 
+              <Button
+                type="primary"
+                htmlType="submit"
+                size="large"
                 loading={loading}
                 block
               >

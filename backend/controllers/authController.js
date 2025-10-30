@@ -88,7 +88,7 @@ const registerUser = async (req, res) => {
 // 用户登录
 const loginUser = async (req, res) => {
   try {
-    const { email, phone, password } = req.body;
+    const { email, phone, username, password } = req.body;
 
     // 始终使用MongoDB数据库
     let user;
@@ -96,10 +96,12 @@ const loginUser = async (req, res) => {
       user = await User.findOne({ phone });
     } else if (email) {
       user = await User.findOne({ email });
+    } else if (username) {
+      user = await User.findOne({ username });
     } else {
       return res.status(400).json({
         success: false,
-        message: '请提供邮箱或手机号'
+        message: '请提供邮箱、手机号或用户名'
       });
     }
 
@@ -202,7 +204,8 @@ const adminLogin = async (req, res) => {
 // 获取当前用户信息
 const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
+    const targetUserId = req.userType === 'admin' ? req.user.id : req.user._id;
+    const user = await User.findById(targetUserId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -274,7 +277,7 @@ const refreshToken = async (req, res) => {
 const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const userId = req.user.userId;
+    const userId = req.userType === 'admin' ? req.user.id : req.user._id;
 
     const user = await User.findById(userId);
     if (!user) {
@@ -433,7 +436,7 @@ const verifyEmail = async (req, res) => {
 // 重新发送验证邮件
 const resendVerificationEmail = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.userType === 'admin' ? req.user.id : req.user._id;
     const user = await User.findById(userId);
 
     if (!user) {

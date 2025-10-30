@@ -206,7 +206,7 @@ const createSubscription = async (req, res) => {
   
   try {
     const { plan_id, payment_method, transaction_id, auto_renew = true } = req.body;
-    const userId = req.user.userId; // 从JWT token中获取用户ID
+    const userId = req.userType === 'admin' ? req.user.id : req.user._id; // 从JWT token中获取用户ID
 
     // 获取套餐信息
     const plan = await SubscriptionPlan.findById(plan_id).session(session);
