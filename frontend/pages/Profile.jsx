@@ -185,7 +185,7 @@ const Profile = () => {
                     <Col span={12}>
                       <Statistic
                         title="剩余积分"
-                        value={user.credits}
+                        value={user.credits_balance !== undefined ? user.credits_balance : user.credits}
                         prefix={<WalletOutlined />}
                         valueStyle={{ color: '#52c41a' }}
                       />

@@ -360,12 +360,17 @@ const createSubscription = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
+    // 确保返回完整的用户信息
+    const userResponse = await User.findById(userId).session(session);
+    const userObject = userResponse.toObject();
+    delete userObject.password_hash;
+
     res.status(201).json({
       success: true,
       message: '订阅创建成功',
       data: { 
         subscription,
-        user: updatedUser,
+        user: userObject, // 返回完整的用户对象
         creditRecord
       }
     });

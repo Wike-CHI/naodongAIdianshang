@@ -121,7 +121,13 @@ const Subscription = () => {
         
         // 直接使用后端返回的更新后的用户信息
         if (response.data.data.user) {
-          updateUserInfo(response.data.data.user)
+          // 确保用户对象包含所有必要的字段
+          const updatedUser = {
+            ...user,
+            ...response.data.data.user,
+            credits: response.data.data.user.credits_balance || response.data.data.user.credits || user.credits
+          };
+          updateUserInfo(updatedUser);
         } else {
           // 如果后端没有返回用户信息，则获取更新后的用户信息
           try {
@@ -132,7 +138,13 @@ const Subscription = () => {
             })
             
             if (userResponse.data.success) {
-              updateUserInfo(userResponse.data.data.user)
+              // 确保用户对象包含所有必要的字段
+              const updatedUser = {
+                ...user,
+                ...userResponse.data.data.user,
+                credits: userResponse.data.data.user.credits_balance || userResponse.data.data.user.credits || user.credits
+              };
+              updateUserInfo(updatedUser);
             }
           } catch (error) {
             console.error('获取更新后的用户信息失败:', error)
@@ -143,7 +155,12 @@ const Subscription = () => {
       }
     } catch (error) {
       console.error('订阅失败:', error)
-      message.error('订阅失败，请重试')
+      // 检查是否有响应数据
+      if (error.response && error.response.data) {
+        message.error(error.response.data.message || '订阅失败')
+      } else {
+        message.error('订阅失败，请重试')
+      }
     } finally {
       setLoading(false)
       setSelectedPlan(null)

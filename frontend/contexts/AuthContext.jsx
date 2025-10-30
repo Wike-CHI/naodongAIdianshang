@@ -79,10 +79,19 @@ export const AuthProvider = ({ children }) => {
   }
 
   const updateUserInfo = (userInfo) => {
-    // 合并并持久化用户信息
-    const updatedUser = { ...(user || {}), ...userInfo }
-    setUser(updatedUser)
-    localStorage.setItem('naodong_user', JSON.stringify(updatedUser))
+    // 合并并持久化用户信息，确保不丢失重要字段
+    const updatedUser = { 
+      ...(user || {}), 
+      ...userInfo,
+      // 确保关键字段不被覆盖为undefined
+      credits: userInfo.credits_balance !== undefined ? userInfo.credits_balance : 
+               userInfo.credits !== undefined ? userInfo.credits : 
+               (user ? user.credits : 0),
+      membershipType: userInfo.membershipType !== undefined ? userInfo.membershipType : 
+                      (user ? user.membershipType : 'normal')
+    };
+    setUser(updatedUser);
+    localStorage.setItem('naodong_user', JSON.stringify(updatedUser));
   }
 
   const value = {
