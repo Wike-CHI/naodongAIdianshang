@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const nanobananaService = require('../services/nanobananaIntegration');
 
 // AI模特工具配置数据（实际项目中应该使用数据库）
 const aiModelToolsConfig = {
