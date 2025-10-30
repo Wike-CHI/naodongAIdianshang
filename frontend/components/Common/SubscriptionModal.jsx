@@ -1,26 +1,22 @@
 import React, { useState, useEffect } from 'react'
-import { Modal, Card, Row, Col, Button, Typography, List, Tag, Space, message } from 'antd'
+import { Modal, Card, Row, Col, Button, Typography, List, Tag, Space, message, Spin } from 'antd'
 import { CrownOutlined, CheckOutlined, StarOutlined, WalletOutlined } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import axios from 'axios'
 import { API_ENDPOINTS } from '../../config/api'
 import logger from '../../utils/logger'
+import subscriptionService from '../../services/subscriptionService'
+import creditService from '../../services/creditService'
 
 const { Title, Text } = Typography
 
-// 定义积分套餐的唯一ID
-const creditPackages = [
-  { id: 'pkg-100', credits: 100, price: 10, bonus: 0 },
-  { id: 'pkg-300', credits: 300, price: 25, bonus: 50 },
-  { id: 'pkg-500', credits: 500, price: 40, bonus: 100 },
-  { id: 'pkg-1000', credits: 1000, price: 70, bonus: 300 }
-]
-
 const SubscriptionModal = ({ visible, onClose }) => {
-  const { user, updateCredits } = useAuth()
+  const { user, updateCredits, updateUserInfo } = useAuth()
   const [loading, setLoading] = useState(false)
+  const [packagesLoading, setPackagesLoading] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState(null)
   const [subscriptionPlans, setSubscriptionPlans] = useState([])
+  const [creditPackages, setCreditPackages] = useState([])
 
   // 获取订阅套餐数据
   useEffect(() => {
@@ -103,6 +99,36 @@ const SubscriptionModal = ({ visible, onClose }) => {
     }
   }, [visible])
 
+  // 获取积分套餐数据
+  useEffect(() => {
+    const fetchCreditPackages = async () => {
+      if (!visible || !user) return;
+      
+      setPackagesLoading(true)
+      try {
+        // 修正URL路径，使用正确的API端点
+        const response = await axios.get(`${API_ENDPOINTS.CREDITS.PACKAGES}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
+        
+        if (response.data.success) {
+          setCreditPackages(response.data.data.packages || [])
+        } else {
+          setCreditPackages([])
+        }
+      } catch (error) {
+        console.error('获取积分套餐失败:', error)
+        setCreditPackages([])
+      } finally {
+        setPackagesLoading(false)
+      }
+    }
+
+    fetchCreditPackages()
+  }, [visible, user])
+
   const handleSubscribe = async (plan) => {
     if (!user) {
       message.warning('请先登录')
@@ -113,17 +139,32 @@ const SubscriptionModal = ({ visible, onClose }) => {
     setLoading(true)
 
     try {
-      // 模拟支付过程
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // 调用真实的API创建订阅
+      const subscriptionData = {
+        plan_id: plan._id,
+        payment_method: 'alipay', // 默认支付方式，实际应由用户选择
+        transaction_id: `txn_${Date.now()}`, // 生成交易ID，实际应由支付系统返回
+        auto_renew: true
+      }
       
-      // 模拟支付成功，更新用户状态
-      message.success(`成功订阅${plan.name}！`)
+      const response = await subscriptionService.createSubscription(subscriptionData)
       
-      // 这里应该调用真实的API更新用户会员状态
-      logger.log('订阅成功:', plan)
+      if (response.success) {
+        message.success(`成功订阅${plan.name}！`)
+        
+        // 更新用户状态和积分
+        if (response.data && response.data.user) {
+          // 通过AuthContext更新完整用户信息
+          updateUserInfo(response.data.user)
+          logger.log('订阅成功，用户信息已更新:', response.data.user)
+        }
+      } else {
+        throw new Error(response.message || '订阅失败')
+      }
       
     } catch (error) {
-      message.error('订阅失败，请重试')
+      console.error('订阅失败:', error)
+      message.error(error.message || '订阅失败，请重试')
     } finally {
       setLoading(false)
       setSelectedPlan(null)
@@ -138,15 +179,26 @@ const SubscriptionModal = ({ visible, onClose }) => {
 
     setLoading(true)
     try {
-      // 模拟支付过程
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      // 调用真实的API购买积分套餐
+      const purchaseData = {
+        package_id: pkg._id,
+        payment_method: 'alipay', // 默认支付方式，实际应由用户选择
+        transaction_id: `txn_${Date.now()}` // 生成交易ID，实际应由支付系统返回
+      }
       
-      const totalCredits = pkg.credits + pkg.bonus
-      updateCredits(user.credits + totalCredits)
-      message.success(`成功充值${totalCredits}积分！`)
+      const response = await creditService.purchaseCreditPackage(purchaseData)
+      
+      if (response.success) {
+        const totalCredits = response.data.purchased_credits
+        updateCredits(response.data.user.credits_balance)
+        message.success(`成功充值${totalCredits}积分！`)
+      } else {
+        throw new Error(response.message || '充值失败')
+      }
       
     } catch (error) {
-      message.error('充值失败，请重试')
+      console.error('充值失败:', error)
+      message.error(error.message || '充值失败，请重试')
     } finally {
       setLoading(false)
     }
@@ -318,58 +370,71 @@ const SubscriptionModal = ({ visible, onClose }) => {
           </Row>
         </div>
 
-        {/* 积分充值 */}
-        <div>
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <Title level={3}>
-              <WalletOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
-              积分充值
-            </Title>
-            <Text type="secondary">购买积分，畅享AI生成服务</Text>
-          </div>
+        {/* 积分充值 - 仅对年度会员显示 */}
+        {user && user.role === 'vip' && (
+          <div style={{ marginBottom: '48px' }}>
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <Title level={3}>
+                <WalletOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
+                积分充值
+              </Title>
+              <Text type="secondary">购买积分，畅享AI生成服务</Text>
+            </div>
 
-          <Row gutter={[16, 16]} justify="center">
-            {creditPackages.map((pkg) => (
-              <Col key={pkg.id} xs={12} sm={8} lg={6}>
-                <Card 
-                  size="small"
-                  style={{ textAlign: 'center' }}
-                  hoverable
-                >
-                  <div style={{ marginBottom: '12px' }}>
-                    <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
-                      {pkg.credits}
-                    </div>
-                    <Text type="secondary">积分</Text>
-                    {pkg.bonus > 0 && (
-                      <div>
-                        <Tag color="orange" size="small">
-                          +{pkg.bonus} 赠送
-                        </Tag>
+            {packagesLoading ? (
+              <div style={{ textAlign: 'center', padding: '24px' }}>
+                <Spin />
+                <p>加载积分套餐中...</p>
+              </div>
+            ) : creditPackages.length > 0 ? (
+              <Row gutter={[16, 16]} justify="center">
+                {creditPackages.map((pkg) => (
+                  <Col key={pkg._id} xs={12} sm={8} lg={6}>
+                    <Card 
+                      size="small"
+                      style={{ textAlign: 'center' }}
+                      hoverable
+                    >
+                      <div style={{ marginBottom: '12px' }}>
+                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
+                          {pkg.credits}
+                        </div>
+                        <Text type="secondary">积分</Text>
+                        {pkg.bonus_credits > 0 && (
+                          <div>
+                            <Tag color="orange" size="small">
+                              +{pkg.bonus_credits} 赠送
+                            </Tag>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  
-                  <div style={{ marginBottom: '16px' }}>
-                    <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                      ¥{pkg.price}
-                    </Text>
-                  </div>
+                      
+                      <div style={{ marginBottom: '16px' }}>
+                        <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                          ¥{pkg.price}
+                        </Text>
+                      </div>
 
-                  <Button
-                    type="primary"
-                    size="small"
-                    block
-                    loading={loading}
-                    onClick={() => handleBuyCredits(pkg)}
-                  >
-                    立即充值
-                  </Button>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        </div>
+                      <Button
+                        type="primary"
+                        size="small"
+                        block
+                        loading={loading}
+                        onClick={() => handleBuyCredits(pkg)}
+                      >
+                        立即充值
+                      </Button>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '24px' }}>
+                <p>暂无可用的积分套餐</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 说明信息 */}
         <Card style={{ marginTop: '32px', background: '#fafafa' }}>

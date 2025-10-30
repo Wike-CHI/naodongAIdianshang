@@ -66,6 +66,7 @@ const aiModelToolsAdminRoutes = require('./routes/aiModelToolsAdmin');
 const usersRoutes = require('./routes/users');
 const subscriptionsRoutes = require('./routes/subscriptions');
 const creditsRoutes = require('./routes/credits');
+const creditPackagesRoutes = require('./routes/creditPackages');
 
 app.get('/api/health', (req, res) => {
   const mongoStates = ['disconnected', 'connected', 'connecting', 'disconnecting'];
@@ -85,6 +86,10 @@ app.use('/api/admin/ai-model-tools', aiModelToolsAdminRoutes);
 app.use('/api/admin/users', usersRoutes);
 app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/credits', creditsRoutes);
+app.use('/api/credit-packages', creditPackagesRoutes);
+
+// 用户相关路由（注意：这些路由与 /api/admin/users 不同，是给普通用户使用的）
+app.use('/api/user', usersRoutes);
 
 // 全局错误处理
 app.use((error, req, res, next) => {

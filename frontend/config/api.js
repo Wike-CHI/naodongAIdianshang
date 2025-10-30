@@ -29,11 +29,11 @@ export const API_ENDPOINTS = {
   
   // 订阅相关
   SUBSCRIPTION: {
-    PLANS: `${API_BASE_URL}/api/subscription/plans`,
-    SUBSCRIBE: `${API_BASE_URL}/api/subscription/subscribe`,
-    CURRENT: `${API_BASE_URL}/api/subscription/current`,
-    CANCEL: `${API_BASE_URL}/api/subscription/cancel`,
-    RENEW: `${API_BASE_URL}/api/subscription/renew`
+    PLANS: `${API_BASE_URL}/api/subscriptions/plans`,
+    SUBSCRIBE: `${API_BASE_URL}/api/subscriptions/subscribe`,
+    CURRENT: `${API_BASE_URL}/api/subscriptions/current`,
+    CANCEL: `${API_BASE_URL}/api/subscriptions/cancel`,
+    RENEW: `${API_BASE_URL}/api/subscriptions/renew`
   },
   
   // 工具相关
@@ -62,7 +62,8 @@ export const API_ENDPOINTS = {
     PURCHASE: `${API_BASE_URL}/api/credits/purchase`,
     STATS: `${API_BASE_URL}/api/credits/stats`,
     TYPE_STATS: `${API_BASE_URL}/api/credits/type-stats`,
-    LEADERBOARD: `${API_BASE_URL}/api/credits/leaderboard`
+    LEADERBOARD: `${API_BASE_URL}/api/credits/leaderboard`,
+    PACKAGES: `${API_BASE_URL}/api/credit-packages`
   }
 };
 

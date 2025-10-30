@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const CreditRecord = require('../models/CreditRecord');
 const User = require('../models/User');
 
@@ -6,11 +7,24 @@ const getCreditRecords = async (req, res) => {
   try {
     const { page = 1, limit = 20, type = '' } = req.query;
 
-    const targetUserId = req.userType === 'admin' && req.query.user_id
+    const rawUserId = req.userType === 'admin' && req.query.user_id
       ? req.query.user_id
-      : req.user._id;
+      : req.user?._id;
 
-    const query = { user_id: targetUserId };
+    const normalizedUserId = rawUserId instanceof mongoose.Types.ObjectId
+      ? rawUserId.toString()
+      : String(rawUserId || '');
+
+    if (!mongoose.Types.ObjectId.isValid(normalizedUserId)) {
+      return res.status(400).json({
+        success: false,
+        message: '无效的用户ID'
+      });
+    }
+
+    const targetObjectId = new mongoose.Types.ObjectId(normalizedUserId);
+
+    const query = { user_id: targetObjectId };
     if (type) {
       query.type = type;
     }
@@ -120,13 +134,26 @@ const adjustUserCredits = async (req, res) => {
 // 获取积分统计
 const getCreditStats = async (req, res) => {
   try {
-    const targetUserId = req.userType === 'admin' && req.query.user_id
+    const rawUserId = req.userType === 'admin' && req.query.user_id
       ? req.query.user_id
-      : req.user._id;
+      : req.user?._id;
+
+    const normalizedUserId = rawUserId instanceof mongoose.Types.ObjectId
+      ? rawUserId.toString()
+      : String(rawUserId || '');
+
+    if (!mongoose.Types.ObjectId.isValid(normalizedUserId)) {
+      return res.status(400).json({
+        success: false,
+        message: '无效的用户ID'
+      });
+    }
+
+    const targetObjectId = new mongoose.Types.ObjectId(normalizedUserId);
 
     const stats = await CreditRecord.aggregate([
       {
-        $match: { user_id: targetUserId }
+        $match: { user_id: targetObjectId }
       },
       {
         $group: {
@@ -164,13 +191,26 @@ const getCreditStats = async (req, res) => {
 // 获取积分类型统计
 const getCreditTypeStats = async (req, res) => {
   try {
-    const targetUserId = req.userType === 'admin' && req.query.user_id
+    const rawUserId = req.userType === 'admin' && req.query.user_id
       ? req.query.user_id
-      : req.user._id;
+      : req.user?._id;
+
+    const normalizedUserId = rawUserId instanceof mongoose.Types.ObjectId
+      ? rawUserId.toString()
+      : String(rawUserId || '');
+
+    if (!mongoose.Types.ObjectId.isValid(normalizedUserId)) {
+      return res.status(400).json({
+        success: false,
+        message: '无效的用户ID'
+      });
+    }
+
+    const targetObjectId = new mongoose.Types.ObjectId(normalizedUserId);
 
     const stats = await CreditRecord.aggregate([
       {
-        $match: { user_id: targetUserId }
+        $match: { user_id: targetObjectId }
       },
       {
         $group: {
@@ -214,6 +254,45 @@ const getCreditLeaderboard = async (req, res) => {
     res.status(500).json({
       success: false,
       message: '获取积分排行榜失败'
+    });
+  }
+};
+
+// 获取积分余额
+const getCreditBalance = async (req, res) => {
+  try {
+    const targetUserId = req.userType === 'admin' && req.query.user_id
+      ? req.query.user_id
+      : req.user._id;
+
+    if (!mongoose.Types.ObjectId.isValid(targetUserId)) {
+      return res.status(400).json({
+        success: false,
+        message: '无效的用户ID'
+      });
+    }
+
+    const user = await User.findById(targetUserId).select('credits_balance username email');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        user_id: user._id,
+        username: user.username,
+        credits_balance: user.credits_balance
+      }
+    });
+  } catch (error) {
+    console.error('Get credit balance error:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取积分余额失败'
     });
   }
 };
@@ -341,6 +420,7 @@ const batchAdjustCredits = async (req, res) => {
 
 module.exports = {
   getCreditRecords,
+  getCreditBalance,
   adjustUserCredits,
   getCreditStats,
   getCreditTypeStats,

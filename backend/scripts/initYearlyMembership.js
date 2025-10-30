@@ -14,7 +14,7 @@ const yearlyMembershipPlan = {
   is_yearly: true,
   yearly_price: 299,
   benefits: {
-    monthly_credits: 1000, // 每月1000积分
+    monthly_credits: 500, // 每月500积分
     priority_processing: true,
     advanced_features: true,
     support_level: 'priority',
@@ -32,7 +32,7 @@ const yearlyMembershipPlan = {
     { name: '批量处理', description: '支持批量生成任务', enabled: true },
     { name: '大文件支持', description: '支持最大50MB文件上传', enabled: true },
     { name: '专属客服', description: '优先客服支持', enabled: true },
-    { name: '月度积分', description: '每月1000积分', enabled: true }
+    { name: '月度积分', description: '每月500积分', enabled: true }
   ],
   limitations: {
     daily_generation_limit: null,

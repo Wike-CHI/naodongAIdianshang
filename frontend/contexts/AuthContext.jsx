@@ -220,7 +220,7 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  // 更新用户信息
+  // 更新完整用户信息
   const updateUserInfo = (userInfo) => {
     // 合并并持久化用户信息，确保积分字段一致性
     const updatedUser = normalizeUserObject({ 

@@ -122,6 +122,19 @@ const creditService = {
       console.error('❌ 获取积分排行榜失败:', error);
       throw error;
     }
+  },
+
+  // 购买积分套餐
+  purchaseCreditPackage: async (packageData) => {
+    try {
+      console.log('💰 开始购买积分套餐:', packageData);
+      const response = await apiClient.post('/api/credit-packages/purchase', packageData);
+      console.log('✅ 购买积分套餐成功:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ 购买积分套餐失败:', error);
+      throw error;
+    }
   }
 };
 
