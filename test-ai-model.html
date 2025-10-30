@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI模特生成测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1890ff;
+            text-align: center;
+        }
+        .upload-section {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .upload-box {
+            flex: 1;
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .upload-box:hover {
+            border-color: #1890ff;
+        }
+        .upload-box img {
+            max-width: 100%;
+            max-height: 200px;
+            display: none;
+        }
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+        }
+        button {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #40a9ff;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .result img {
+            max-width: 100%;
+            border-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #1890ff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        .token-section {
+            background: #e6f7ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .token-section textarea {
+            width: 100%;
+            height: 60px;
+            margin-top: 10px;
+            padding: 5px;
+            border-radius: 3px;
+            border: 1px solid #ccc;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI模特生成测试</h1>
+        <p style="text-align: center; color: #666;">上传模特服装图与真人参考照，生成换脸后的AI模特</p>
+        
+        <!-- 认证令牌输入区域 -->
+        <div class="token-section">
+            <h3>认证令牌</h3>
+            <p>请输入测试用的认证令牌（从 backend/test-token.txt 文件中获取）：</p>
+            <textarea id="authToken" placeholder="请输入认证令牌..."></textarea>
+            <button onclick="loadTokenFromFile()">从文件加载令牌</button>
+        </div>
+        
+        <div class="upload-section">
+            <div class="upload-box" id="clothingUpload">
+                <p>模特服装图</p>
+                <img id="clothingImage" alt="服装图预览">
+                <input type="file" id="clothingInput" accept="image/*" style="display: none;">
+            </div>
+            <div class="upload-box" id="faceUpload">
+                <p>真人参考照</p>
+                <img id="faceImage" alt="真人照预览">
+                <input type="file" id="faceInput" accept="image/*" style="display: none;">
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="generateBtn" disabled>生成AI模特</button>
+            <button id="testBackendBtn">测试后端连接</button>
+        </div>
+        
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>AI正在生成中，请稍候...</p>
+        </div>
+        
+        <div class="result" id="result">
+            <!-- 生成结果将显示在这里 -->
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const clothingUpload = document.getElementById('clothingUpload');
+        const faceUpload = document.getElementById('faceUpload');
+        const clothingInput = document.getElementById('clothingInput');
+        const faceInput = document.getElementById('faceInput');
+        const clothingImage = document.getElementById('clothingImage');
+        const faceImage = document.getElementById('faceImage');
+        const generateBtn = document.getElementById('generateBtn');
+        const testBackendBtn = document.getElementById('testBackendBtn');
+        const authToken = document.getElementById('authToken');
+        const loading = document.getElementById('loading');
+        const result = document.getElementById('result');
+        
+        // 上传区域点击事件
+        clothingUpload.addEventListener('click', () => clothingInput.click());
+        faceUpload.addEventListener('click', () => faceInput.click());
+        
+        // 图片预览功能
+        clothingInput.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    clothingImage.src = e.target.result;
+                    clothingImage.style.display = 'block';
+                    checkEnableGenerate();
+                }
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+        
+        faceInput.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    faceImage.src = e.target.result;
+                    faceImage.style.display = 'block';
+                    checkEnableGenerate();
+                }
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+        
+        // 检查是否可以启用生成按钮
+        function checkEnableGenerate() {
+            if (clothingInput.files.length > 0 && faceInput.files.length > 0) {
+                generateBtn.disabled = false;
+            } else {
+                generateBtn.disabled = true;
+            }
+        }
+        
+        // 从文件加载令牌
+        function loadTokenFromFile() {
+            // 在实际使用中，您需要手动将令牌复制到文本框中
+            alert('请手动打开 backend/test-token.txt 文件，复制其中的令牌并粘贴到上面的文本框中。');
+        }
+        
+        // 测试后端连接
+        testBackendBtn.addEventListener('click', async () => {
+            try {
+                const response = await fetch('http://localhost:8080/api/health');
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    result.innerHTML = `<p style="color: green;">✅ 后端服务连接正常</p>`;
+                } else {
+                    result.innerHTML = `<p style="color: red;">❌ 后端服务连接异常</p>`;
+                }
+            } catch (error) {
+                console.error('后端连接测试失败:', error);
+                result.innerHTML = `<p style="color: red;">❌ 后端服务连接失败: ${error.message}</p>`;
+            }
+        });
+        
+        // 生成AI模特
+        generateBtn.addEventListener('click', async () => {
+            if (!clothingInput.files[0] || !faceInput.files[0]) {
+                alert('请先上传两张图片');
+                return;
+            }
+            
+            const token = authToken.value.trim();
+            if (!token) {
+                alert('请输入认证令牌');
+                return;
+            }
+            
+            // 显示加载状态
+            loading.style.display = 'block';
+            result.innerHTML = '';
+            generateBtn.disabled = true;
+            
+            try {
+                // 创建FormData对象
+                const formData = new FormData();
+                formData.append('prompt', "Professional model wearing the clothing, studio lighting, fashion photography");
+                
+                // 添加图片文件
+                formData.append('images', clothingInput.files[0]);
+                formData.append('images', faceInput.files[0]);
+                
+                // 添加选项
+                const options = {
+                    resolution: '1080p',
+                    quantity: 1,
+                    mode: 'fast'
+                };
+                formData.append('options', JSON.stringify(options));
+                
+                // 添加元数据
+                const metadata = {
+                    toolId: 'ai-model',
+                    hasMain: true,
+                    hasReference: true,
+                    faceSwap: true,
+                    faceReferenceProvided: true
+                };
+                formData.append('metadata', JSON.stringify(metadata));
+                
+                // 调用AI服务
+                const response = await fetch('http://localhost:8080/api/ai/generate/ai-model', {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.data && data.data.images && data.data.images.length > 0) {
+                    // 显示生成结果
+                    result.innerHTML = `
+                        <h3>生成成功！</h3>
+                        <img src="${data.data.images[0].public_url || data.data.images[0].data_url}" alt="AI生成的模特" style="max-width: 100%;">
+                        <p style="margin-top: 10px;"><button onclick="downloadImage('${data.data.images[0].public_url || data.data.images[0].data_url}')">下载图片</button></p>
+                    `;
+                } else {
+                    result.innerHTML = `<p style="color: red;">生成失败: ${data.error || '未知错误'}</p>`;
+                }
+            } catch (error) {
+                console.error('生成失败:', error);
+                result.innerHTML = `<p style="color: red;">生成失败: ${error.message}</p>`;
+            } finally {
+                loading.style.display = 'none';
+                generateBtn.disabled = false;
+            }
+        });
+        
+        // 下载图片
+        function downloadImage(url) {
+            if (url) {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'ai-model-result.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+    </script>
+</body>
+</html>

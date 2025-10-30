@@ -183,14 +183,18 @@ export const ToolProvider = ({ children }) => {
     setIsGenerating(true)
 
     try {
+      // 根据不同的工具类型添加特定的选项参数
+      const enhancedOptions = {
+        resolution: params.resolution || '1080p',
+        quantity: params.quantity || 1,
+        mode: params.mode || 'fast',
+        ...getToolSpecificOptions(selectedTool.id, params)
+      };
+
       // 调用真实的AI生成服务
       const result = await aiModelService.generateWithTool(selectedTool.id, {
         ...params,
-        options: {
-          resolution: params.resolution || '1080p',
-          quantity: params.quantity || 1,
-          mode: params.mode || 'fast'
-        }
+        options: enhancedOptions
       })
 
       // 更新用户积分
@@ -217,6 +221,52 @@ export const ToolProvider = ({ children }) => {
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  // 根据工具类型获取特定的选项参数
+  const getToolSpecificOptions = (toolId, params) => {
+    const options = {};
+    
+    switch (toolId) {
+      case 'ai-model':
+        // AI模特生成特定选项
+        if (params.productType) options.product_type = params.productType;
+        if (params.style) options.style = params.style;
+        break;
+        
+      case 'try-on-clothes':
+        // 同版型试衣特定选项
+        if (params.fabricType) options.fabric_type = params.fabricType;
+        if (params.clothingStyle) options.clothing_style = params.clothingStyle;
+        break;
+        
+      case 'glasses-tryon':
+        // 配件试戴特定选项
+        if (params.accessoryCategory) options.accessory_category = params.accessoryCategory;
+        break;
+        
+      case 'pose-variation':
+        // 姿态变换特定选项
+        if (params.poseType) options.pose_type = params.poseType;
+        break;
+        
+      case 'shoe-tryon':
+        // 鞋靴试穿特定选项
+        if (params.shoeType) options.shoe_type = params.shoeType;
+        break;
+        
+      case 'scene-change':
+        // 场景更换特定选项
+        if (params.sceneType) options.scene_type = params.sceneType;
+        break;
+        
+      case 'color-change':
+        // 商品换色特定选项
+        if (params.targetColorName) options.target_color_name = params.targetColorName;
+        break;
+    }
+    
+    return options;
   }
 
   const value = {

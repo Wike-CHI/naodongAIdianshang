@@ -22,7 +22,10 @@ class AIModelService {
   buildFormData(toolId, params = {}) {
     const formData = new FormData();
 
-    formData.append('prompt', params.prompt || '');
+    // 提示词现在是可选的，只有在提供时才添加
+    if (params.prompt && params.prompt.trim().length > 0) {
+      formData.append('prompt', params.prompt);
+    }
 
     const options = {
       resolution: params.options?.resolution || '1080p',

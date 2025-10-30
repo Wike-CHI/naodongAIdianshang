@@ -24,7 +24,8 @@ const FRONTEND_ORIGINS = [
   'http://localhost:3003',
   'http://localhost:8082',
   'http://localhost:8083',
-  'http://localhost:8084'
+  'http://localhost:8084',
+  'http://localhost:52330' // 添加测试页面的端口
 
 ].filter(Boolean);
 
@@ -60,8 +61,9 @@ bootstrapDatabase();
 
 // 引入路由
 const authRoutes = require('./routes/auth');
-const aiGenerationRoutes = require('./routes/aiGeneration');
-const aiToolsRoutes = require('./routes/aiTools');
+const aiToolsRouter = require('./routes/aiTools');
+const aiGenerationRouter = require('./routes/aiGeneration');
+const aiStatsRouter = require('./routes/aiStats'); // 添加这一行
 const aiModelToolsAdminRoutes = require('./routes/aiModelToolsAdmin');
 const usersRoutes = require('./routes/users');
 const subscriptionsRoutes = require('./routes/subscriptions');
@@ -80,8 +82,9 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-app.use('/api/ai', aiGenerationRoutes);
-app.use('/api/admin/ai-tools', aiToolsRoutes);
+app.use('/api/ai-tools', aiToolsRouter);
+app.use('/api/ai', aiGenerationRouter);
+app.use('/api/ai-stats', aiStatsRouter); // 添加这一行
 app.use('/api/admin/ai-model-tools', aiModelToolsAdminRoutes);
 app.use('/api/admin/users', usersRoutes);
 app.use('/api/subscriptions', subscriptionsRoutes);

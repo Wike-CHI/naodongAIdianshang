@@ -1,1 +1,28 @@
-{"items":[{"id":"spec_plan","content":"利用Specify规划项目并更新最新spec文件","status":"completed"},{"id":"mongo_models","content":"配置Mongo连接与模型","status":"completed","note":"已改造 AIGeneration 流程：持久化记录、索引、过期策略与积分扣减"},{"id":"index_cleanup","content":"自动清理旧索引避免冲突","status":"completed"},{"id":"aitool_index_refine","content":"移除AI工具模型重复索引定义","status":"completed"},{"id":"auth_credits_api","content":"迁移认证与积分API","status":"in_progress","note":"登陆失败定位：追加username支持修复表单"},{"id":"subscription_flow","content":"实现订阅与积分扣减","status":"in_progress"},{"id":"aihubmix_service","content":"封装AIHubMix调用管道","status":"todo"},{"id":"generation_cache","content":"实现生成记录与缓存","status":"todo"},{"id":"frontend_state","content":"更新前端身份与积分状态","status":"todo"},{"id":"workspace_ui","content":"改造前端生成工作台","status":"todo"},{"id":"admin_panel","content":"升级后台用户与积分管理","status":"todo"},{"id":"auditing_cleanup","content":"实现生成任务审计与清理","status":"todo"}]}
+{
+  "todos": [
+    {
+      "content": "为 Node 后端创建生产可用 Dockerfile 并处理环境变量",
+      "status": "in_progress"
+    },
+    {
+      "content": "为 React 前端构建生产镜像并配置容器静态服务",
+      "status": "todo"
+    },
+    {
+      "content": "为管理端前端构建 Docker 镜像并配置容器静态服务",
+      "status": "todo"
+    },
+    {
+      "content": "为 FastAPI AI 服务创建 Dockerfile 并安装依赖",
+      "status": "todo"
+    },
+    {
+      "content": "扩展 docker-compose.yml 编排 Mongo、后端、前端、管理端与 AI 服务",
+      "status": "todo"
+    },
+    {
+      "content": "更新部署文档说明 Docker 启动与环境变量",
+      "status": "todo"
+    }
+  ]
+}

@@ -24,7 +24,9 @@ import {
   Typography,
   Divider,
   Alert,
-  Slider
+  Slider,
+  Spin,
+  Empty
 } from 'antd'
 import {
   RobotOutlined,
@@ -39,8 +41,12 @@ import {
   CloseCircleOutlined,
   ExclamationCircleOutlined,
   PlayCircleOutlined,
-  ApiOutlined
+  ApiOutlined,
+  BarChartOutlined,
+  PieChartOutlined
 } from '@ant-design/icons'
+import api from '../services/api'
+import aiStatsApi from '../services/aiStatsApi'
 
 const { Title, Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -50,10 +56,13 @@ const AIModelToolsPage = () => {
   const [loading, setLoading] = useState(false)
   const [tools, setTools] = useState([])
   const [stats, setStats] = useState({})
+  const [toolUsageStats, setToolUsageStats] = useState([])
+  const [creditStats, setCreditStats] = useState([])
   const [selectedRowKeys, setSelectedRowKeys] = useState([])
   const [configModalVisible, setConfigModalVisible] = useState(false)
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false)
   const [previewModalVisible, setPreviewModalVisible] = useState(false)
+  const [statsModalVisible, setStatsModalVisible] = useState(false)
   const [currentTool, setCurrentTool] = useState(null)
   const [form] = Form.useForm()
 
@@ -247,6 +256,24 @@ const AIModelToolsPage = () => {
     }
   }
 
+  // 加载工具使用统计
+  const loadToolUsageStats = async () => {
+    try {
+      setLoading(true)
+      const response = await aiStatsApi.getToolUsageStats(30)
+      if (response.success) {
+        setToolUsageStats(response.data)
+      } else {
+        throw new Error(response.error || '获取统计数据失败')
+      }
+    } catch (error) {
+      console.error('加载工具使用统计失败:', error)
+      message.error('加载工具使用统计失败: ' + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // 切换工具状态
   const handleToggleStatus = async (toolId, enabled) => {
     try {
@@ -313,6 +340,12 @@ const AIModelToolsPage = () => {
     setPreviewModalVisible(true)
   }
 
+  // 打开统计详情
+  const handleOpenStats = async () => {
+    await loadToolUsageStats()
+    setStatsModalVisible(true)
+  }
+
   // 批量启用/禁用
   const handleBatchToggle = (enabled) => {
     Modal.confirm({
@@ -351,7 +384,7 @@ const AIModelToolsPage = () => {
         
         {/* 统计卡片 */}
         <Row gutter={16} style={{ marginBottom: '24px' }}>
-          <Col span={8}>
+          <Col span={6}>
             <Card>
               <Statistic
                 title="总使用次数"
@@ -361,7 +394,7 @@ const AIModelToolsPage = () => {
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Card>
               <Statistic
                 title="总积分消耗"
@@ -371,7 +404,7 @@ const AIModelToolsPage = () => {
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col span={6}>
             <Card>
               <Statistic
                 title="启用工具数"
@@ -379,6 +412,17 @@ const AIModelToolsPage = () => {
                 suffix={`/ ${stats.totalTools}`}
                 prefix={<ApiOutlined />}
                 valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card>
+              <Statistic
+                title="最常用工具"
+                value={toolUsageStats.length > 0 ? 
+                  (hardcodedTools.find(t => t.id === toolUsageStats[0]._id)?.name || toolUsageStats[0]._id) : 
+                  'N/A'}
+                prefix={<BarChartOutlined />}
               />
             </Card>
           </Col>
@@ -409,6 +453,12 @@ const AIModelToolsPage = () => {
               onClick={() => message.success('配置已保存')}
             >
               保存所有配置
+            </Button>
+            <Button 
+              icon={<PieChartOutlined />}
+              onClick={handleOpenStats}
+            >
+              查看统计
             </Button>
           </Space>
         </Card>
@@ -606,6 +656,57 @@ const AIModelToolsPage = () => {
             <p>{currentTool.description}</p>
           </div>
         )}
+      </Modal>
+
+      {/* 统计详情模态框 */}
+      <Modal
+        title="AI工具使用统计"
+        open={statsModalVisible}
+        onCancel={() => setStatsModalVisible(false)}
+        footer={null}
+        width={800}
+      >
+        <Spin spinning={loading}>
+          {toolUsageStats.length > 0 ? (
+            <Table
+              dataSource={toolUsageStats}
+              pagination={false}
+              rowKey="_id"
+              columns={[
+                {
+                  title: '工具名称',
+                  dataIndex: '_id',
+                  key: '_id',
+                  render: (text) => {
+                    const tool = hardcodedTools.find(t => t.id === text);
+                    return tool ? tool.name : text;
+                  }
+                },
+                {
+                  title: '使用次数',
+                  dataIndex: 'total',
+                  key: 'total',
+                  sorter: (a, b) => a.total - b.total
+                },
+                {
+                  title: '积分消耗',
+                  dataIndex: 'credits',
+                  key: 'credits',
+                  sorter: (a, b) => a.credits - b.credits,
+                  render: (text) => <span style={{ color: '#cf1322' }}>{text}</span>
+                },
+                {
+                  title: '平均处理时间(秒)',
+                  dataIndex: 'avg_time',
+                  key: 'avg_time',
+                  sorter: (a, b) => a.avg_time - b.avg_time
+                }
+              ]}
+            />
+          ) : (
+            <Empty description="暂无统计数据" />
+          )}
+        </Spin>
       </Modal>
     </div>
   )

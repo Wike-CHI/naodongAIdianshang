@@ -60,7 +60,7 @@ async function ensureModelIndexes(model) {
     console.error(`模型 ${model.modelName} 初始化错误:`, error.message);
     
     // 如果是索引冲突错误，尝试删除所有索引然后重新初始化
-    if (error?.code === 85 || error?.codeName === 'IndexOptionsConflict' || error?.code === 86 || error?.codeName === 'IndexBuildAborted') {
+    if (error?.code === 85 || error?.codeName === 'IndexOptionsConflict' || error?.code === 86 || error?.codeName === 'IndexBuildAborted' || error?.code === 276) {
       try {
         console.log(`尝试删除 ${model.modelName} 的所有索引...`);
         await model.collection.dropIndexes();
@@ -69,10 +69,13 @@ async function ensureModelIndexes(model) {
         console.log(`成功重新初始化 ${model.modelName} 的索引`);
       } catch (reinitError) {
         console.error(`重新初始化 ${model.modelName} 索引失败:`, reinitError.message);
-        throw error; // 抛出原始错误
+        // 即使重新初始化失败，也不抛出错误，继续执行
+        return;
       }
     } else {
-      throw error; // 抛出其他类型的错误
+      // 对于其他类型的错误，记录但不中断程序执行
+      console.warn(`模型 ${model.modelName} 初始化警告:`, error.message);
+      return;
     }
   }
 }
@@ -96,7 +99,12 @@ async function initializeModels() {
     } else {
       console.error('[startup] 初始化模型失败:', error);
     }
-    throw error;
+    // 即使模型初始化失败，也继续启动服务
+    if (typeof logger.warn === 'function') {
+      logger.warn('⚠️ 模型初始化失败，但服务将继续启动');
+    } else {
+      console.warn('[startup] 模型初始化失败，但服务将继续启动');
+    }
   }
 }
 

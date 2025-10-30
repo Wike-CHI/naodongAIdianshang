@@ -1,67 +1,16 @@
-# 脑洞AI - 多功能AI生成工具平台
-
-基于React + Ant Design开发的AI生成工具前端应用，严格按照产品需求文档和原型图设计。
-
-## 功能特性
-
-- 🎨 **多种AI工具**: 支持AI模特、试衣、换色、场景更换等9种AI生成工具
-- 👤 **用户系统**: 支持微信登录、手机号登录、账号密码登录
-- 💰 **积分系统**: 积分充值、消费记录、会员折扣
-- 👑 **会员服务**: VIP会员特权、订阅管理
-- 📱 **响应式设计**: 支持桌面端、平板、移动端
-- 🔄 **实时生成**: 模拟AI生成过程，支持历史记录
-
-## 技术栈
-
-- **前端框架**: React 18
-- **UI组件库**: Ant Design 5
-- **路由管理**: React Router 6
-- **构建工具**: Vite 5
-- **状态管理**: React Context + Hooks
-- **样式方案**: CSS Modules + Ant Design
-
-## 项目结构
-
-```
-frontend/
-├── components/          # 组件目录
-│   ├── Layout/         # 布局组件
-│   ├── Common/         # 通用组件
-│   └── User/           # 用户相关组件
-├── contexts/           # Context状态管理
-├── pages/              # 页面组件
-├── services/           # API服务和Mock数据
-└── utils/              # 工具函数
-```
+# 脑洞AI电商项目
 
 ## 快速开始
 
-### 安装依赖
-
-```bash
-npm install
-```
-
-### 启动开发服务器
-
-```bash
-npm run dev
-```
-
-访问 http://localhost:3000 查看应用
-
-### 一键启动全部服务（前端 + 管理后台 + Node 后端 + FastAPI）
-
-在根目录依次安装依赖后：
+安装依赖：
 
 ```bash
 npm install
 npm install --prefix backend
 npm install --prefix admin
-pip install -r ai_service/requirements.txt
 ```
 
-即可使用以下命令并行启动四个服务：
+即可使用以下命令并行启动三个服务：
 
 ```bash
 npm run dev:all
@@ -72,7 +21,6 @@ npm run dev:all
 - 用户前端（Vite，端口 5173）
 - Node 后端（Express，端口 8080）
 - 管理后台（Vite，端口 8082）
-- FastAPI 中间层（Uvicorn，端口 9001）
 
 请确保 `.env` 中配置了 `AIHUBMIX_API_KEY` 等必要环境变量。
 

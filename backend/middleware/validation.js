@@ -183,7 +183,7 @@ const schemas = {
   }),
 
   aiGenerate: Joi.object({
-    prompt: Joi.string().allow('', null).optional(),
+    prompt: Joi.string().allow('', null).optional(), // 将提示词设置为可选
     options: Joi.object({
       resolution: Joi.string().valid('0.5k', '1080p', '2k').default('1080p'),
       quantity: Joi.number().integer().min(1).max(4).default(1),
