@@ -66,9 +66,9 @@ const Subscription = () => {
       try {
         console.log('👤 获取用户订阅信息');
         const subscriptionResponse = await subscriptionService.getUserSubscription();
-        if (subscriptionResponse?.success) {
-          const validatedSubscription = validateApiResponse(subscriptionResponse.data, 'subscription');
-          setActiveSubscription(validatedSubscription);
+        if (subscriptionResponse?.success !== false) {
+          const validatedSubscription = validateApiResponse(subscriptionResponse, 'subscription');
+          setActiveSubscription(validatedSubscription || null);
           console.log('✅ 获取用户订阅信息成功:', validatedSubscription);
         } else {
           console.log('ℹ️ 用户当前没有活跃订阅');
@@ -117,7 +117,7 @@ const Subscription = () => {
       if (response?.success) {
         console.log('✅ 订阅成功:', response);
         // 验证API响应
-        const validatedData = validateApiResponse(response.data, 'subscription');
+        const validatedData = validateApiResponse(response, 'subscription');
         
         // 更新用户信息（积分和会员状态）
         if (validatedData.user) {

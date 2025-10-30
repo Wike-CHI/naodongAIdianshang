@@ -19,6 +19,9 @@ router.delete('/plans/:id', authenticateToken, requireAdmin, validate(schemas.id
 // 获取用户订阅列表
 router.get('/', authenticateToken, validate(schemas.pagination), subscriptionController.getUserSubscriptions);
 
+// 获取当前用户订阅信息
+router.get('/current', authenticateToken, subscriptionController.getCurrentUserSubscription);
+
 // 创建订阅
 router.post('/', authenticateToken, validate(schemas.createSubscription), subscriptionController.createSubscription);
 

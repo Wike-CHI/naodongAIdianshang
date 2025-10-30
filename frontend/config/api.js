@@ -30,10 +30,11 @@ export const API_ENDPOINTS = {
   // 订阅相关
   SUBSCRIPTION: {
     PLANS: `${API_BASE_URL}/api/subscriptions/plans`,
-    SUBSCRIBE: `${API_BASE_URL}/api/subscriptions/subscribe`,
+    CREATE: `${API_BASE_URL}/api/subscriptions`,
+    LIST: `${API_BASE_URL}/api/subscriptions`,
     CURRENT: `${API_BASE_URL}/api/subscriptions/current`,
-    CANCEL: `${API_BASE_URL}/api/subscriptions/cancel`,
-    RENEW: `${API_BASE_URL}/api/subscriptions/renew`
+    CANCEL: (id) => `${API_BASE_URL}/api/subscriptions/${id}/cancel`,
+    RENEW: (id) => `${API_BASE_URL}/api/subscriptions/${id}/renew`
   },
   
   // 工具相关

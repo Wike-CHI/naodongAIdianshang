@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Modal, Card, Row, Col, Button, Typography, List, Tag, Space, message, Spin } from 'antd'
-import { CrownOutlined, CheckOutlined, StarOutlined, WalletOutlined } from '@ant-design/icons'
+import { Modal, Card, Row, Col, Button, Typography, List, Tag, Space, message, Spin, Alert } from 'antd'
+import { CrownOutlined, CheckOutlined, StarOutlined, WalletOutlined, InfoCircleOutlined } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import axios from 'axios'
 import { API_ENDPOINTS } from '../../config/api'
@@ -17,6 +17,7 @@ const SubscriptionModal = ({ visible, onClose }) => {
   const [selectedPlan, setSelectedPlan] = useState(null)
   const [subscriptionPlans, setSubscriptionPlans] = useState([])
   const [creditPackages, setCreditPackages] = useState([])
+  const [isYearlyMember, setIsYearlyMember] = useState(false)
 
   // 获取订阅套餐数据
   useEffect(() => {
@@ -114,13 +115,17 @@ const SubscriptionModal = ({ visible, onClose }) => {
         })
         
         if (response.data.success) {
-          setCreditPackages(response.data.data.packages || [])
+          const { packages = [], isYearlyMember = false } = response.data.data || {}
+          setCreditPackages(packages)
+          setIsYearlyMember(isYearlyMember)
         } else {
           setCreditPackages([])
+          setIsYearlyMember(Boolean(user?.membershipType === 'vip'))
         }
       } catch (error) {
         console.error('获取积分套餐失败:', error)
         setCreditPackages([])
+        setIsYearlyMember(Boolean(user?.membershipType === 'vip'))
       } finally {
         setPackagesLoading(false)
       }
@@ -371,70 +376,80 @@ const SubscriptionModal = ({ visible, onClose }) => {
         </div>
 
         {/* 积分充值 - 仅对年度会员显示 */}
-        {user && user.role === 'vip' && (
-          <div style={{ marginBottom: '48px' }}>
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-              <Title level={3}>
-                <WalletOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
-                积分充值
-              </Title>
-              <Text type="secondary">购买积分，畅享AI生成服务</Text>
-            </div>
-
-            {packagesLoading ? (
-              <div style={{ textAlign: 'center', padding: '24px' }}>
-                <Spin />
-                <p>加载积分套餐中...</p>
-              </div>
-            ) : creditPackages.length > 0 ? (
-              <Row gutter={[16, 16]} justify="center">
-                {creditPackages.map((pkg) => (
-                  <Col key={pkg._id} xs={12} sm={8} lg={6}>
-                    <Card 
-                      size="small"
-                      style={{ textAlign: 'center' }}
-                      hoverable
-                    >
-                      <div style={{ marginBottom: '12px' }}>
-                        <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
-                          {pkg.credits}
-                        </div>
-                        <Text type="secondary">积分</Text>
-                        {pkg.bonus_credits > 0 && (
-                          <div>
-                            <Tag color="orange" size="small">
-                              +{pkg.bonus_credits} 赠送
-                            </Tag>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div style={{ marginBottom: '16px' }}>
-                        <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>
-                          ¥{pkg.price}
-                        </Text>
-                      </div>
-
-                      <Button
-                        type="primary"
-                        size="small"
-                        block
-                        loading={loading}
-                        onClick={() => handleBuyCredits(pkg)}
-                      >
-                        立即充值
-                      </Button>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '24px' }}>
-                <p>暂无可用的积分套餐</p>
-              </div>
-            )}
+        <div style={{ marginBottom: '48px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <Title level={3}>
+              <WalletOutlined style={{ color: '#52c41a', marginRight: '8px' }} />
+              积分充值
+            </Title>
+            <Text type="secondary">购买积分，畅享AI生成服务</Text>
           </div>
-        )}
+
+          {!isYearlyMember && (
+            <Alert
+              type="info"
+              showIcon
+              icon={<InfoCircleOutlined />}
+              message="提示"
+              description="积分套餐为年度会员专享购买权限，您可以先升级年度会员再进行充值。"
+              style={{ marginBottom: '24px' }}
+            />
+          )}
+
+          {packagesLoading ? (
+            <div style={{ textAlign: 'center', padding: '24px' }}>
+              <Spin />
+              <p>加载积分套餐中...</p>
+            </div>
+          ) : creditPackages.length > 0 ? (
+            <Row gutter={[16, 16]} justify="center">
+              {creditPackages.map((pkg) => (
+                <Col key={pkg._id} xs={12} sm={8} lg={6}>
+                  <Card 
+                    size="small"
+                    style={{ textAlign: 'center' }}
+                    hoverable
+                  >
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#52c41a' }}>
+                        {pkg.credits}
+                      </div>
+                      <Text type="secondary">积分</Text>
+                      {pkg.bonus_credits > 0 && (
+                        <div>
+                          <Tag color="orange" size="small">
+                            +{pkg.bonus_credits} 赠送
+                          </Tag>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div style={{ marginBottom: '16px' }}>
+                      <Text style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                        ¥{pkg.price}
+                      </Text>
+                    </div>
+
+                    <Button
+                      type="primary"
+                      size="small"
+                      block
+                      loading={loading}
+                      disabled={!isYearlyMember}
+                      onClick={() => handleBuyCredits(pkg)}
+                    >
+                      {isYearlyMember ? '立即充值' : '年度会员专享'}
+                    </Button>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '24px' }}>
+              <p>暂无可用的积分套餐</p>
+            </div>
+          )}
+        </div>
 
         {/* 说明信息 */}
         <Card style={{ marginTop: '32px', background: '#fafafa' }}>

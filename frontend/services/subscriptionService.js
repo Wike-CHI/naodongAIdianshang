@@ -76,7 +76,7 @@ const subscriptionService = {
   createSubscription: async (subscriptionData) => {
     try {
       console.log('💳 开始创建订阅:', subscriptionData);
-      const response = await apiClient.post('/api/subscriptions', subscriptionData);
+      const response = await apiClient.post(API_ENDPOINTS.SUBSCRIPTION.CREATE, subscriptionData);
       console.log('✅ 创建订阅成功:', response);
       return response;
     } catch (error) {
@@ -89,7 +89,7 @@ const subscriptionService = {
   cancelSubscription: async (subscriptionId) => {
     try {
       console.log('🚫 开始取消订阅:', subscriptionId);
-      const response = await apiClient.post(`/api/subscriptions/${subscriptionId}/cancel`);
+      const response = await apiClient.post(API_ENDPOINTS.SUBSCRIPTION.CANCEL(subscriptionId));
       console.log('✅ 取消订阅成功:', response);
       return response;
     } catch (error) {
@@ -102,7 +102,7 @@ const subscriptionService = {
   renewSubscription: async (subscriptionId, renewData) => {
     try {
       console.log('🔄 开始续费订阅:', subscriptionId, renewData);
-      const response = await apiClient.post(`/api/subscriptions/${subscriptionId}/renew`, renewData);
+      const response = await apiClient.post(API_ENDPOINTS.SUBSCRIPTION.RENEW(subscriptionId), renewData);
       console.log('✅ 续费订阅成功:', response);
       return response;
     } catch (error) {
@@ -115,7 +115,8 @@ const subscriptionService = {
   getUserSubscription: async () => {
     try {
       console.log('👤 获取用户订阅信息');
-      const response = await apiClient.get('/api/user/subscription');
+      // 使用正确的API端点获取当前用户订阅信息
+      const response = await apiClient.get(API_ENDPOINTS.SUBSCRIPTION.CURRENT);
       console.log('✅ 获取用户订阅信息成功:', response);
       return response;
     } catch (error) {

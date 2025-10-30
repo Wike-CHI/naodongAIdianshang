@@ -3,26 +3,22 @@ const User = require('../models/User');
 const CreditRecord = require('../models/CreditRecord');
 const Subscription = require('../models/Subscription');
 
-// 获取积分套餐列表（仅限年度会员）
+// 获取积分套餐列表（显示给所有会员类型，但只有年度会员可购买）
 const getCreditPackages = async (req, res) => {
   try {
-    // 检查用户是否为年度会员
     const userId = req.userType === 'admin' ? req.user.id : req.user._id;
     const currentSubscription = await Subscription.getCurrentSubscription(userId);
-    
-    // 如果用户不是年度会员，返回空列表
-    if (!currentSubscription || !currentSubscription.is_yearly_member) {
-      return res.json({
-        success: true,
-        data: { packages: [] }
-      });
-    }
+    const isYearlyMember = Boolean(currentSubscription && currentSubscription.is_yearly_member);
 
     const packages = await CreditPackage.find({ active: true }).sort({ sort_order: 1, price: 1 });
 
     res.json({
       success: true,
-      data: { packages }
+      data: {
+        packages,
+        isYearlyMember,
+        notice: isYearlyMember ? null : '只有年度会员才能购买积分套餐'
+      }
     });
   } catch (error) {
     console.error('Get credit packages error:', error);

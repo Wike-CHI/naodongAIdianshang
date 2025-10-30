@@ -124,25 +124,27 @@ export const validateApiResponse = (response, expectedType) => {
     throw new Error('Invalid API response');
   }
 
-  if (!response.success) {
+  if (response.success === false) {
     throw new Error(response.message || 'API request failed');
   }
 
-  if (!response.data) {
+  const payload = response.data !== undefined ? response.data : response;
+
+  if (!payload || typeof payload !== 'object') {
     throw new Error('Missing data in API response');
   }
 
   switch (expectedType) {
     case 'user':
-      return validateUserObject(response.data.user || response.data);
+      return validateUserObject(payload.user || payload);
     case 'subscription':
-      return validateSubscriptionObject(response.data.subscription || response.data);
+      return validateSubscriptionObject(payload.subscription || payload);
     case 'plan':
-      return validateSubscriptionPlanObject(response.data.plan || response.data);
+      return validateSubscriptionPlanObject(payload.plan || payload);
     case 'creditRecord':
-      return validateCreditRecordObject(response.data.record || response.data);
+      return validateCreditRecordObject(payload.record || payload);
     default:
-      return response.data;
+      return payload;
   }
 };
 

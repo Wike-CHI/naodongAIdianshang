@@ -696,12 +696,35 @@ const batchUpdateSubscriptions = async (req, res) => {
   }
 };
 
+// 获取当前用户订阅信息
+const getCurrentUserSubscription = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    console.log('获取当前用户订阅信息:', userId);
+
+    const subscription = await Subscription.getCurrentSubscription(userId);
+    console.log('当前用户订阅信息:', subscription);
+    
+    res.json({
+      success: true,
+      data: { subscription }
+    });
+  } catch (error) {
+    console.error('Get current user subscription error:', error);
+    res.status(500).json({
+      success: false,
+      message: '获取订阅信息失败'
+    });
+  }
+};
+
 module.exports = {
   getSubscriptionPlans,
   createSubscriptionPlan,
   updateSubscriptionPlan,
   deleteSubscriptionPlan,
   getUserSubscriptions,
+  getCurrentUserSubscription,
   createSubscription,
   cancelSubscription,
   renewSubscription,

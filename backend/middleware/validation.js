@@ -134,6 +134,13 @@ const schemas = {
     auto_renew: Joi.boolean().optional()
   }),
 
+  // 积分套餐购买验证模式
+  purchaseCreditPackage: Joi.object({
+    package_id: Joi.string().required(),
+    payment_method: Joi.string().valid('alipay', 'wechat', 'stripe', 'paypal', 'admin').required(),
+    transaction_id: Joi.string().required()
+  }),
+
   // 续费订阅验证模式
   renewSubscription: Joi.object({
     payment_method: Joi.string().valid('alipay', 'wechat', 'stripe', 'paypal', 'admin').required(),
