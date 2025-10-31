@@ -10,12 +10,12 @@ const CreditRecord = require('../models/CreditRecord');
 // 导入新的AI模型服务
 const aiModelService = require('./aiModelService');
 
-const fetchImpl = typeof fetch === 'function' ? fetch : (...args) => import('node-fetch').then(({ default: nodeFetch }) => nodeFetch(...args));
+const nanobananaIntegration = require('./nanobananaIntegration');
 
-const AI_SERVICE_BASE_URL = process.env.AI_SERVICE_BASE_URL || 'http://localhost:9001';
 const USER_ASSET_LIMIT = parseInt(process.env.USER_ASSET_LIMIT || '200', 10);
 const USER_ASSET_SLICE = Number.isFinite(USER_ASSET_LIMIT) && USER_ASSET_LIMIT > 0 ? -USER_ASSET_LIMIT : -200;
 
+// 隐藏姿态变换功能
 const TOOL_CATALOG = {
   'ai-model': {
     name: 'AI模特生成',
@@ -47,17 +47,19 @@ const TOOL_CATALOG = {
   },
   'glasses-tryon': {
     name: '配件试戴',
-    description: '眼镜、帽饰等配件的试戴可视化',
+    description: '眼镜试戴效果图生成',
     type: 'image_generation',
     category: '创意生成',
     creditCost: 10,
     tags: ['accessory', 'face', 'closeup'],
     promptTemplate: '模特佩戴{accessory_type}，面部特写，自然表情，高清质感',
     defaultOptions: {
-      accessory_type: '时尚配饰',
+      accessory_type: '眼镜',
       accessory_category: '眼镜'
     }
   },
+  // 隐藏姿态变换功能
+  /*
   'pose-variation': {
     name: '姿态变换',
     description: '在保持人物特征的基础上调整姿态',
@@ -71,6 +73,7 @@ const TOOL_CATALOG = {
       pose_type: '站立'
     }
   },
+  */
   'shoe-tryon': {
     name: '鞋靴试穿',
     description: '鞋靴电商穿着效果图生成',
@@ -211,8 +214,8 @@ const generateDetailedPrompt = (body, files, catalogConfig, options) => {
     fabric_description: options.fabric_description || defaultOptions.fabric_description || '高品质面料',
     fabric_type: options.fabric_type || defaultOptions.fabric_type || '棉质',
     clothing_style: options.clothing_style || defaultOptions.clothing_style || '修身',
-    accessory_type: options.accessory_type || defaultOptions.accessory_type || '时尚配饰',
-    accessory_category: options.accessory_category || defaultOptions.accessory_category || '眼镜',
+    accessory_type: '眼镜', // 固定为眼镜
+    accessory_category: '眼镜', // 固定为眼镜
     pose_description: options.pose_description || defaultOptions.pose_description || '自然动态姿态',
     pose_type: options.pose_type || defaultOptions.pose_type || '站立',
     shoe_description: options.shoe_description || defaultOptions.shoe_description || '潮流鞋靴',
@@ -246,18 +249,20 @@ const generateDetailedPrompt = (body, files, catalogConfig, options) => {
       break;
       
     case 'glasses-tryon':
-      // 配件试戴 - 根据配件类型生成描述
-      if (options.accessory_category) {
-        placeholderValues.accessory_type = options.accessory_category;
-      }
+      // 配件试戴 - 固定为眼镜类型
+      placeholderValues.accessory_type = '眼镜';
+      placeholderValues.accessory_category = '眼镜';
       break;
       
+    // 隐藏姿态变换功能
+    /*
     case 'pose-variation':
       // 姿态变换 - 根据姿态类型生成描述
       if (options.pose_type) {
         placeholderValues.pose_description = options.pose_type;
       }
       break;
+    */
       
     case 'shoe-tryon':
       // 鞋靴试穿 - 根据鞋类生成描述
@@ -296,76 +301,32 @@ const generateDetailedPrompt = (body, files, catalogConfig, options) => {
   return userPrompt;
 };
 
-const buildFastApiPayload = (body, files, catalogConfig) => {
-  let options = {};
-  let metadata = {};
-
-  if (body.options) {
-    try {
-      options = typeof body.options === 'string' ? JSON.parse(body.options) : body.options;
-    } catch (error) {
-      throw new Error('选项参数格式错误，必须为JSON字符串');
-    }
+const buildServiceOptions = (body) => {
+  if (!body?.options) {
+    return {};
   }
 
-  if (body.metadata) {
-    try {
-      metadata = typeof body.metadata === 'string' ? JSON.parse(body.metadata) : body.metadata;
-    } catch (error) {
-      throw new Error('metadata 参数格式错误，必须为JSON字符串');
-    }
+  try {
+    return typeof body.options === 'string' ? JSON.parse(body.options) : body.options;
+  } catch (error) {
+    throw new Error('选项参数格式错误，必须为JSON字符串');
   }
-
-  const resolutionKey = options.resolution || '1080p';
-  const resolution = RESOLUTION_PRESETS[resolutionKey] || RESOLUTION_PRESETS['1080p'];
-
-  // 生成更精细的提示词
-  const userPrompt = generateDetailedPrompt(body, files, catalogConfig, options);
-
-  return {
-    user_prompt: userPrompt,
-    options: {
-      ...options,
-      resolution: resolutionKey,
-      resolution_detail: resolution,
-      quantity: Number(options.quantity) || 1
-    },
-    images: mapFilesToPayload(files),
-    metadata: {
-      resolution,
-      origin: 'node-backend',
-      ...metadata
-    }
-  };
 };
 
-const callFastApiService = async (toolKey, payload) => {
-  const response = await fetchImpl(`${AI_SERVICE_BASE_URL}/generate/${toolKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const errorPayload = await response.json().catch(() => ({}));
-    const message = errorPayload?.detail || errorPayload?.error || 'AI服务调用失败';
-    const status = response.status;
-    throw new Error(`AI服务错误(${status}): ${message}`);
+const buildServiceMetadata = (body) => {
+  if (!body?.metadata) {
+    return {};
   }
 
-  const result = await response.json();
-  if (!result.success) {
-    throw new Error(result.error || 'AI服务返回失败状态');
+  try {
+    return typeof body.metadata === 'string' ? JSON.parse(body.metadata) : body.metadata;
+  } catch (error) {
+    throw new Error('metadata 参数格式错误，必须为JSON字符串');
   }
-
-  return result;
 };
 
-const buildUserAssetDocuments = (savedImages, fastApiResult, generationRecord, toolKey) => {
+const buildUserAssetDocuments = (savedImages, generationRecord, toolKey) => {
   const now = new Date();
-  const resolutionMeta = fastApiResult.metadata?.resolution || {};
 
   return savedImages.map((imageMeta, index) => ({
     generation_id: generationRecord._id,
@@ -373,9 +334,9 @@ const buildUserAssetDocuments = (savedImages, fastApiResult, generationRecord, t
     tool_id: generationRecord.tool_id,
     public_url: imageMeta.publicUrl,
     file_name: imageMeta.fileName,
-    mime_type: fastApiResult.images[index]?.mime_type || 'image/png',
-    width: resolutionMeta.width,
-    height: resolutionMeta.height,
+    mime_type: imageMeta.mimeType || 'image/png',
+    width: imageMeta.width,
+    height: imageMeta.height,
     index,
     created_at: now,
     expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000)
@@ -388,7 +349,6 @@ const generateWithTool = async ({ toolKey, userId, body, files }) => {
     throw new Error(`暂不支持的工具类型: ${toolKey}`);
   }
 
-  // 添加工具标识符到配置中
   catalogConfig.identifier = toolKey;
 
   const userDoc = await User.findById(userId);
@@ -401,44 +361,77 @@ const generateWithTool = async ({ toolKey, userId, body, files }) => {
   }
 
   const aiToolDoc = await ensureAiToolRecord(toolKey);
-  
-  // 特殊处理AI模特生成功能
+
   if (toolKey === 'ai-model') {
     return await generateAIModelImage({ toolKey, userId, body, files, catalogConfig, aiToolDoc });
   }
 
-  // 原有的处理逻辑
-  const payload = buildFastApiPayload(body, files, catalogConfig);
-  payload.metadata = {
-    ...(payload.metadata || {}),
-    userId,
-    requestId: `${toolKey}-${Date.now()}`
+  const options = buildServiceOptions(body);
+  const metadata = buildServiceMetadata(body);
+  const prompt = generateDetailedPrompt(body, files, catalogConfig, options);
+
+  const payload = {
+    prompt,
+    options,
+    images: mapFilesToPayload(files),
+    metadata: {
+      ...metadata,
+      userId,
+      requestId: `${toolKey}-${Date.now()}`
+    }
   };
 
-  const fastApiResult = await callFastApiService(toolKey, payload);
+  const providerResult = await nanobananaIntegration.generateImage(toolKey, payload);
 
-  const dataUrls = fastApiResult.images.map((image) => `data:${image.mime_type};base64,${image.data}`);
-  const savedImages = fastApiResult.images.map((image) => saveImageToDisk(image.data, image.mime_type, toolKey));
+  const normalizedImages = (providerResult.images || []).map((image, index) => {
+    const mimeType = image.mime_type || image.mimeType || 'image/png';
+    const base64Data = image.data || image.data_base64 || image.base64;
+    const dataUrl = image.data_url || (base64Data ? `data:${mimeType};base64,${base64Data}` : undefined);
 
-  const session = await mongoose.startSession();
+    return {
+      index,
+      mimeType,
+      base64Data,
+      dataUrl,
+      width: image.width,
+      height: image.height
+    };
+  });
+
+  if (!normalizedImages.length) {
+    throw new Error('生成服务未返回任何图像');
+  }
+
+  const savedImages = normalizedImages.map((image) => {
+    const stored = saveImageToDisk(image.base64Data, image.mimeType, toolKey);
+    return {
+      ...stored,
+      mimeType: image.mimeType,
+      width: image.width,
+      height: image.height
+    };
+  });
+
+  const dataUrls = normalizedImages.map((image) => image.dataUrl || `data:${image.mimeType};base64,${image.base64Data}`);
+
+  const promptMetadata = providerResult.metadata || {};
+  const transactionSession = await mongoose.startSession();
   let generationRecord;
 
   try {
-    await session.withTransaction(async () => {
-      // 更新用户积分
+    await transactionSession.withTransaction(async () => {
       const updatedUser = await User.findByIdAndUpdate(
         userId,
         {
           $inc: { credits_balance: -catalogConfig.creditCost }
         },
-        { new: true, session }
+        { new: true, session: transactionSession }
       );
 
       if (!updatedUser || updatedUser.credits_balance < 0) {
         throw new Error('积分扣减失败或积分不足');
       }
 
-      // 记录积分消费明细
       await CreditRecord.create([
         {
           user_id: userId,
@@ -450,68 +443,65 @@ const generateWithTool = async ({ toolKey, userId, body, files }) => {
           metadata: {
             tool_key: toolKey,
             credit_cost: catalogConfig.creditCost,
-            generation_id: null // 将在后面更新
+            generation_id: null
           }
         }
-      ], { session });
+      ], { session: transactionSession });
 
-      // 创建生成记录
       generationRecord = await AIGeneration.create([{
         user_id: userId,
         tool_key: toolKey,
         tool_id: aiToolDoc._id,
         input_data: {
-          prompt: payload.user_prompt,
-          options: payload.options,
+          prompt,
+          options,
           files: payload.images.map(({ file_name, role, mime_type }) => ({ file_name, role, mime_type }))
         },
         output_data: {
           images: savedImages,
           data_urls: dataUrls,
-          text_outputs: fastApiResult.text_outputs || []
+          text_outputs: providerResult.text_outputs || []
         },
         status: 'completed',
         credits_used: catalogConfig.creditCost,
-        processing_time: Math.round((fastApiResult.timing_ms || 0) / 1000),
+        processing_time: Math.round((providerResult.timing_ms || 0) / 1000),
         metadata: {
-          prompt: fastApiResult.built_prompt,
-          model_id: fastApiResult.metadata?.model_id,
-          aspect_ratio: fastApiResult.metadata?.aspect_ratio,
-          resolution: fastApiResult.metadata?.resolution
+          prompt: promptMetadata.prompt || prompt,
+          model_id: promptMetadata.model_id,
+          aspect_ratio: promptMetadata.aspect_ratio,
+          resolution: promptMetadata.resolution
         },
         error_message: null
-      }], { session });
+      }], { session: transactionSession });
 
       generationRecord = generationRecord[0];
 
-      // 更新积分记录中的生成ID
       await CreditRecord.updateOne(
-        { 
-          user_id: userId, 
-          type: 'consumption', 
-          'metadata.tool_key': toolKey 
+        {
+          user_id: userId,
+          type: 'consumption',
+          'metadata.tool_key': toolKey
         },
-        { 
-          $set: { 
-            'metadata.generation_id': generationRecord._id 
-          } 
+        {
+          $set: {
+            'metadata.generation_id': generationRecord._id
+          }
         },
-        { session }
+        { session: transactionSession }
       );
 
-      // 更新工具使用统计
       await AITool.findByIdAndUpdate(
         aiToolDoc._id,
         {
-          $inc: { 
+          $inc: {
             usage_count: 1,
             total_credits_charged: catalogConfig.creditCost
           }
         },
-        { session }
+        { session: transactionSession }
       );
 
-      const userAssets = buildUserAssetDocuments(savedImages, fastApiResult, generationRecord, toolKey);
+      const userAssets = buildUserAssetDocuments(savedImages, generationRecord, toolKey);
 
       if (userAssets.length) {
         await User.findByIdAndUpdate(
@@ -524,24 +514,23 @@ const generateWithTool = async ({ toolKey, userId, body, files }) => {
               }
             }
           },
-          { session }
+          { session: transactionSession }
         );
       }
 
-      const totalCreditsCharged = catalogConfig.creditCost;
       await AIGeneration.updateOne(
         { _id: generationRecord._id },
         {
           $set: {
-            total_credits_charged: totalCreditsCharged,
+            total_credits_charged: catalogConfig.creditCost,
             expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000)
           }
         },
-        { session }
+        { session: transactionSession }
       );
     });
   } finally {
-    await session.endSession();
+    await transactionSession.endSession();
   }
 
   return {
@@ -549,13 +538,20 @@ const generateWithTool = async ({ toolKey, userId, body, files }) => {
     tool: aiToolDoc,
     creditsUsed: catalogConfig.creditCost,
     result: {
-      ...fastApiResult,
-      images: fastApiResult.images.map((image, index) => ({
-        ...image,
+      success: true,
+      images: savedImages.map((image, index) => ({
+        index,
+        mime_type: image.mimeType,
         data_url: dataUrls[index],
-        public_url: savedImages[index]?.publicUrl,
-        file_name: savedImages[index]?.fileName
-      }))
+        public_url: image.publicUrl,
+        file_name: image.fileName
+      })),
+      text_outputs: providerResult.text_outputs || [],
+      timing_ms: providerResult.timing_ms,
+      metadata: {
+        ...promptMetadata,
+        prompt
+      }
     }
   };
 };

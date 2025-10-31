@@ -1,1 +1,1 @@
-{"version":1,"todos":[{"id":"1","content":"修复订阅等弹窗组件使用open属性避免visible未定义","status":"completed"},{"id":"2","content":"恢复用户模型中的资料更新限制方法","status":"completed"},{"id":"3","content":"本地验证资料修改权限接口返回成功","status":"completed"}]}
+{"version":1,"todos":[{"id":"1","content":"放宽用户资料更新中的头像字段校验","status":"completed"}]}

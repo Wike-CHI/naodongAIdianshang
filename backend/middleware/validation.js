@@ -47,7 +47,7 @@ const schemas = {
     phone: Joi.string().pattern(/^1[3-9]\d{9}$/).optional(),
     wechat_id: Joi.string().max(50).optional().allow(''),
     business_type: Joi.string().valid('个人', '个体工商户', '企业', '事业单位', '政府机关', '其他').optional(),
-    avatar_url: Joi.string().uri().optional(),
+    avatar_url: Joi.string().pattern(/^(https?:\/\/|\/)/).optional().allow(''),
     is_active: Joi.boolean().optional(),
     role: Joi.string().valid('user', 'premium', 'vip').optional(),
     credits_balance: Joi.number().min(0).optional()

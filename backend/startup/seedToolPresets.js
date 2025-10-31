@@ -1,53 +1,47 @@
 const AITool = require('../models/AiTool');
 
+// 预设工具配置 - 与前端保持一致
 const PRESET_TOOLS = [
   {
     identifier: 'ai-model',
     name: 'AI模特生成',
-    description: '上传服装图，生成真实模特展示效果',
+    description: '上传服饰图片，生成专业模特穿着效果图',
     type: 'image_generation',
     category: '创意生成',
     credit_cost: 15,
     config: {
       max_resolution: '2560x1440',
-      supported_formats: ['image/png', 'image/jpeg', 'image/webp'],
-      max_prompt_length: 500,
-      resolutions: [
-        { label: '0.5K (960×540)', value: '960x540', credits: 10 },
-        { label: '1080P (1920×1080)', value: '1920x1080', credits: 15 },
-        { label: '2K (2560×1440)', value: '2560x1440', credits: 18 }
-      ],
-      styles: ['商业摄影', '白底摄影', '街拍风格'],
-      batch_processing: false,
-      max_batch_size: 1
+      supported_formats: ['image/png', 'image/jpeg'],
+      styles: ['商务', '休闲', '运动', '时尚'],
+      max_prompt_length: 500
     },
     tags: ['model', 'fashion', 'studio']
   },
   {
     identifier: 'try-on-clothes',
     name: '同版型试衣',
-    description: '保持版型一致的智能试衣效果',
+    description: '保持版型一致的试穿效果展示',
     type: 'image_generation',
     category: '创意生成',
     credit_cost: 12,
     config: {
       max_resolution: '1920x1080',
       supported_formats: ['image/png', 'image/jpeg'],
-      edit_types: ['fit_adjustment', 'style_transfer'],
-      options: ['保留背景', '替换背景', '同步光照'],
-      max_prompt_length: 400
+      fabric_types: ['棉质', '丝绸', '羊毛', '化纤'],
+      styles: ['修身', '宽松', '直筒'],
+      max_prompt_length: 300
     },
-    tags: ['tryon', 'fit', 'fashion']
+    tags: ['try-on', 'fashion', 'fit']
   },
   {
     identifier: 'glasses-tryon',
     name: '配件试戴',
-    description: '眼镜、帽饰等配件智能试戴',
+    description: '生成眼镜试戴效果图',
     type: 'image_generation',
     category: '创意生成',
     credit_cost: 10,
     config: {
-      max_resolution: '1024x1024',
+      max_resolution: '1920x1080',
       supported_formats: ['image/png', 'image/jpeg'],
       edit_types: ['glasses', 'hat', 'jewelry'],
       styles: ['商务', '潮流', '复古'],
@@ -55,6 +49,8 @@ const PRESET_TOOLS = [
     },
     tags: ['accessory', 'face', 'closeup']
   },
+  // 隐藏姿态变换功能
+  /*
   {
     identifier: 'pose-variation',
     name: '姿态变换',
@@ -70,6 +66,7 @@ const PRESET_TOOLS = [
     },
     tags: ['pose', 'modeling']
   },
+  */
   {
     identifier: 'shoe-tryon',
     name: '鞋靴试穿',

@@ -3,48 +3,47 @@ import { Routes, Route } from 'react-router-dom'
 import { Layout } from 'antd'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToolProvider } from './contexts/ToolContext'
-import Home from './pages/Home'
-import Login from './pages/Login'
+import Sidebar from './components/Layout/Sidebar'
+import WorkArea from './components/Layout/WorkArea'
+import ResultPanel from './components/Layout/ResultPanel'
+import Header from './components/Layout/Header'
 import Profile from './pages/Profile'
-import Subscription from './pages/Subscription'
-import ReferralManagement from './pages/ReferralManagement'
-// 导入AI工具页面
-import AIModel from './pages/AIModel'
-import TryOnClothes from './pages/TryOnClothes'
-import GlassesTryon from './pages/GlassesTryon'
-import ModelVideo from './pages/ModelVideo'
-import ProductColorChange from './pages/ProductColorChange'
-import ProductSceneChange from './pages/ProductSceneChange'
-import ShoeTryon from './pages/ShoeTryon'
-import PoseVariation from './pages/PoseVariation'
 import './App.css'
 
 const { Content } = Layout
+
+// 主页面布局组件
+const MainLayout = () => (
+  <Layout style={{ minHeight: '100vh' }}>
+    <Sidebar />
+    <Layout>
+      <Header />
+      <Content style={{ margin: 0, padding: 0, display: 'flex' }}>
+        <WorkArea />
+        <ResultPanel />
+      </Content>
+    </Layout>
+  </Layout>
+)
+
+// 个人中心布局组件
+const ProfileLayout = () => (
+  <Layout style={{ minHeight: '100vh' }}>
+    <Header />
+    <Content style={{ padding: '24px', background: '#f5f5f5' }}>
+      <Profile />
+    </Content>
+  </Layout>
+)
 
 function App() {
   return (
     <AuthProvider>
       <ToolProvider>
-        <Layout className="app-layout">
-          <Content>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/subscription" element={<Subscription />} />
-              <Route path="/referral" element={<ReferralManagement />} />
-              {/* AI工具页面路由 */}
-              <Route path="/ai-model" element={<AIModel />} />
-              <Route path="/try-on-clothes" element={<TryOnClothes />} />
-              <Route path="/glasses-tryon" element={<GlassesTryon />} />
-              <Route path="/model-video" element={<ModelVideo />} />
-              <Route path="/color-change" element={<ProductColorChange />} />
-              <Route path="/scene-change" element={<ProductSceneChange />} />
-              <Route path="/shoe-tryon" element={<ShoeTryon />} />
-              <Route path="/pose-variation" element={<PoseVariation />} />
-            </Routes>
-          </Content>
-        </Layout>
+        <Routes>
+          <Route path="/" element={<MainLayout />} />
+          <Route path="/profile" element={<ProfileLayout />} />
+        </Routes>
       </ToolProvider>
     </AuthProvider>
   )

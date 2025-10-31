@@ -31,11 +31,18 @@ const ResultPanel = () => {
   }
 
   return (
-    <div className="result-panel">
+    <div style={{
+      flex: 1,
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'white'
+    }}>
       <div style={{ 
         padding: '20px 16px', 
         borderBottom: '1px solid #f0f0f0',
-        background: 'white'
+        background: 'white',
+        flexShrink: 0
       }}>
         <Title level={4} style={{ margin: 0 }}>
           生成结果

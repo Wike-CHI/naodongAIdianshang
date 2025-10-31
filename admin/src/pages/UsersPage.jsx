@@ -90,10 +90,10 @@ const UsersPage = () => {
     form.setFieldsValue({
       username: user.username,
       email: user.email,
-      wechatId: user.wechatId,
-      credits: user.credits,
-      membership: user.membership,
-      status: user.status
+      wechat_id: user.wechat_id,
+      credits: user.credits_balance,
+      membership: user.role,
+      status: user.is_active ? 'true' : 'false'
     })
     setEditModalVisible(true)
   }
@@ -102,7 +102,21 @@ const UsersPage = () => {
   const handleSaveEdit = async () => {
     try {
       const values = await form.validateFields()
-      const result = await usersAPI.updateUser(editingUser._id, values)
+      
+      // 映射前端字段到后端字段
+      const updateData = {
+        ...values,
+        credits_balance: values.credits,
+        role: values.membership,
+        is_active: values.status === 'true'
+      };
+      
+      // 删除前端字段
+      delete updateData.credits;
+      delete updateData.membership;
+      delete updateData.status;
+      
+      const result = await usersAPI.updateUser(editingUser._id, updateData)
       
       if (result.success) {
         message.success('用户信息更新成功')
@@ -183,14 +197,14 @@ const UsersPage = () => {
         <div>
           <div>{record.email || '未设置'}</div>
           <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-            微信: {record.wechatId || '未绑定'}
+            微信: {record.wechat_id || '未绑定'}
           </div>
         </div>
       )
     },
     {
       title: '积分',
-      dataIndex: 'credits',
+      dataIndex: 'credits_balance',
       key: 'credits',
       width: 100,
       render: (credits) => (
@@ -201,16 +215,16 @@ const UsersPage = () => {
     },
     {
       title: '会员等级',
-      dataIndex: 'membership',
+      dataIndex: 'role',
       key: 'membership',
       width: 120,
-      render: (membership) => {
+      render: (role) => {
         const membershipConfig = {
-          basic: { color: 'default', icon: <UserOutlined />, text: '基础版' },
+          user: { color: 'default', icon: <UserOutlined />, text: '基础版' },
           premium: { color: 'gold', icon: <CrownOutlined />, text: '高级版' },
-          enterprise: { color: 'purple', icon: <CrownOutlined />, text: '企业版' }
+          vip: { color: 'purple', icon: <CrownOutlined />, text: '企业版' }
         }
-        const config = membershipConfig[membership] || membershipConfig.basic
+        const config = membershipConfig[role] || membershipConfig.user
         return (
           <Tag color={config.color} icon={config.icon}>
             {config.text}
@@ -220,14 +234,14 @@ const UsersPage = () => {
     },
     {
       title: '注册时间',
-      dataIndex: 'createdAt',
+      dataIndex: 'created_at',
       key: 'createdAt',
       width: 120,
       render: (date) => date ? new Date(date).toLocaleDateString() : '-'
     },
     {
       title: '最后活跃',
-      dataIndex: 'lastActiveAt',
+      dataIndex: 'last_login',
       key: 'lastActiveAt',
       width: 120,
       render: (date) => date ? new Date(date).toLocaleDateString() : '从未活跃'
@@ -241,12 +255,12 @@ const UsersPage = () => {
     },
     {
       title: '状态',
-      dataIndex: 'status',
+      dataIndex: 'is_active',
       key: 'status',
       width: 100,
-      render: (status) => (
-        <Tag color={status === 'active' ? 'green' : status === 'suspended' ? 'red' : 'orange'}>
-          {status === 'active' ? '正常' : status === 'suspended' ? '已封禁' : '待激活'}
+      render: (is_active) => (
+        <Tag color={is_active ? 'green' : 'red'}>
+          {is_active ? '正常' : '已封禁'}
         </Tag>
       )
     },
@@ -309,9 +323,8 @@ const UsersPage = () => {
               style={{ width: 120 }}
               onChange={(value) => handleFilterChange('status', value)}
             >
-              <Option value="active">正常</Option>
-              <Option value="suspended">已封禁</Option>
-              <Option value="pending">待激活</Option>
+              <Option value="true">正常</Option>
+              <Option value="false">已封禁</Option>
             </Select>
             <Select
               placeholder="会员筛选"
@@ -319,9 +332,9 @@ const UsersPage = () => {
               style={{ width: 120 }}
               onChange={(value) => handleFilterChange('membership', value)}
             >
-              <Option value="basic">基础版</Option>
+              <Option value="user">基础版</Option>
               <Option value="premium">高级版</Option>
-              <Option value="enterprise">企业版</Option>
+              <Option value="vip">企业版</Option>
             </Select>
             <RangePicker
               placeholder={['开始日期', '结束日期']}
@@ -398,7 +411,7 @@ const UsersPage = () => {
           >
             <Input />
           </Form.Item>
-          <Form.Item name="wechatId" label="微信ID">
+          <Form.Item name="wechat_id" label="微信ID">
             <Input />
           </Form.Item>
           <Form.Item
@@ -410,16 +423,15 @@ const UsersPage = () => {
           </Form.Item>
           <Form.Item name="membership" label="会员等级">
             <Select>
-              <Option value="basic">基础版</Option>
+              <Option value="user">基础版</Option>
               <Option value="premium">高级版</Option>
-              <Option value="enterprise">企业版</Option>
+              <Option value="vip">企业版</Option>
             </Select>
           </Form.Item>
           <Form.Item name="status" label="状态">
             <Select>
-              <Option value="active">正常</Option>
-              <Option value="suspended">已封禁</Option>
-              <Option value="pending">待激活</Option>
+              <Option value="true">正常</Option>
+              <Option value="false">已封禁</Option>
             </Select>
           </Form.Item>
         </Form>

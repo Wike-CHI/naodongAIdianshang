@@ -55,11 +55,15 @@ const WorkArea = () => {
           if (formData.clothingStyle) params.clothingStyle = formData.clothingStyle;
           break;
         case 'glasses-tryon':
-          if (formData.accessoryCategory) params.accessoryCategory = formData.accessoryCategory;
+          // 配件试戴只支持眼镜，固定参数
+          params.accessoryCategory = '眼镜';
           break;
+        // 隐藏姿态变换功能
+        /*
         case 'pose-variation':
           if (formData.poseType) params.poseType = formData.poseType;
           break;
+        */
         case 'shoe-tryon':
           if (formData.shoeType) params.shoeType = formData.shoeType;
           break;
@@ -89,11 +93,16 @@ const WorkArea = () => {
 
   if (!selectedTool) {
     return (
-      <div className="work-area" style={{ 
+      <div style={{ 
+        width: '400px',
+        height: '100vh',
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        padding: '40px'
+        padding: '40px',
+        background: 'white',
+        borderRight: '1px solid #f0f0f0',
+        flexShrink: 0
       }}>
         <Text type="secondary">请选择一个AI工具开始使用</Text>
       </div>
@@ -164,21 +173,11 @@ const WorkArea = () => {
         );
         
       case 'glasses-tryon':
-        return (
-          <Form.Item
-            name="accessoryCategory"
-            label="配件类别"
-          >
-            <Select placeholder="选择配件类别">
-              <Option value="眼镜">眼镜</Option>
-              <Option value="帽子">帽子</Option>
-              <Option value="耳环">耳环</Option>
-              <Option value="项链">项链</Option>
-              <Option value="手表">手表</Option>
-            </Select>
-          </Form.Item>
-        );
+        // 配件试戴只支持眼镜，不显示选项
+        return null;
         
+      // 隐藏姿态变换功能
+      /*
       case 'pose-variation':
         return (
           <Form.Item
@@ -194,6 +193,7 @@ const WorkArea = () => {
             </Select>
           </Form.Item>
         );
+      */
         
       case 'shoe-tryon':
         return (
@@ -243,12 +243,21 @@ const WorkArea = () => {
   }
 
   return (
-    <div className="work-area">
+    <div style={{ 
+      width: '400px',
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      background: 'white',
+      borderRight: '1px solid #f0f0f0',
+      flexShrink: 0
+    }}>
       {/* 工具标题栏 */}
       <div style={{ 
         padding: '20px 24px', 
         borderBottom: '1px solid #f0f0f0',
-        background: 'white'
+        background: 'white',
+        flexShrink: 0
       }}>
         <Title level={4} style={{ margin: 0, color: '#1890ff' }}>
           {selectedTool.name}

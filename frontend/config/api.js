@@ -19,12 +19,27 @@ export const API_ENDPOINTS = {
   
   // 用户相关
   USER: {
-    PROFILE: `${API_BASE_URL}/api/user/profile`,
-    UPDATE_PROFILE: `${API_BASE_URL}/api/user/profile`,
-    CHANGE_PASSWORD: `${API_BASE_URL}/api/user/change-password`,
-    CREDITS: `${API_BASE_URL}/api/user/credits`,
-    GENERATIONS: `${API_BASE_URL}/api/user/generations`,
-    SUBSCRIPTION: `${API_BASE_URL}/api/user/subscription`
+    PROFILE: `${API_BASE_URL}/api/users/profile`,
+    UPDATE_PROFILE: `${API_BASE_URL}/api/users/profile`,
+    CHANGE_PASSWORD: `${API_BASE_URL}/api/users/change-password`,
+    CREDITS: `${API_BASE_URL}/api/users/credits`,
+    GENERATIONS: `${API_BASE_URL}/api/users/generations`,
+    SUBSCRIPTION: `${API_BASE_URL}/api/users/subscription`
+  },
+
+  // 用户管理相关
+  USERS: {
+    LIST: `${API_BASE_URL}/api/admin/users`,
+    GET_BY_ID: (id) => `${API_BASE_URL}/api/admin/users/${id}`,
+    UPDATE: (id) => `${API_BASE_URL}/api/admin/users/${id}`,
+    DELETE: (id) => `${API_BASE_URL}/api/admin/users/${id}`,
+    CREDITS: (id) => `${API_BASE_URL}/api/admin/users/${id}/credits`,
+    GENERATIONS: (id) => `${API_BASE_URL}/api/admin/users/${id}/generations`,
+    SUBSCRIPTION: (id) => `${API_BASE_URL}/api/admin/users/${id}/subscription`,
+    UPLOAD_AVATAR: (id) => `${API_BASE_URL}/api/admin/users/${id}/avatar`,
+    ADJUST_CREDITS: (id) => `${API_BASE_URL}/api/admin/users/${id}/adjust-credits`,
+    BATCH_UPDATE: `${API_BASE_URL}/api/admin/users/batch`,
+    CHECK_UPDATE_PERMISSION: (id) => `${API_BASE_URL}/api/admin/users/${id}/profile-update-permission`
   },
   
   // 订阅相关

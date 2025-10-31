@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { message } from 'antd'
 import authService from '../services/authService'
+import { authAPI } from '../services/api'
 
 const AuthContext = createContext()
 
@@ -29,13 +30,20 @@ export const AuthProvider = ({ children }) => {
       
       if (token && userData) {
         // 验证token是否有效
-        const result = await authService.verifyToken()
-        if (result.success) {
-          setUser(JSON.parse(userData))
-          setIsAuthenticated(true)
-        } else {
+        try {
+          const result = await authAPI.getCurrentUser();
+          if (result.success) {
+            setUser(result.data.user);
+            setIsAuthenticated(true);
+            // 更新本地存储的用户数据
+            localStorage.setItem('admin_user', JSON.stringify(result.data.user));
+          } else {
+            // Token无效，清除本地存储
+            clearAuthData();
+          }
+        } catch (error) {
           // Token无效，清除本地存储
-          clearAuthData()
+          clearAuthData();
         }
       }
     } catch (error) {

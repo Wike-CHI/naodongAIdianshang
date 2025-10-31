@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI图像生成测试 - 实际集成版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .content {
+            display: flex;
+            min-height: 500px;
+        }
+
+        .input-section {
+            flex: 1;
+            padding: 30px;
+            border-right: 1px solid #eee;
+        }
+
+        .result-section {
+            flex: 1;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .upload-area {
+            margin-bottom: 25px;
+        }
+
+        .upload-label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .image-preview {
+            width: 100%;
+            height: 200px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            overflow: hidden;
+            position: relative;
+            background-color: #fafafa;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            display: none;
+        }
+
+        .image-preview .placeholder {
+            color: #999;
+            text-align: center;
+        }
+
+        .image-preview .placeholder i {
+            font-size: 48px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .prompt-section {
+            margin-bottom: 25px;
+        }
+
+        .prompt-textarea {
+            width: 100%;
+            height: 100px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        .prompt-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .generate-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 600;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .generate-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .generate-options {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .generate-options button {
+            flex: 1;
+            padding: 10px;
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .generate-options button:hover {
+            background: #e9ecef;
+        }
+
+        .generate-options button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .result-image {
+            flex: 1;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background-color: #fafafa;
+            min-height: 300px;
+        }
+
+        .result-image img {
+            max-width: 100%;
+            max-height: 100%;
+            display: none;
+        }
+
+        .result-placeholder {
+            color: #999;
+            text-align: center;
+        }
+
+        .result-placeholder i {
+            font-size: 48px;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .status.loading {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status.success {
+            background-color: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .status.error {
+            background-color: #ffebee;
+            color: #d32f2f;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+
+            .input-section {
+                border-right: none;
+                border-bottom: 1px solid #eee;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI图像生成测试 - 实际集成版</h1>
+        </div>
+
+        <div class="content">
+            <div class="input-section">
+                <h2 class="section-title">输入参数</h2>
+
+                <div class="upload-area">
+                    <label class="upload-label">主图片上传（可选）</label>
+                    <div class="image-preview" id="mainImagePreview" onclick="document.getElementById('mainImage').click()">
+                        <div class="placeholder">
+                            <span>📁</span>
+                            <div>点击上传主图片</div>
+                        </div>
+                        <img id="mainImageDisplay" alt="主图片预览">
+                        <input type="file" id="mainImage" accept="image/*" class="hidden" onchange="window.previewImage(event, 'mainImagePreview', 'mainImageDisplay')">
+                    </div>
+                </div>
+
+                <div class="upload-area">
+                    <label class="upload-label">参考图片上传（可选）</label>
+                    <div class="image-preview" id="referenceImagePreview" onclick="document.getElementById('referenceImage').click()">
+                        <div class="placeholder">
+                            <span>📁</span>
+                            <div>点击上传参考图片</div>
+                        </div>
+                        <img id="referenceImageDisplay" alt="参考图片预览">
+                        <input type="file" id="referenceImage" accept="image/*" class="hidden" onchange="window.previewImage(event, 'referenceImagePreview', 'referenceImageDisplay')">
+                    </div>
+                </div>
+
+                <div class="prompt-section">
+                    <label class="upload-label">提示词</label>
+                    <textarea class="prompt-textarea" id="prompt" placeholder="请输入提示词，例如：一只可爱的猫咪在花园里玩耍"></textarea>
+                </div>
+
+                <button class="generate-btn" id="generateBtn" onclick="window.generateImage()">
+                    生成图像
+                </button>
+
+                <div class="generate-options">
+                    <button onclick="window.setPresetPrompt('一只可爱的猫咪在花园里玩耍')">猫咪</button>
+                    <button onclick="window.setPresetPrompt('一个美丽的风景，有山和湖泊')">风景</button>
+                    <button onclick="window.setPresetPrompt('一位时尚模特穿着最新款的服装')">模特</button>
+                </div>
+
+                <div id="status" class="status hidden"></div>
+            </div>
+
+            <div class="result-section">
+                <h2 class="section-title">生成结果</h2>
+                <div class="result-image" id="resultImageContainer">
+                    <div class="result-placeholder" id="resultPlaceholder">
+                        <span>🖼️</span>
+                        <div>生成的图像将显示在这里</div>
+                    </div>
+                    <img id="resultImage" alt="生成结果">
+                </div>
+                <div id="resultInfo" style="margin-top: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 5px; display: none;">
+                    <h3>生成信息:</h3>
+                    <p id="resultDetails"></p>
+                </div>
+                <div id="debugInfo" style="margin-top: 15px; padding: 10px; background-color: #fff3cd; border-radius: 5px; display: none;">
+                    <h3>调试信息:</h3>
+                    <pre id="debugDetails" style="white-space: pre-wrap; word-wrap: break-word;"></pre>
+                </div>
+                <div style="margin-top: 15px; padding: 10px; background-color: #d1ecf1; border-radius: 5px;">
+                    <h3>使用说明:</h3>
+                    <p>1. 可以只输入提示词生成图像</p>
+                    <p>2. 也可以上传主图片和参考图片结合提示词生成</p>
+                    <p>3. 生成的图像仅在浏览器中显示，刷新页面后会丢失</p>
+                    <p>4. 右键点击图像可选择"另存为"保存到本地</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // 由于需要使用ES模块，将脚本标记为module类型
+        import OpenAI from 'https://cdn.jsdelivr.net/npm/openai@4.24.1/+esm';
+
+        // 初始化OpenAI客户端
+        const client = new OpenAI({
+            apiKey: "sk-0EbSrOEdrPEXmT9g7a5123Ca99E345528d94D2Fd057dAaC3", // 换成你在 AiHubMix 生成的密钥
+            baseURL: "https://aihubmix.com/v1",
+            dangerouslyAllowBrowser: true // 允许在浏览器中使用（仅用于测试）
+        });
+
+        // 预览上传的图片
+        window.previewImage = function(event, previewId, displayId) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById(previewId);
+                    const display = document.getElementById(displayId);
+                    const placeholder = preview.querySelector('.placeholder');
+                    
+                    display.src = e.target.result;
+                    display.style.display = 'block';
+                    placeholder.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        // 设置预设提示词
+        window.setPresetPrompt = function(prompt) {
+            document.getElementById('prompt').value = prompt;
+            
+            // 更新按钮状态
+            const buttons = document.querySelectorAll('.generate-options button');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        };
+
+        // 显示状态信息
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.classList.remove('hidden');
+        }
+
+        // 隐藏状态信息
+        function hideStatus() {
+            const status = document.getElementById('status');
+            status.classList.add('hidden');
+        }
+
+        // 将文件读取为base64
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 生成图像
+        window.generateImage = async function() {
+            const mainImageInput = document.getElementById('mainImage');
+            const referenceImageInput = document.getElementById('referenceImage');
+            const promptInput = document.getElementById('prompt');
+            const generateBtn = document.getElementById('generateBtn');
+            const resultImage = document.getElementById('resultImage');
+            const resultPlaceholder = document.getElementById('resultPlaceholder');
+            const resultInfo = document.getElementById('resultInfo');
+            const resultDetails = document.getElementById('resultDetails');
+            const debugInfo = document.getElementById('debugInfo');
+            const debugDetails = document.getElementById('debugDetails');
+
+            const prompt = promptInput.value || "一只可爱的猫咪在花园里玩耍";
+
+            // 禁用按钮并显示加载状态
+            generateBtn.disabled = true;
+            generateBtn.textContent = '生成中...';
+            showStatus('正在调用AI服务生成图像，请稍候...', 'loading');
+            resultImage.style.display = 'none';
+            resultPlaceholder.style.display = 'block';
+            resultInfo.style.display = 'none';
+            debugInfo.style.display = 'none';
+
+            try {
+                console.log("开始调用AI服务生成图像...");
+                
+                // 构建消息内容
+                const content = [
+                    {
+                        type: "text",
+                        text: prompt,
+                    }
+                ];
+                
+                // 只有当图片存在时才添加到内容中
+                if (mainImageInput.files[0]) {
+                    const mainImageBase64 = await readFileAsBase64(mainImageInput.files[0]);
+                    content.push({
+                        type: "image_url",
+                        image_url: {
+                            url: mainImageBase64
+                        }
+                    });
+                }
+                
+                if (referenceImageInput.files[0]) {
+                    const referenceImageBase64 = await readFileAsBase64(referenceImageInput.files[0]);
+                    content.push({
+                        type: "image_url",
+                        image_url: {
+                            url: referenceImageBase64
+                        }
+                    });
+                }
+
+                const response = await client.chat.completions.create({
+                    model: "gemini-2.5-flash-image",
+                    messages: [
+                        {
+                            role: "user",
+                            content: content,
+                        },
+                    ],
+                    modalities: ["text", "image"],
+                    temperature: 0.7,
+                });
+
+                // 显示调试信息
+                debugDetails.textContent = JSON.stringify(response, null, 2);
+                debugInfo.style.display = 'block';
+
+                // 检查返回的图像内容
+                if (response.choices && response.choices[0] && response.choices[0].message) {
+                    console.log("🖼️ [Image content received]");
+                    
+                    // 从响应中提取图像数据
+                    let imageDataUrl = null;
+                    
+                    // 尝试从不同的位置获取图像数据
+                    // 1. 首先尝试从 multi_mod_content 获取
+                    if (response.choices[0].message.multi_mod_content) {
+                        console.log("尝试从 multi_mod_content 获取图像数据");
+                        for (const part of response.choices[0].message.multi_mod_content) {
+                            if (part.inline_data && part.inline_data.data) {
+                                console.log("从 inline_data 获取到图像数据");
+                                // 检查是否有 MIME 类型信息
+                                if (part.inline_data.mime_type) {
+                                    imageDataUrl = `data:${part.inline_data.mime_type};base64,${part.inline_data.data}`;
+                                } else {
+                                    // 默认使用 PNG 格式
+                                    imageDataUrl = `data:image/png;base64,${part.inline_data.data}`;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 2. 如果没有从 multi_mod_content 获取到，尝试从 content 获取
+                    if (!imageDataUrl && response.choices[0].message.content) {
+                        console.log("尝试从 content 获取图像数据");
+                        // 如果内容是字符串，可能是base64数据
+                        if (typeof response.choices[0].message.content === 'string') {
+                            if (response.choices[0].message.content.startsWith('data:image')) {
+                                // 直接使用返回的data URL
+                                imageDataUrl = response.choices[0].message.content;
+                                console.log("从 content 获取到 data URL");
+                            } else if (response.choices[0].message.content.startsWith('/9j/')) {
+                                // JPEG base64数据
+                                imageDataUrl = 'data:image/jpeg;base64,' + response.choices[0].message.content;
+                                console.log("从 content 获取到 JPEG base64");
+                            } else if (response.choices[0].message.content.startsWith('iVBOR')) {
+                                // PNG base64数据
+                                imageDataUrl = 'data:image/png;base64,' + response.choices[0].message.content;
+                                console.log("从 content 获取到 PNG base64");
+                            }
+                        }
+                    }
+                    
+                    // 3. 如果仍然没有获取到图像数据，检查是否有其他可能的字段
+                    if (!imageDataUrl) {
+                        console.log("检查其他可能的图像数据字段");
+                        // 检查是否有其他可能包含图像数据的字段
+                        const message = response.choices[0].message;
+                        for (const key in message) {
+                            if (typeof message[key] === 'string' && 
+                                (message[key].startsWith('/9j/') || message[key].startsWith('iVBOR'))) {
+                                const mimeType = message[key].startsWith('/9j/') ? 'image/jpeg' : 'image/png';
+                                imageDataUrl = `data:${mimeType};base64,${message[key]}`;
+                                console.log(`从字段 ${key} 获取到图像数据`);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 如果没有找到有效的图像数据，创建占位符
+                    if (!imageDataUrl) {
+                        console.log("未找到有效的图像数据");
+                        // 创建一个简单的错误图像
+                        imageDataUrl = 'data:image/svg+xml;base64,' + btoa(`
+                            <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+                                <rect width="200" height="200" fill="#cccccc"/>
+                                <text x="100" y="100" font-family="Arial" font-size="16" text-anchor="middle" fill="#666666">
+                                    图像生成失败
+                                </text>
+                            </svg>
+                        `);
+                    }
+                    
+                    // 显示结果
+                    console.log("显示图像:", imageDataUrl.substring(0, 100) + "...");
+                    resultImage.src = imageDataUrl;
+                    resultImage.style.display = 'block';
+                    resultPlaceholder.style.display = 'none';
+                    
+                    // 显示生成信息
+                    resultDetails.innerHTML = `
+                        <strong>模型:</strong> gemini-2.5-flash-image<br>
+                        <strong>提示词:</strong> ${prompt}<br>
+                        <strong>生成时间:</strong> ${new Date().toLocaleString()}<br>
+                    `;
+                    resultInfo.style.display = 'block';
+
+                    showStatus('图像生成完成！', 'success');
+                } else {
+                    throw new Error("No valid response received from AI service");
+                }
+            } catch (error) {
+                console.error('生成图像失败:', error);
+                showStatus('图像生成失败: ' + error.message, 'error');
+                
+                // 显示错误调试信息
+                debugDetails.textContent = `错误: ${error.message}\n${error.stack}`;
+                debugInfo.style.display = 'block';
+                
+                // 显示错误图像
+                resultImage.src = 'data:image/svg+xml;base64,' + btoa(`
+                    <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+                        <rect width="200" height="200" fill="#ffcccc"/>
+                        <text x="100" y="100" font-family="Arial" font-size="16" text-anchor="middle" fill="#cc0000">
+                            图像生成失败
+                        </text>
+                    </svg>
+                `);
+                resultImage.style.display = 'block';
+                resultPlaceholder.style.display = 'none';
+            } finally {
+                // 恢复按钮状态
+                generateBtn.disabled = false;
+                generateBtn.textContent = '生成图像';
+            }
+        }
+
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('AI图像生成测试页面已加载');
+        });
+    </script>
+</body>
+</html>

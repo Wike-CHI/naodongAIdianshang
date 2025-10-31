@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, Statistic, Row, Col, Divider, Typography, Button, message, Spin, Avatar, List, Tag, Alert } from 'antd';
 import { 
@@ -8,17 +9,22 @@ import {
   HistoryOutlined,
   CalendarOutlined,
   ClockCircleOutlined,
-  ExclamationCircleOutlined
+  ExclamationCircleOutlined,
+  ArrowLeftOutlined,
+  EditOutlined
 } from '@ant-design/icons';
 import creditService from '../services/creditService';
+import UserEditForm from '../components/UserEditForm';
 
 const { Title, Text } = Typography;
 
 const Profile = () => {
   const { user, updateUserInfo } = useAuth();
+  const navigate = useNavigate();
   const [creditHistory, setCreditHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
   const [stats, setStats] = useState({
     totalGenerations: 0,
     totalCreditsUsed: 0,
@@ -121,6 +127,14 @@ const Profile = () => {
     return colorMap[type] || 'default';
   };
 
+  // 处理编辑成功
+  const handleEditSuccess = (updatedUser) => {
+    console.log('✅ 用户信息更新成功:', updatedUser);
+    message.success('个人信息更新成功');
+    // 刷新页面数据
+    fetchProfileData();
+  };
+
   if (!user) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
@@ -131,7 +145,19 @@ const Profile = () => {
   }
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      {/* 返回按钮 */}
+      <div style={{ marginBottom: '24px' }}>
+        <Button 
+          icon={<ArrowLeftOutlined />} 
+          onClick={() => navigate('/')}
+          style={{ marginBottom: '16px' }}
+        >
+          返回 AI 工具
+        </Button>
+        <Title level={2} style={{ margin: 0 }}>个人中心</Title>
+      </div>
+
       {error && (
         <Alert 
           message="错误" 
@@ -142,7 +168,18 @@ const Profile = () => {
         />
       )}
       
-      <Card>
+      <Card
+        title="个人信息"
+        extra={
+          <Button 
+            type="primary" 
+            icon={<EditOutlined />}
+            onClick={() => setEditModalVisible(true)}
+          >
+            编辑资料
+          </Button>
+        }
+      >
         <Row gutter={24}>
           <Col span={8}>
             <Avatar size={80} icon={<UserOutlined />} src={user.avatar_url} />
@@ -151,8 +188,27 @@ const Profile = () => {
             <Title level={3}>{user.username}</Title>
             <Text type="secondary">用户ID: {user.id || user._id}</Text>
             <br />
-            {user.email && <Text type="secondary">邮箱: {user.email}</Text>}
-            {user.phone && <Text type="secondary">手机: {user.phone}</Text>}
+            {user.email && (
+              <>
+                <Text type="secondary">邮箱: {user.email}</Text>
+                <br />
+              </>
+            )}
+            {user.phone && (
+              <>
+                <Text type="secondary">手机: {user.phone}</Text>
+                <br />
+              </>
+            )}
+            {user.wechat_id && (
+              <>
+                <Text type="secondary">微信: {user.wechat_id}</Text>
+                <br />
+              </>
+            )}
+            {user.business_type && (
+              <Text type="secondary">经营类型: {user.business_type}</Text>
+            )}
           </Col>
         </Row>
         
@@ -280,6 +336,14 @@ const Profile = () => {
           )}
         </Card>
       </div>
+
+      {/* 编辑用户信息弹窗 */}
+      <UserEditForm
+        open={editModalVisible}
+        onCancel={() => setEditModalVisible(false)}
+        onSuccess={handleEditSuccess}
+        user={user}
+      />
     </div>
   );
 };

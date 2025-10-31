@@ -100,6 +100,7 @@ const AIModelToolsPage = () => {
   }
 
   // 硬编码的AI工具列表 - 与前端保持一致
+  // 隐藏姿态变换功能
   const hardcodedTools = [
     {
       id: 'ai-model',
@@ -152,6 +153,8 @@ const AIModelToolsPage = () => {
       },
       features: ['配件图片', '佩戴位置', '尺寸调整']
     },
+    // 隐藏姿态变换功能
+    /*
     {
       id: 'pose-variation',
       name: '姿态变换',
@@ -169,6 +172,7 @@ const AIModelToolsPage = () => {
       },
       features: ['姿态选择', '动作调整', '自然度控制']
     },
+    */
     {
       id: 'shoe-tryon',
       name: '鞋靴试穿',
@@ -409,305 +413,338 @@ const AIModelToolsPage = () => {
               <Statistic
                 title="启用工具数"
                 value={stats.activeTools}
-                suffix={`/ ${stats.totalTools}`}
-                prefix={<ApiOutlined />}
-                valueStyle={{ color: '#1890ff' }}
+                prefix={<CheckCircleOutlined />}
               />
             </Card>
           </Col>
           <Col span={6}>
             <Card>
               <Statistic
-                title="最常用工具"
-                value={toolUsageStats.length > 0 ? 
-                  (hardcodedTools.find(t => t.id === toolUsageStats[0]._id)?.name || toolUsageStats[0]._id) : 
-                  'N/A'}
-                prefix={<BarChartOutlined />}
+                title="工具总数"
+                value={stats.totalTools}
+                prefix={<RobotOutlined />}
               />
             </Card>
           </Col>
         </Row>
 
-        {/* 批量操作 */}
-        <Card style={{ marginBottom: '24px' }}>
-          <Space>
-            <Button 
-              type="primary" 
-              onClick={() => handleBatchToggle(true)}
-            >
-              批量启用
-            </Button>
-            <Button 
-              onClick={() => handleBatchToggle(false)}
-            >
-              批量禁用
-            </Button>
-            <Button 
-              icon={<ReloadOutlined />}
-              onClick={handleResetAll}
-            >
-              重置配置
-            </Button>
-            <Button 
-              icon={<SaveOutlined />}
-              onClick={() => message.success('配置已保存')}
-            >
-              保存所有配置
-            </Button>
-            <Button 
-              icon={<PieChartOutlined />}
-              onClick={handleOpenStats}
-            >
-              查看统计
-            </Button>
-          </Space>
+        {/* 操作按钮 */}
+        <Space style={{ marginBottom: '24px' }}>
+          <Button 
+            type="primary" 
+            icon={<ThunderboltOutlined />}
+            onClick={() => handleBatchToggle(true)}
+          >
+            批量启用
+          </Button>
+          <Button 
+            icon={<CloseCircleOutlined />}
+            onClick={() => handleBatchToggle(false)}
+          >
+            批量禁用
+          </Button>
+          <Button 
+            icon={<ReloadOutlined />}
+            onClick={handleResetAll}
+          >
+            重置配置
+          </Button>
+          <Button 
+            icon={<BarChartOutlined />}
+            onClick={handleOpenStats}
+          >
+            查看统计
+          </Button>
+        </Space>
+
+        {/* 工具表格 */}
+        <Card>
+          <Table
+            loading={loading}
+            dataSource={tools}
+            rowKey="id"
+            pagination={false}
+            scroll={{ x: 'max-content' }}
+            rowSelection={{
+              selectedRowKeys,
+              onChange: setSelectedRowKeys,
+              selections: [
+                Table.SELECTION_ALL,
+                Table.SELECTION_INVERT,
+                Table.SELECTION_NONE,
+              ],
+            }}
+            columns={[
+              {
+                title: '工具名称',
+                dataIndex: 'name',
+                key: 'name',
+                fixed: 'left',
+                width: 150,
+                render: (text, record) => (
+                  <Space>
+                    <span style={{ fontSize: '18px' }}>{record.icon}</span>
+                    <span>{text}</span>
+                  </Space>
+                )
+              },
+              {
+                title: '描述',
+                dataIndex: 'description',
+                key: 'description',
+                width: 200
+              },
+              {
+                title: '类别',
+                dataIndex: 'category',
+                key: 'category',
+                width: 120,
+                render: (category) => {
+                  const categoryMap = {
+                    'model': { color: 'blue', text: '模特' },
+                    'tryon': { color: 'green', text: '试衣' },
+                    'accessory': { color: 'purple', text: '配件' },
+                    'modeling': { color: 'orange', text: '建模' },
+                    'product': { color: 'cyan', text: '商品' },
+                    'scene': { color: 'gold', text: '场景' }
+                  }
+                  const config = categoryMap[category] || { color: 'default', text: category }
+                  return <Tag color={config.color}>{config.text}</Tag>
+                }
+              },
+              {
+                title: '积分消耗',
+                dataIndex: 'creditCost',
+                key: 'creditCost',
+                width: 120,
+                sorter: (a, b) => a.creditCost - b.creditCost,
+                render: (cost) => (
+                  <Tag icon={<DollarOutlined />} color="red">
+                    {cost}
+                  </Tag>
+                )
+              },
+              {
+                title: '状态',
+                dataIndex: 'enabled',
+                key: 'enabled',
+                width: 120,
+                filters: [
+                  { text: '启用', value: true },
+                  { text: '禁用', value: false }
+                ],
+                onFilter: (value, record) => record.enabled === value,
+                render: (enabled, record) => (
+                  <Switch
+                    checked={enabled}
+                    onChange={(checked) => handleToggleStatus(record.id, checked)}
+                    checkedChildren="启用"
+                    unCheckedChildren="禁用"
+                  />
+                )
+              },
+              {
+                title: '操作',
+                key: 'action',
+                fixed: 'right',
+                width: 200,
+                render: (_, record) => (
+                  <Space size="middle">
+                    <Tooltip title="配置">
+                      <Button
+                        type="text"
+                        icon={<SettingOutlined />}
+                        onClick={() => handleOpenConfig(record)}
+                      />
+                    </Tooltip>
+                    <Tooltip title="预览">
+                      <Button
+                        type="text"
+                        icon={<EyeOutlined />}
+                        onClick={() => handlePreview(record)}
+                      />
+                    </Tooltip>
+                    <Popconfirm
+                      title={`确定要${record.enabled ? '禁用' : '启用'}此工具吗？`}
+                      onConfirm={() => handleToggleStatus(record.id, !record.enabled)}
+                      okText="确定"
+                      cancelText="取消"
+                    >
+                      <Button
+                        type="text"
+                        danger={!record.enabled}
+                        icon={record.enabled ? <CloseCircleOutlined /> : <PlayCircleOutlined />}
+                      >
+                        {record.enabled ? '禁用' : '启用'}
+                      </Button>
+                    </Popconfirm>
+                  </Space>
+                )
+              }
+            ]}
+          />
         </Card>
-      </div>
 
-      {/* 工具列表 */}
-      <Row gutter={[16, 16]}>
-        {tools.map(tool => (
-          <Col xs={24} sm={12} lg={8} key={tool.id}>
-            <Card
-              hoverable
-              style={{ 
-                height: '100%',
-                border: tool.enabled ? '2px solid #52c41a' : '1px solid #d9d9d9'
-              }}
-              styles={{ body: { padding: '16px' } }}
+        {/* 配置模态框 */}
+        <Modal
+          title="工具配置"
+          visible={configModalVisible}
+          onOk={handleSaveConfig}
+          onCancel={() => {
+            setConfigModalVisible(false)
+            setCurrentTool(null)
+          }}
+          okText="保存"
+          cancelText="取消"
+        >
+          <Form form={form} layout="vertical">
+            <Form.Item
+              name="name"
+              label="工具名称"
+              rules={[{ required: true, message: '请输入工具名称' }]}
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '12px' }}>
-                <div style={{ fontSize: '24px', marginRight: '12px' }}>
-                  {tool.icon}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    marginBottom: '4px'
-                  }}>
-                    <h4 style={{ margin: 0, fontSize: '16px' }}>{tool.name}</h4>
-                    <Switch
-                      checked={tool.enabled}
-                      onChange={(checked) => handleToggleStatus(tool.id, checked)}
-                      size="small"
-                    />
-                  </div>
-                  <p style={{ 
-                    margin: 0, 
-                    fontSize: '12px', 
-                    color: '#666',
-                    lineHeight: '1.4'
-                  }}>
-                    {tool.description}
-                  </p>
-                </div>
-              </div>
+              <Input />
+            </Form.Item>
+            <Form.Item
+              name="description"
+              label="描述"
+              rules={[{ required: true, message: '请输入描述' }]}
+            >
+              <TextArea rows={3} />
+            </Form.Item>
+            <Form.Item
+              name="credits"
+              label="积分消耗"
+              rules={[{ required: true, message: '请输入积分消耗' }]}
+            >
+              <InputNumber min={1} max={50} style={{ width: '100%' }} />
+            </Form.Item>
+          </Form>
+        </Modal>
 
-              <div style={{ marginBottom: '12px' }}>
-                <Space size="small" wrap>
-                  {tool.features.map(feature => (
-                    <Tag key={feature} size="small">{feature}</Tag>
+        {/* 预览抽屉 */}
+        <Drawer
+          title="工具详情预览"
+          placement="right"
+          onClose={() => {
+            setPreviewModalVisible(false)
+            setCurrentTool(null)
+          }}
+          visible={previewModalVisible}
+          width={600}
+        >
+          {currentTool && (
+            <div>
+              <Descriptions title="基本信息" column={1} bordered>
+                <Descriptions.Item label="工具名称">
+                  <Space>
+                    <span style={{ fontSize: '24px' }}>{currentTool.icon}</span>
+                    <span>{currentTool.name}</span>
+                  </Space>
+                </Descriptions.Item>
+                <Descriptions.Item label="描述">{currentTool.description}</Descriptions.Item>
+                <Descriptions.Item label="类别">
+                  <Tag color="blue">{currentTool.category}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="积分消耗">
+                  <Tag icon={<DollarOutlined />} color="red">
+                    {currentTool.creditCost}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="状态">
+                  <Badge 
+                    status={currentTool.enabled ? 'success' : 'error'} 
+                    text={currentTool.enabled ? '启用' : '禁用'} 
+                  />
+                </Descriptions.Item>
+              </Descriptions>
+
+              <Divider />
+
+              <Descriptions title="输入配置" column={1} bordered>
+                <Descriptions.Item label="图片上传窗口">
+                  {currentTool.inputConfig.imageSlots} 个
+                </Descriptions.Item>
+                <Descriptions.Item label="可选项窗口">
+                  {currentTool.inputConfig.optionSlots} 个
+                </Descriptions.Item>
+                <Descriptions.Item label="提示词窗口">
+                  {currentTool.inputConfig.promptSlot > 0 ? '1 个' : '无'}
+                </Descriptions.Item>
+              </Descriptions>
+
+              <Divider />
+
+              <div>
+                <Title level={4}>功能特性</Title>
+                <Space wrap>
+                  {currentTool.features?.map((feature, index) => (
+                    <Tag key={index} color="processing">{feature}</Tag>
                   ))}
                 </Space>
               </div>
-
-              <div style={{ 
-                display: 'flex', 
-                justifyContent: 'space-between', 
-                alignItems: 'center',
-                marginBottom: '12px',
-                fontSize: '12px',
-                color: '#666'
-              }}>
-                <span>积分消耗: <strong style={{ color: '#faad14' }}>{tool.creditCost}</strong></span>
-                <span>使用次数: <strong>{tool.usageCount}</strong></span>
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <Button 
-                  size="small" 
-                  icon={<EyeOutlined />}
-                  onClick={() => handlePreview(tool)}
-                  style={{ flex: 1 }}
-                >
-                  详情
-                </Button>
-                <Button 
-                  size="small" 
-                  icon={<SettingOutlined />}
-                  onClick={() => handleOpenConfig(tool)}
-                  style={{ flex: 1 }}
-                >
-                  配置
-                </Button>
-              </div>
-            </Card>
-          </Col>
-        ))}
-      </Row>
-
-      {/* 配置模态框 */}
-      <Modal
-        title={`配置 - ${currentTool?.name}`}
-        open={configModalVisible}
-        onOk={handleSaveConfig}
-        onCancel={() => {
-          setConfigModalVisible(false)
-          setCurrentTool(null)
-        }}
-        width={600}
-        okText="保存配置"
-        cancelText="取消"
-      >
-        <Form
-          form={form}
-          layout="vertical"
-        >
-          <Form.Item
-            name="name"
-            label="工具名称"
-            rules={[{ required: true, message: '请输入工具名称' }]}
-          >
-            <Input />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="工具描述"
-            rules={[{ required: true, message: '请输入工具描述' }]}
-          >
-            <TextArea rows={2} />
-          </Form.Item>
-
-          <Form.Item
-            name="credits"
-            label="积分消耗"
-            rules={[{ required: true, message: '请设置积分消耗' }]}
-          >
-            <InputNumber min={1} max={100} style={{ width: '100%' }} />
-          </Form.Item>
-
-          {/* 显示统一的输入配置信息 */}
-          <Alert
-            message="统一界面配置"
-            description={
-              <div>
-                <p>每个工具都遵循统一的界面布局：</p>
-                <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                  <li>2个图片上传窗口</li>
-                  <li>3个可选项窗口（分辨率、生成数量、生成模式）</li>
-                  <li>1个提示词窗口</li>
-                </ul>
-              </div>
-            }
-            type="info"
-            showIcon
-            style={{ marginBottom: '16px' }}
-          />
-        </Form>
-      </Modal>
-
-      {/* 预览模态框 */}
-      <Modal
-        title={`工具详情 - ${currentTool?.name}`}
-        open={previewModalVisible}
-        onCancel={() => {
-          setPreviewModalVisible(false)
-          setCurrentTool(null)
-        }}
-        footer={null}
-        width={700}
-      >
-        {currentTool && (
-          <div>
-            <Alert
-              message={`状态: ${currentTool.enabled ? '已启用' : '已禁用'}`}
-              type={currentTool.enabled ? 'success' : 'warning'}
-              style={{ marginBottom: '16px' }}
-            />
-            
-            <Descriptions column={2} bordered>
-              <Descriptions.Item label="工具ID">{currentTool.id}</Descriptions.Item>
-              <Descriptions.Item label="类别">{currentTool.category}</Descriptions.Item>
-              <Descriptions.Item label="积分消耗">{currentTool.creditCost}</Descriptions.Item>
-              <Descriptions.Item label="使用次数">{currentTool.usageCount}</Descriptions.Item>
-              <Descriptions.Item label="最后使用">
-                {currentTool.lastUsed ? new Date(currentTool.lastUsed).toLocaleDateString() : '从未使用'}
-              </Descriptions.Item>
-            </Descriptions>
-
-            <Divider>统一界面配置</Divider>
-            <Descriptions column={1} bordered>
-              <Descriptions.Item label="图片上传窗口数量">2</Descriptions.Item>
-              <Descriptions.Item label="可选项窗口数量">3</Descriptions.Item>
-              <Descriptions.Item label="提示词窗口数量">1</Descriptions.Item>
-            </Descriptions>
-
-            <Divider>功能特性</Divider>
-            <Space size="small" wrap>
-              {currentTool.features?.map(feature => (
-                <Tag key={feature} color="blue">{feature}</Tag>
-              ))}
-            </Space>
-
-            <Divider>工具描述</Divider>
-            <p>{currentTool.description}</p>
-          </div>
-        )}
-      </Modal>
-
-      {/* 统计详情模态框 */}
-      <Modal
-        title="AI工具使用统计"
-        open={statsModalVisible}
-        onCancel={() => setStatsModalVisible(false)}
-        footer={null}
-        width={800}
-      >
-        <Spin spinning={loading}>
-          {toolUsageStats.length > 0 ? (
-            <Table
-              dataSource={toolUsageStats}
-              pagination={false}
-              rowKey="_id"
-              columns={[
-                {
-                  title: '工具名称',
-                  dataIndex: '_id',
-                  key: '_id',
-                  render: (text) => {
-                    const tool = hardcodedTools.find(t => t.id === text);
-                    return tool ? tool.name : text;
-                  }
-                },
-                {
-                  title: '使用次数',
-                  dataIndex: 'total',
-                  key: 'total',
-                  sorter: (a, b) => a.total - b.total
-                },
-                {
-                  title: '积分消耗',
-                  dataIndex: 'credits',
-                  key: 'credits',
-                  sorter: (a, b) => a.credits - b.credits,
-                  render: (text) => <span style={{ color: '#cf1322' }}>{text}</span>
-                },
-                {
-                  title: '平均处理时间(秒)',
-                  dataIndex: 'avg_time',
-                  key: 'avg_time',
-                  sorter: (a, b) => a.avg_time - b.avg_time
-                }
-              ]}
-            />
-          ) : (
-            <Empty description="暂无统计数据" />
+            </div>
           )}
-        </Spin>
-      </Modal>
+        </Drawer>
+
+        {/* 统计模态框 */}
+        <Modal
+          title="工具使用统计"
+          visible={statsModalVisible}
+          onCancel={() => setStatsModalVisible(false)}
+          footer={null}
+          width={800}
+        >
+          <Spin spinning={loading}>
+            {toolUsageStats.length > 0 ? (
+              <>
+                <Row gutter={16} style={{ marginBottom: '24px' }}>
+                  <Col span={12}>
+                    <Card title="使用次数排行">
+                      {toolUsageStats.map((stat, index) => {
+                        const tool = hardcodedTools.find(t => t.id === stat._id)
+                        return (
+                          <div key={stat._id} style={{ marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                              <span>{tool?.name || stat._id}</span>
+                              <span>{stat.total} 次</span>
+                            </div>
+                            <Progress percent={Math.round((stat.total / Math.max(...toolUsageStats.map(s => s.total))) * 100)} />
+                          </div>
+                        )
+                      })}
+                    </Card>
+                  </Col>
+                  <Col span={12}>
+                    <Card title="积分消耗排行">
+                      {toolUsageStats.map((stat, index) => {
+                        const tool = hardcodedTools.find(t => t.id === stat._id)
+                        return (
+                          <div key={stat._id} style={{ marginBottom: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                              <span>{tool?.name || stat._id}</span>
+                              <span>{stat.credits} 积分</span>
+                            </div>
+                            <Progress percent={Math.round((stat.credits / Math.max(...toolUsageStats.map(s => s.credits))) * 100)} status="exception" />
+                          </div>
+                        )
+                      })}
+                    </Card>
+                  </Col>
+                </Row>
+                <Alert
+                  message="统计说明"
+                  description="以上数据基于最近30天的使用情况统计，反映了各AI工具的受欢迎程度和积分消耗情况。"
+                  type="info"
+                  showIcon
+                />
+              </>
+            ) : (
+              <Empty description="暂无统计数据" />
+            )}
+          </Spin>
+        </Modal>
+      </div>
     </div>
   )
 }

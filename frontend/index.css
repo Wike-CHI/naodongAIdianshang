@@ -38,27 +38,15 @@ body {
 }
 
 .work-area {
-  width: calc(25% - 70px);
+  flex: 1;
   background: white;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-}
-
-.result-panel {
-  width: 75%;
-  background: white;
-  border-left: 1px solid #e8e9ea;
-  overflow-y: auto;
+  min-height: 100vh;
 }
 
 /* 响应式设计 */
-@media (max-width: 1200px) {
-  .result-panel {
-    width: 250px;
-  }
-}
-
 @media (max-width: 768px) {
   .main-content {
     flex-direction: column;
@@ -72,9 +60,5 @@ body {
   
   .work-area {
     margin: 8px 0;
-  }
-  
-  .result-panel {
-    width: 100%;
   }
 }

@@ -11,7 +11,10 @@ class AIModelService {
     'ai-model': 'ai-model',
     'try-on-clothes': 'try-on-clothes',
     'glasses-tryon': 'glasses-tryon',
+    // 隐藏姿态变换功能
+    /*
     'pose-variation': 'pose-variation',
+    */
     'model-video': 'model-video',
     'shoe-tryon': 'shoe-tryon',
     'scene-change': 'scene-change',
@@ -109,9 +112,12 @@ class AIModelService {
     return this.generateWithTool('glasses-tryon', params);
   }
 
+  // 隐藏姿态变换功能
+  /*
   async generatePoseVariation(params) {
     return this.generateWithTool('pose-variation', params);
   }
+  */
 
   async generateModelVideo(params) {
     return this.generateWithTool('model-video', params);

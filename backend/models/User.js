@@ -182,6 +182,58 @@ userSchema.methods.updateLastLogin = function() {
 
 
 
+// 检查是否可以修改个人资料（30天限制）
+userSchema.methods.canUpdateProfile = function() {
+  if (!this.profile_last_updated) {
+    return { canUpdate: true, message: '首次修改' };
+  }
+
+  const now = new Date();
+  const lastUpdate = new Date(this.profile_last_updated);
+  const millisecondsInDay = 1000 * 60 * 60 * 24;
+  const daysDiff = Math.floor((now.getTime() - lastUpdate.getTime()) / millisecondsInDay);
+
+  if (daysDiff >= 30) {
+    return { canUpdate: true, message: '可以修改' };
+  }
+
+  const remainingDays = Math.max(30 - daysDiff, 0);
+  return {
+    canUpdate: false,
+    message: `距离上次修改不足30天，还需等待${remainingDays}天`,
+    remainingDays
+  };
+};
+
+// 更新个人资料并记录历史
+userSchema.methods.updateProfileWithHistory = function(updates = {}) {
+  const restrictedFields = ['phone', 'email', 'wechat_id', 'business_type'];
+  const updatedRestrictedFields = [];
+
+  Object.entries(updates).forEach(([field, newValue]) => {
+    const normalizedNewValue = newValue === undefined ? null : newValue;
+    const currentValue = this[field] === undefined ? null : this[field];
+
+    if (restrictedFields.includes(field) && normalizedNewValue !== currentValue) {
+      this.profile_update_history.push({
+        field,
+        old_value: currentValue ?? '',
+        new_value: normalizedNewValue ?? '',
+        updated_at: new Date()
+      });
+      updatedRestrictedFields.push(field);
+    }
+
+    this[field] = normalizedNewValue;
+  });
+
+  if (updatedRestrictedFields.length > 0) {
+    this.profile_last_updated = new Date();
+  }
+
+  return updatedRestrictedFields;
+};
+
 // 扣除积分
 userSchema.methods.deductCredits = async function(amount, options = {}) {
   if (this.credits_balance < amount) {

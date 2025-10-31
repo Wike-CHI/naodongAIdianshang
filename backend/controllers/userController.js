@@ -4,6 +4,7 @@ const Subscription = require('../models/Subscription');
 const AIGeneration = require('../models/AIGeneration');
 const path = require('path');
 const fs = require('fs').promises;
+const mongoose = require('mongoose');
 
 // 获取用户列表（管理员）
 const getUsers = async (req, res) => {
@@ -137,9 +138,25 @@ const updateUser = async (req, res) => {
     }
 
     // 限制普通用户可以更新的字段
-    const allowedUpdates = ['username', 'email', 'phone', 'avatar_url', 'wechat_id', 'business_type'];
-    const adminOnlyUpdates = ['is_active', 'role', 'credits_balance'];
+    const allowedUpdates = ['username', 'email', 'phone', 'avatar_url', 'wechat_id', 'business_type', 'wechat_id'];
+    const adminOnlyUpdates = ['is_active', 'role', 'credits_balance', 'membership', 'status'];
     const restrictedFields = ['phone', 'email', 'wechat_id', 'business_type']; // 30天限制字段
+    
+    // 处理前端传来的字段名映射
+    const fieldMapping = {
+      'wechat_id': 'wechat_id',
+      'credits': 'credits_balance',
+      'membership': 'role',
+      'status': 'is_active'
+    };
+    
+    // 映射前端字段名到后端字段名
+    const mappedUpdates = {};
+    Object.keys(updates).forEach(key => {
+      const backendKey = fieldMapping[key] || key;
+      mappedUpdates[backendKey] = updates[key];
+    });
+    updates = mappedUpdates;
     
     if (req.userType !== 'admin') {
       // 移除普通用户不能修改的字段
@@ -148,6 +165,15 @@ const updateUser = async (req, res) => {
           delete updates[key];
         }
       });
+
+      // 用户可以单独更新任何字段
+      const updateKeys = Object.keys(updates);
+      if (updateKeys.length === 1) {
+        const [onlyField] = updateKeys;
+        if (!allowedUpdates.includes(onlyField)) {
+          delete updates[onlyField];
+        }
+      }
 
       // 检查30天修改限制（仅对普通用户）
       const hasRestrictedUpdates = Object.keys(updates).some(key => 
@@ -167,6 +193,14 @@ const updateUser = async (req, res) => {
           });
         }
       }
+    } else {
+      // 管理员可以更新所有字段，但需要处理字段映射
+      const adminAllowedUpdates = [...allowedUpdates, ...adminOnlyUpdates];
+      Object.keys(updates).forEach(key => {
+        if (!adminAllowedUpdates.includes(key)) {
+          delete updates[key];
+        }
+      });
     }
 
     // 检查用户名是否已存在
@@ -388,7 +422,7 @@ const adjustUserCredits = async (req, res) => {
     }
 
     // 记录积分变动前的余额
-    const balanceBefore = user.credit_balance;
+    const balanceBefore = user.credits_balance;
     
     // 调整积分
     if (type === 'add') {
@@ -414,7 +448,7 @@ const adjustUserCredits = async (req, res) => {
       type: type === 'add' ? 'bonus' : 'penalty',
       amount: type === 'add' ? amount : -amount,
       balance_before: balanceBefore,
-      balance_after: user.credit_balance,
+      balance_after: user.credits_balance,
       description: description || `管理员${type === 'add' ? '增加' : '扣除'}积分`,
       metadata: {
         admin_operation: {
@@ -433,7 +467,7 @@ const adjustUserCredits = async (req, res) => {
         user_id: id,
         amount: type === 'add' ? amount : -amount,
         balance_before: balanceBefore,
-        balance_after: user.credit_balance
+        balance_after: user.credits_balance
       }
     });
   } catch (error) {

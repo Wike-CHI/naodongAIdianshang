@@ -1,6 +1,6 @@
 // 认证服务
 import axios from 'axios';
-import { API_ENDPOINTS, createApiUrl } from '../config/api.js';
+import { createApiUrl } from '../config/api.js';
 
 // API基础配置
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -49,27 +49,19 @@ const authService = {
   // 管理员登录
   login: async (credentials) => {
     try {
-      const response = await apiClient.post(API_ENDPOINTS.LOGIN, credentials);
+      const response = await apiClient.post('/api/auth/admin-login', credentials);
       return response;
     } catch (error) {
       throw error;
     }
   },
 
-  // 验证token
-  verifyToken: async () => {
-    try {
-      const response = await apiClient.post(API_ENDPOINTS.VERIFY_TOKEN);
-      return response;
-    } catch (error) {
-      throw error;
-    }
-  },
+
 
   // 登出
   logout: async () => {
     try {
-      const response = await apiClient.post(API_ENDPOINTS.LOGOUT);
+      const response = await apiClient.post('/api/auth/logout');
       return response;
     } catch (error) {
       // 即使登出失败也清除本地存储

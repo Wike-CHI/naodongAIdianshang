@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心编辑功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="text"], input[type="email"], input[type="tel"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        input[type="file"] {
+            margin-top: 5px;
+        }
+        button {
+            background-color: #1890ff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #40a9ff;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .avatar-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ddd;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        .error {
+            background-color: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
+        }
+        .info {
+            background-color: #e6f7ff;
+            border: 1px solid #91d5ff;
+            color: #1890ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>个人中心编辑功能测试</h1>
+        
+        <div id="status"></div>
+        
+        <form id="profileForm">
+            <div class="form-group">
+                <label>当前头像:</label>
+                <img id="avatarPreview" class="avatar-preview" src="" alt="头像预览" style="display: none;">
+                <div id="noAvatar" style="display: block; color: #999;">暂无头像</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="avatar">上传新头像:</label>
+                <input type="file" id="avatar" accept="image/*">
+            </div>
+            
+            <div class="form-group">
+                <label for="username">用户名:</label>
+                <input type="text" id="username" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">邮箱:</label>
+                <input type="email" id="email">
+            </div>
+            
+            <div class="form-group">
+                <label for="phone">手机号:</label>
+                <input type="tel" id="phone">
+            </div>
+            
+            <button type="button" onclick="loadUserInfo()">加载用户信息</button>
+            <button type="button" onclick="updateProfile()" id="updateBtn">更新资料</button>
+            <button type="button" onclick="uploadAvatar()" id="uploadBtn">上传头像</button>
+        </form>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        let currentUser = null;
+        
+        // 显示状态消息
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 5000);
+        }
+        
+        // 获取token（模拟登录状态）
+        function getToken() {
+            // 这里应该从localStorage或其他地方获取真实的token
+            return localStorage.getItem('token') || 'test-token';
+        }
+        
+        // 加载用户信息
+        async function loadUserInfo() {
+            try {
+                showStatus('正在加载用户信息...', 'info');
+                
+                // 首先获取当前用户信息
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser = data.data.user;
+                    
+                    // 填充表单
+                    document.getElementById('username').value = currentUser.username || '';
+                    document.getElementById('email').value = currentUser.email || '';
+                    document.getElementById('phone').value = currentUser.phone || '';
+                    
+                    // 显示头像
+                    if (currentUser.avatar_url) {
+                        const avatarPreview = document.getElementById('avatarPreview');
+                        avatarPreview.src = `${API_BASE}${currentUser.avatar_url}`;
+                        avatarPreview.style.display = 'block';
+                        document.getElementById('noAvatar').style.display = 'none';
+                    }
+                    
+                    showStatus('用户信息加载成功', 'success');
+                } else {
+                    throw new Error(data.message || '加载用户信息失败');
+                }
+            } catch (error) {
+                console.error('加载用户信息失败:', error);
+                showStatus(`加载用户信息失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 更新用户资料
+        async function updateProfile() {
+            if (!currentUser) {
+                showStatus('请先加载用户信息', 'error');
+                return;
+            }
+            
+            try {
+                const updateBtn = document.getElementById('updateBtn');
+                updateBtn.disabled = true;
+                updateBtn.textContent = '更新中...';
+                
+                showStatus('正在更新用户资料...', 'info');
+                
+                const updateData = {
+                    username: document.getElementById('username').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value
+                };
+                
+                const response = await fetch(`${API_BASE}/api/users/${currentUser._id || currentUser.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser = data.data.user;
+                    showStatus('用户资料更新成功', 'success');
+                } else {
+                    throw new Error(data.message || '更新用户资料失败');
+                }
+            } catch (error) {
+                console.error('更新用户资料失败:', error);
+                showStatus(`更新用户资料失败: ${error.message}`, 'error');
+            } finally {
+                const updateBtn = document.getElementById('updateBtn');
+                updateBtn.disabled = false;
+                updateBtn.textContent = '更新资料';
+            }
+        }
+        
+        // 上传头像
+        async function uploadAvatar() {
+            if (!currentUser) {
+                showStatus('请先加载用户信息', 'error');
+                return;
+            }
+            
+            const fileInput = document.getElementById('avatar');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showStatus('请选择要上传的头像文件', 'error');
+                return;
+            }
+            
+            try {
+                const uploadBtn = document.getElementById('uploadBtn');
+                uploadBtn.disabled = true;
+                uploadBtn.textContent = '上传中...';
+                
+                showStatus('正在上传头像...', 'info');
+                
+                const formData = new FormData();
+                formData.append('avatar', file);
+                
+                const response = await fetch(`${API_BASE}/api/users/${currentUser._id || currentUser.id}/avatar`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`
+                    },
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 更新头像预览
+                    const avatarPreview = document.getElementById('avatarPreview');
+                    avatarPreview.src = `${API_BASE}${data.data.avatar_url}`;
+                    avatarPreview.style.display = 'block';
+                    document.getElementById('noAvatar').style.display = 'none';
+                    
+                    // 清空文件输入
+                    fileInput.value = '';
+                    
+                    showStatus('头像上传成功', 'success');
+                } else {
+                    throw new Error(data.message || '头像上传失败');
+                }
+            } catch (error) {
+                console.error('头像上传失败:', error);
+                showStatus(`头像上传失败: ${error.message}`, 'error');
+            } finally {
+                const uploadBtn = document.getElementById('uploadBtn');
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '上传头像';
+            }
+        }
+        
+        // 页面加载时自动加载用户信息
+        window.onload = function() {
+            showStatus('页面已加载，点击"加载用户信息"开始测试', 'info');
+        };
+    </script>
+</body>
+</html>

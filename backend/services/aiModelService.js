@@ -4,37 +4,38 @@ const path = require('path');
 
 class AIModelService {
   constructor() {
-    // 初始化OpenAI客户端，使用AiHubMix作为baseURL
+    // 初始化OpenAI客户端
     this.client = new OpenAI({
-      apiKey: "0EbSrOEdrPEXmT9g7a5123Ca99E345528d94D2Fd057dAaC3", // AiHubMix密钥
-      baseURL: "https://aihubmix.com/v1",
+      apiKey: process.env.OPENAI_API_KEY || 'your-api-key-here',
+      baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1"
     });
     
     // 确保生成目录存在
     this.generatedDir = path.join(__dirname, '..', 'generated');
-    this.ensureGeneratedDir();
+    this.ensureDirExists(this.generatedDir);
   }
 
-  // 确保生成目录存在
-  async ensureGeneratedDir() {
+  async ensureDirExists(dirPath) {
     try {
-      await fs.access(this.generatedDir);
+      await fs.access(dirPath);
     } catch (error) {
-      await fs.mkdir(this.generatedDir, { recursive: true });
+      // 如果目录不存在，创建它
+      await fs.mkdir(dirPath, { recursive: true });
     }
   }
 
-  // 根据工具类型生成图片
-  async generateImageByTool(toolKey, images, prompt, options = {}) {
+  // 通用图像生成方法
+  async generateImage(toolKey, images = [], prompt = "", options = {}) {
     try {
-      console.log(`开始调用AI服务生成图片... 工具: ${toolKey}`);
+      console.log(`开始调用AI服务生成图像... 工具: ${toolKey}`);
       
       // 根据不同的工具类型构建不同的提示词
       const toolPrompts = {
         'ai-model': prompt || "Professional model wearing the clothing, studio lighting, fashion photography, high quality, detailed fabric texture, realistic face swap",
         'try-on-clothes': prompt || "Model trying on clothes, same pose and lighting as reference image, realistic fit, natural draping",
         'glasses-tryon': prompt || "Person wearing glasses, natural lighting, realistic placement, high detail, proper fit on face",
-        'pose-variation': prompt || "Model in different pose, maintaining clothing and appearance, professional photography",
+        // 隐藏姿态变换功能
+        // 'pose-variation': prompt || "Model in different pose, maintaining clothing and appearance, professional photography",
         'shoe-tryon': prompt || "Person wearing shoes, natural lighting, realistic placement, high detail, proper fit on feet",
         'scene-change': prompt || "Product in different scene, matching product type, professional lighting, high quality",
         'color-change': prompt || "Product in different color, maintaining material texture, professional lighting, high quality"
@@ -227,84 +228,6 @@ class AIModelService {
     
     return Buffer.concat([pngHeader, pngData]);
   }
-
-  // 测试方法
-  async testGenerate() {
-    try {
-      console.log("开始测试AI模特生成功能...");
-      
-      // 使用示例提示词
-      const prompt = "generate an adorable mermaid in the sea, bold outline, chibi cartoon, in the style of Children coloring book, B&W, HD";
-      
-      const response = await this.client.chat.completions.create({
-        model: "gemini-2.5-flash-image",
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: prompt,
-              }
-            ],
-          },
-        ],
-        modalities: ["text", "image"],
-        temperature: 0.7,
-      });
-
-      // 查看返回的图像内容
-      if (response.choices && response.choices[0] && response.choices[0].message) {
-        console.log("🖼️ [Image content received]");
-        
-        // 生成文件名
-        const fileName = `test_${Date.now()}_${Math.random().toString(36).substring(7)}.png`;
-        const filePath = path.join(this.generatedDir, fileName);
-        
-        // 从响应中提取图像数据
-        let imageData = null;
-        
-        // 尝试从不同可能的位置获取图像数据
-        if (response.choices[0].message.content) {
-          // 如果内容是字符串，可能是base64数据
-          if (typeof response.choices[0].message.content === 'string' && 
-              response.choices[0].message.content.startsWith('data:image')) {
-            // 提取base64数据
-            const base64Data = response.choices[0].message.content.split(',')[1];
-            if (base64Data) {
-              imageData = Buffer.from(base64Data, 'base64');
-            }
-          }
-        }
-        
-        // 如果没有从content获取到图像数据，创建占位符
-        if (!imageData) {
-          imageData = await this.createPlaceholderImage();
-        }
-        
-        // 保存图像
-        await fs.writeFile(filePath, imageData);
-        console.log(`✅ Image saved to: ${filePath}`);
-        
-        return {
-          success: true,
-          filePath: filePath,
-          fileName: fileName,
-          publicUrl: `/generated/${fileName}`,
-          mimeType: 'image/png',
-          size: imageData.length
-        };
-      } else {
-        console.log("No valid multimodal response received.");
-        return { success: false, error: "No valid response received" };
-      }
-    } catch (error) {
-      console.error(`Error processing response: ${error.message}`);
-      return { success: false, error: error.message };
-    }
-  }
 }
 
-// 导出单例实例
-const aiModelService = new AIModelService();
-module.exports = aiModelService;
+module.exports = new AIModelService();

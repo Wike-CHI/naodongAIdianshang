@@ -12,10 +12,10 @@ export const createApiUrl = (endpoint) => {
 // API端点配置
 export const API_ENDPOINTS = {
   // 认证相关
-  LOGIN: '/api/admin/auth/login',
-  LOGOUT: '/api/admin/auth/logout',
-  REFRESH_TOKEN: '/api/admin/auth/refresh',
-  VERIFY_TOKEN: '/api/admin/auth/verify',
+  LOGIN: '/api/auth/admin-login',
+  LOGOUT: '/api/auth/logout',
+  REFRESH_TOKEN: '/api/auth/refresh',
+  VERIFY_TOKEN: '/api/auth/verify-token',
   
   // 仪表板相关
   DASHBOARD_STATS: '/api/admin/dashboard/stats',

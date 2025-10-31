@@ -1,65 +1,67 @@
 const express = require('express');
 const router = express.Router();
 
-// AI模特工具配置数据（实际项目中应该使用数据库）
+// 模拟AI模特工具配置数据
 const aiModelToolsConfig = {
   'ai-model': {
     id: 'ai-model',
     name: 'AI模特生成',
-    description: '基于商品图片生成专业模特展示图',
+    description: '基于服装图片生成专业模特展示效果',
     enabled: true,
-    creditCost: 10,
-    usageCount: 1250,
-    successRate: 95.2,
-    avgProcessTime: 8.5,
-    endpoint: '/api/ai/generate',
+    creditCost: 15,
+    usageCount: 1234,
+    successRate: 92.5,
+    avgProcessTime: 15.3,
+    endpoint: '/api/ai/ai-model',
     model: 'flux-dev',
-    promptTemplate: '专业模特展示商品，{product_description}，高质量摄影，商业级别',
+    promptTemplate: '专业模特穿着{clothing_description}，{style_requirements}，高质量',
     negativePrompt: '低质量，模糊，变形',
     maxFileSize: 10,
     supportedFormats: ['jpg', 'png', 'webp'],
     lastUpdated: new Date().toISOString(),
     status: 'active',
-    category: 'model-generation'
+    category: 'model'
   },
   'try-on-clothes': {
     id: 'try-on-clothes',
     name: '同版型试衣',
-    description: '保持服装版型的智能试衣功能',
+    description: '在相同版型上更换不同服装',
     enabled: true,
-    creditCost: 15,
-    usageCount: 890,
-    successRate: 92.8,
-    avgProcessTime: 12.3,
-    endpoint: '/api/ai/try-on',
+    creditCost: 8,
+    usageCount: 876,
+    successRate: 89.7,
+    avgProcessTime: 12.1,
+    endpoint: '/api/ai/try-on-clothes',
     model: 'flux-dev',
-    promptTemplate: '模特试穿{clothing_type}，保持原版型，{style_description}',
-    negativePrompt: '版型变形，不合身，低质量',
-    maxFileSize: 15,
-    supportedFormats: ['jpg', 'png'],
+    promptTemplate: '模特试穿{clothing_type}，{fabric_description}，自然贴合',
+    negativePrompt: '不合身，变形，低质量',
+    maxFileSize: 8,
+    supportedFormats: ['jpg', 'png', 'webp'],
     lastUpdated: new Date().toISOString(),
     status: 'active',
-    category: 'try-on'
+    category: 'clothing'
   },
   'glasses-tryon': {
     id: 'glasses-tryon',
     name: '配件试戴',
-    description: '眼镜、帽子等配件的智能试戴',
+    description: '各类眼镜、帽子等配件的智能试戴',
     enabled: true,
-    creditCost: 8,
-    usageCount: 567,
-    successRate: 89.5,
-    avgProcessTime: 6.8,
-    endpoint: '/api/ai/accessory-tryon',
+    creditCost: 6,
+    usageCount: 654,
+    successRate: 93.2,
+    avgProcessTime: 8.7,
+    endpoint: '/api/ai/glasses-tryon',
     model: 'flux-dev',
-    promptTemplate: '模特佩戴{accessory_type}，{style_description}，自然效果',
-    negativePrompt: '不自然，变形，低质量',
-    maxFileSize: 8,
+    promptTemplate: '模特佩戴{accessory_type}，{style_description}，自然贴合',
+    negativePrompt: '不贴合，变形，低质量',
+    maxFileSize: 5,
     supportedFormats: ['jpg', 'png', 'webp'],
     lastUpdated: new Date().toISOString(),
     status: 'active',
     category: 'accessory'
   },
+  // 隐藏姿态变换功能
+  /*
   'pose-transform': {
     id: 'pose-transform',
     name: '姿态变换',
@@ -79,6 +81,7 @@ const aiModelToolsConfig = {
     status: 'inactive',
     category: 'pose'
   },
+  */
   'model-video': {
     id: 'model-video',
     name: '模特视频生成',
@@ -262,20 +265,18 @@ router.post('/batch-status', (req, res) => {
       });
     }
     
-    const updatedTools = [];
+    // 更新指定工具的状态
     ids.forEach(id => {
       if (aiModelToolsConfig[id]) {
         aiModelToolsConfig[id].enabled = enabled;
         aiModelToolsConfig[id].status = enabled ? 'active' : 'inactive';
         aiModelToolsConfig[id].lastUpdated = new Date().toISOString();
-        updatedTools.push(aiModelToolsConfig[id]);
       }
     });
     
     res.json({
       success: true,
-      data: updatedTools,
-      message: `成功更新${updatedTools.length}个工具状态`
+      message: `成功更新${ids.length}个工具的状态`
     });
   } catch (error) {
     res.status(500).json({
@@ -285,91 +286,17 @@ router.post('/batch-status', (req, res) => {
   }
 });
 
-// 重置工具配置
-router.post('/:id/reset', (req, res) => {
+// 获取工具使用统计
+router.get('/stats/usage', (req, res) => {
   try {
-    const { id } = req.params;
-    
-    if (!aiModelToolsConfig[id]) {
-      return res.status(404).json({
-        success: false,
-        error: '工具不存在'
-      });
-    }
-    
-    // 重置为默认配置（这里简化处理，实际应该有默认配置模板）
-    aiModelToolsConfig[id].lastUpdated = new Date().toISOString();
-    
-    res.json({
-      success: true,
-      data: aiModelToolsConfig[id],
-      message: '配置重置成功'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// 批量重置工具配置
-router.post('/batch-reset', (req, res) => {
-  try {
-    const { ids } = req.body;
-    
-    if (!Array.isArray(ids)) {
-      return res.status(400).json({
-        success: false,
-        error: 'ids必须是数组'
-      });
-    }
-    
-    const resetTools = [];
-    ids.forEach(id => {
-      if (aiModelToolsConfig[id]) {
-        aiModelToolsConfig[id].lastUpdated = new Date().toISOString();
-        resetTools.push(aiModelToolsConfig[id]);
-      }
-    });
-    
-    res.json({
-      success: true,
-      data: resetTools,
-      message: `成功重置${resetTools.length}个工具配置`
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// 获取统计数据
-router.get('/stats', (req, res) => {
-  try {
-    const tools = Object.values(aiModelToolsConfig);
-    
-    const stats = {
-      totalUsage: tools.reduce((sum, tool) => sum + tool.usageCount, 0),
-      totalCreditsConsumed: tools.reduce((sum, tool) => sum + (tool.usageCount * tool.creditCost), 0),
-      enabledTools: tools.filter(tool => tool.enabled).length,
-      totalTools: tools.length,
-      avgSuccessRate: tools.reduce((sum, tool) => sum + tool.successRate, 0) / tools.length,
-      todayUsage: Math.floor(Math.random() * 200) + 50, // 模拟今日使用量
-      categories: {
-        'model-generation': tools.filter(t => t.category === 'model-generation').length,
-        'try-on': tools.filter(t => t.category === 'try-on').length,
-        'accessory': tools.filter(t => t.category === 'accessory').length,
-        'pose': tools.filter(t => t.category === 'pose').length,
-        'video': tools.filter(t => t.category === 'video').length,
-        'footwear': tools.filter(t => t.category === 'footwear').length,
-        'background': tools.filter(t => t.category === 'background').length,
-        'color': tools.filter(t => t.category === 'color').length,
-        'editing': tools.filter(t => t.category === 'editing').length
-      }
-    };
+    const stats = Object.values(aiModelToolsConfig).map(tool => ({
+      id: tool.id,
+      name: tool.name,
+      usageCount: tool.usageCount,
+      successRate: tool.successRate,
+      avgProcessTime: tool.avgProcessTime,
+      enabled: tool.enabled
+    }));
     
     res.json({
       success: true,
@@ -383,88 +310,20 @@ router.get('/stats', (req, res) => {
   }
 });
 
-// 获取工具使用历史
-router.get('/:id/history', (req, res) => {
+// 获取工具性能统计
+router.get('/stats/performance', (req, res) => {
   try {
-    const { id } = req.params;
-    const { page = 1, pageSize = 10 } = req.query;
-    
-    if (!aiModelToolsConfig[id]) {
-      return res.status(404).json({
-        success: false,
-        error: '工具不存在'
-      });
-    }
-    
-    // 模拟历史记录数据
-    const mockHistory = Array.from({ length: 50 }, (_, index) => ({
-      id: `history_${id}_${index}`,
-      toolId: id,
-      userId: `user_${Math.floor(Math.random() * 100)}`,
-      timestamp: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-      status: Math.random() > 0.1 ? 'success' : 'failed',
-      creditsCost: aiModelToolsConfig[id].creditCost,
-      processTime: Math.random() * 20 + 2,
-      inputParams: {
-        prompt: '示例提示词',
-        imageCount: 1
-      }
+    const performanceData = Object.values(aiModelToolsConfig).map(tool => ({
+      id: tool.id,
+      name: tool.name,
+      successRate: tool.successRate,
+      avgProcessTime: tool.avgProcessTime,
+      category: tool.category
     }));
     
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = startIndex + parseInt(pageSize);
-    const paginatedHistory = mockHistory.slice(startIndex, endIndex);
-    
     res.json({
       success: true,
-      data: {
-        records: paginatedHistory,
-        total: mockHistory.length,
-        page: parseInt(page),
-        pageSize: parseInt(pageSize)
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// 测试工具配置
-router.post('/:id/test', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const testParams = req.body;
-    
-    if (!aiModelToolsConfig[id]) {
-      return res.status(404).json({
-        success: false,
-        error: '工具不存在'
-      });
-    }
-    
-    const tool = aiModelToolsConfig[id];
-    
-    // 模拟测试结果
-    const testResult = {
-      success: Math.random() > 0.2, // 80%成功率
-      responseTime: Math.random() * 10 + 2,
-      timestamp: new Date().toISOString(),
-      toolConfig: {
-        id: tool.id,
-        name: tool.name,
-        model: tool.model,
-        endpoint: tool.endpoint
-      },
-      testParams,
-      message: Math.random() > 0.2 ? '测试成功' : '测试失败：连接超时'
-    };
-    
-    res.json({
-      success: true,
-      data: testResult
+      data: performanceData
     });
   } catch (error) {
     res.status(500).json({

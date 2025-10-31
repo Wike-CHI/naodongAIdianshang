@@ -40,6 +40,7 @@ const commonOptions = {
 
 // 硬编码的AI工具列表 - 不允许增删，但允许改查
 // 所有工具都遵循统一的界面布局：2个图片上传窗口，3个可选项窗口，1个提示词窗口
+// 隐藏姿态变换功能
 const hardcodedTools = [
   {
     id: 'ai-model',
@@ -71,7 +72,7 @@ const hardcodedTools = [
   {
     id: 'glasses-tryon',
     name: '配件试戴',
-    description: '生成眼镜、帽饰等配件试戴效果图',
+    description: '生成眼镜试戴效果图',
     category: 'accessory',
     icon: '🕶️',
     creditCost: 10,
@@ -81,6 +82,8 @@ const hardcodedTools = [
       promptSlot: 1
     }
   },
+  // 隐藏姿态变换功能
+  /*
   {
     id: 'pose-variation',
     name: '姿态变换',
@@ -94,6 +97,7 @@ const hardcodedTools = [
       promptSlot: 1
     }
   },
+  */
   {
     id: 'shoe-tryon',
     name: '鞋靴试穿',
@@ -241,14 +245,18 @@ export const ToolProvider = ({ children }) => {
         break;
         
       case 'glasses-tryon':
-        // 配件试戴特定选项
-        if (params.accessoryCategory) options.accessory_category = params.accessoryCategory;
+        // 配件试戴只支持眼镜，固定参数
+        options.accessory_category = '眼镜';
+        options.accessory_type = '眼镜';
         break;
         
+      // 隐藏姿态变换功能
+      /*
       case 'pose-variation':
         // 姿态变换特定选项
         if (params.poseType) options.pose_type = params.poseType;
         break;
+      */
         
       case 'shoe-tryon':
         // 鞋靴试穿特定选项

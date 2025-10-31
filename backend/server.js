@@ -36,6 +36,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/generated', express.static(path.join(__dirname, 'generated'), { maxAge: '1d' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), { maxAge: '1d' }));
 
 const bootstrapDatabase = async () => {
   try {
@@ -90,9 +91,6 @@ app.use('/api/admin/users', usersRoutes);
 app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/credits', creditsRoutes);
 app.use('/api/credit-packages', creditPackagesRoutes);
-
-// 用户相关路由（注意：这些路由与 /api/admin/users 不同，是给普通用户使用的）
-app.use('/api/user', usersRoutes);
 
 // 全局错误处理
 app.use((error, req, res, next) => {

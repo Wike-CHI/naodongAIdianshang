@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>增强版个人中心编辑功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input[type="text"], input[type="email"], input[type="tel"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        input[type="file"] {
+            margin-top: 5px;
+        }
+        button {
+            background-color: #1890ff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #40a9ff;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .avatar-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ddd;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #f6ffed;
+            border: 1px solid #b7eb8f;
+            color: #52c41a;
+        }
+        .error {
+            background-color: #fff2f0;
+            border: 1px solid #ffccc7;
+            color: #ff4d4f;
+        }
+        .info {
+            background-color: #e6f7ff;
+            border: 1px solid #91d5ff;
+            color: #1890ff;
+        }
+        .warning {
+            background-color: #fffbe6;
+            border: 1px solid #ffe58f;
+            color: #faad14;
+        }
+        .permission-info {
+            background-color: #f0f2f5;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .update-history {
+            background-color: #fafafa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .restricted-field {
+            position: relative;
+        }
+        .restriction-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #faad14;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+        .field-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .field-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>增强版个人中心编辑功能测试</h1>
+        
+        <div id="status"></div>
+        
+        <!-- 权限信息显示 -->
+        <div id="permissionInfo" style="display: none;" class="permission-info">
+            <h3>修改权限信息</h3>
+            <div id="permissionDetails"></div>
+        </div>
+
+        <!-- 修改历史显示 -->
+        <div id="updateHistory" style="display: none;" class="update-history">
+            <h3>最近修改记录</h3>
+            <div id="historyDetails"></div>
+        </div>
+        
+        <form id="profileForm">
+            <div class="form-group">
+                <label>当前头像:</label>
+                <img id="avatarPreview" class="avatar-preview" src="" alt="头像预览" style="display: none;">
+                <div id="noAvatar" style="display: block; color: #999;">暂无头像</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="avatar">上传新头像:</label>
+                <input type="file" id="avatar" accept="image/*">
+            </div>
+            
+            <div class="field-grid">
+                <div class="form-group">
+                    <label for="username">用户名:</label>
+                    <input type="text" id="username" required>
+                </div>
+                
+                <div class="form-group restricted-field">
+                    <label for="email">邮箱:</label>
+                    <input type="email" id="email">
+                    <span class="restriction-badge" id="emailBadge" style="display: none;">30天限制</span>
+                </div>
+                
+                <div class="form-group restricted-field">
+                    <label for="phone">手机号:</label>
+                    <input type="tel" id="phone">
+                    <span class="restriction-badge" id="phoneBadge" style="display: none;">30天限制</span>
+                </div>
+                
+                <div class="form-group restricted-field">
+                    <label for="wechat_id">微信号:</label>
+                    <input type="text" id="wechat_id">
+                    <span class="restriction-badge" id="wechatBadge" style="display: none;">30天限制</span>
+                </div>
+                
+                <div class="form-group restricted-field">
+                    <label for="business_type">经营类型:</label>
+                    <select id="business_type">
+                        <option value="个人">个人</option>
+                        <option value="个体工商户">个体工商户</option>
+                        <option value="企业">企业</option>
+                        <option value="事业单位">事业单位</option>
+                        <option value="政府机关">政府机关</option>
+                        <option value="其他">其他</option>
+                    </select>
+                    <span class="restriction-badge" id="businessBadge" style="display: none;">30天限制</span>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px;">
+                <button type="button" onclick="loadUserInfo()">加载用户信息</button>
+                <button type="button" onclick="checkPermission()">检查修改权限</button>
+                <button type="button" onclick="updateProfile()" id="updateBtn">更新资料</button>
+                <button type="button" onclick="uploadAvatar()" id="uploadBtn">上传头像</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8080';
+        let currentUser = null;
+        let updatePermission = null;
+        
+        // 显示状态消息
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                statusDiv.innerHTML = '';
+            }, 5000);
+        }
+        
+        // 获取token（模拟登录状态）
+        function getToken() {
+            return localStorage.getItem('token') || 'test-token';
+        }
+        
+        // 加载用户信息
+        async function loadUserInfo() {
+            try {
+                showStatus('正在加载用户信息...', 'info');
+                
+                const response = await fetch(`${API_BASE}/api/auth/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser = data.data.user;
+                    
+                    // 填充表单
+                    document.getElementById('username').value = currentUser.username || '';
+                    document.getElementById('email').value = currentUser.email || '';
+                    document.getElementById('phone').value = currentUser.phone || '';
+                    document.getElementById('wechat_id').value = currentUser.wechat_id || '';
+                    document.getElementById('business_type').value = currentUser.business_type || '个人';
+                    
+                    // 显示头像
+                    if (currentUser.avatar_url) {
+                        const avatarPreview = document.getElementById('avatarPreview');
+                        avatarPreview.src = `${API_BASE}${currentUser.avatar_url}`;
+                        avatarPreview.style.display = 'block';
+                        document.getElementById('noAvatar').style.display = 'none';
+                    }
+                    
+                    showStatus('用户信息加载成功', 'success');
+                    
+                    // 自动检查权限
+                    await checkPermission();
+                } else {
+                    throw new Error(data.message || '加载用户信息失败');
+                }
+            } catch (error) {
+                console.error('加载用户信息失败:', error);
+                showStatus(`加载用户信息失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 检查修改权限
+        async function checkPermission() {
+            if (!currentUser) {
+                showStatus('请先加载用户信息', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('正在检查修改权限...', 'info');
+                
+                const response = await fetch(`${API_BASE}/api/users/${currentUser._id || currentUser.id}/profile-update-permission`, {
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    updatePermission = data.data;
+                    displayPermissionInfo();
+                    updateFieldRestrictions();
+                    showStatus('权限检查完成', 'success');
+                } else {
+                    throw new Error(data.message || '检查权限失败');
+                }
+            } catch (error) {
+                console.error('检查权限失败:', error);
+                showStatus(`检查权限失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 显示权限信息
+        function displayPermissionInfo() {
+            const permissionDiv = document.getElementById('permissionInfo');
+            const detailsDiv = document.getElementById('permissionDetails');
+            
+            if (updatePermission) {
+                let html = `
+                    <p><strong>状态:</strong> ${updatePermission.canUpdate ? '✅ 可以修改' : '❌ 暂时无法修改'}</p>
+                    <p><strong>说明:</strong> ${updatePermission.message}</p>
+                `;
+                
+                if (updatePermission.lastUpdated) {
+                    html += `<p><strong>上次修改:</strong> ${new Date(updatePermission.lastUpdated).toLocaleString()}</p>`;
+                }
+                
+                if (updatePermission.nextUpdateAvailable) {
+                    html += `<p><strong>下次可修改:</strong> ${new Date(updatePermission.nextUpdateAvailable).toLocaleString()}</p>`;
+                }
+                
+                if (updatePermission.remainingDays > 0) {
+                    html += `<p><strong>剩余等待天数:</strong> ${updatePermission.remainingDays} 天</p>`;
+                }
+                
+                detailsDiv.innerHTML = html;
+                permissionDiv.style.display = 'block';
+                
+                // 显示修改历史
+                if (updatePermission.updateHistory && updatePermission.updateHistory.length > 0) {
+                    displayUpdateHistory();
+                }
+            }
+        }
+        
+        // 显示修改历史
+        function displayUpdateHistory() {
+            const historyDiv = document.getElementById('updateHistory');
+            const detailsDiv = document.getElementById('historyDetails');
+            
+            let html = '<ul>';
+            updatePermission.updateHistory.forEach(record => {
+                html += `
+                    <li>
+                        <strong>${new Date(record.updated_at).toLocaleString()}</strong> - 
+                        修改了 <em>${record.field}</em>: 
+                        "${record.old_value || '空'}" → "${record.new_value || '空'}"
+                    </li>
+                `;
+            });
+            html += '</ul>';
+            
+            detailsDiv.innerHTML = html;
+            historyDiv.style.display = 'block';
+        }
+        
+        // 更新字段限制状态
+        function updateFieldRestrictions() {
+            const restrictedFields = ['email', 'phone', 'wechat_id', 'business_type'];
+            const canUpdate = updatePermission && updatePermission.canUpdate;
+            
+            restrictedFields.forEach(field => {
+                const input = document.getElementById(field);
+                const badge = document.getElementById(field === 'wechat_id' ? 'wechatBadge' : 
+                                                   field === 'business_type' ? 'businessBadge' : 
+                                                   field + 'Badge');
+                
+                if (input) {
+                    input.disabled = !canUpdate;
+                    input.style.backgroundColor = canUpdate ? '' : '#f5f5f5';
+                }
+                
+                if (badge) {
+                    badge.style.display = canUpdate ? 'none' : 'inline';
+                }
+            });
+            
+            // 更新按钮状态
+            const updateBtn = document.getElementById('updateBtn');
+            updateBtn.disabled = !canUpdate;
+            updateBtn.style.backgroundColor = canUpdate ? '#1890ff' : '#ccc';
+        }
+        
+        // 更新用户资料
+        async function updateProfile() {
+            if (!currentUser) {
+                showStatus('请先加载用户信息', 'error');
+                return;
+            }
+            
+            if (updatePermission && !updatePermission.canUpdate) {
+                showStatus('当前无法修改资料，请查看权限信息', 'warning');
+                return;
+            }
+            
+            try {
+                const updateBtn = document.getElementById('updateBtn');
+                updateBtn.disabled = true;
+                updateBtn.textContent = '更新中...';
+                
+                showStatus('正在更新用户资料...', 'info');
+                
+                const updateData = {
+                    username: document.getElementById('username').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    wechat_id: document.getElementById('wechat_id').value,
+                    business_type: document.getElementById('business_type').value
+                };
+                
+                const response = await fetch(`${API_BASE}/api/users/${currentUser._id || currentUser.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${getToken()}`
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser = data.data.user;
+                    showStatus(`用户资料更新成功！修改了字段: ${data.data.updatedFields.join(', ')}`, 'success');
+                    
+                    // 如果有修改受限字段，重新检查权限
+                    if (data.data.updatedFields.length > 0) {
+                        setTimeout(() => {
+                            checkPermission();
+                        }, 1000);
+                    }
+                } else {
+                    throw new Error(data.message || '更新用户资料失败');
+                }
+            } catch (error) {
+                console.error('更新用户资料失败:', error);
+                showStatus(`更新用户资料失败: ${error.message}`, 'error');
+            } finally {
+                const updateBtn = document.getElementById('updateBtn');
+                updateBtn.disabled = updatePermission && !updatePermission.canUpdate;
+                updateBtn.textContent = '更新资料';
+            }
+        }
+        
+        // 上传头像
+        async function uploadAvatar() {
+            if (!currentUser) {
+                showStatus('请先加载用户信息', 'error');
+                return;
+            }
+            
+            const fileInput = document.getElementById('avatar');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showStatus('请选择要上传的头像文件', 'error');
+                return;
+            }
+            
+            try {
+                const uploadBtn = document.getElementById('uploadBtn');
+                uploadBtn.disabled = true;
+                uploadBtn.textContent = '上传中...';
+                
+                showStatus('正在上传头像...', 'info');
+                
+                const formData = new FormData();
+                formData.append('avatar', file);
+                
+                const response = await fetch(`${API_BASE}/api/users/${currentUser._id || currentUser.id}/avatar`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${getToken()}`
+                    },
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 更新头像预览
+                    const avatarPreview = document.getElementById('avatarPreview');
+                    avatarPreview.src = `${API_BASE}${data.data.avatar_url}`;
+                    avatarPreview.style.display = 'block';
+                    document.getElementById('noAvatar').style.display = 'none';
+                    
+                    // 清空文件输入
+                    fileInput.value = '';
+                    
+                    showStatus('头像上传成功', 'success');
+                } else {
+                    throw new Error(data.message || '头像上传失败');
+                }
+            } catch (error) {
+                console.error('头像上传失败:', error);
+                showStatus(`头像上传失败: ${error.message}`, 'error');
+            } finally {
+                const uploadBtn = document.getElementById('uploadBtn');
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '上传头像';
+            }
+        }
+        
+        // 页面加载时自动加载用户信息
+        window.onload = function() {
+            showStatus('页面已加载，点击"加载用户信息"开始测试', 'info');
+        };
+    </script>
+</body>
+</html>

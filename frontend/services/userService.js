@@ -84,7 +84,21 @@ const userService = {
   updateUser: async (userId, userData) => {
     try {
       console.log('📝 更新用户信息:', { userId, userData });
-      const response = await apiClient.put(`/api/users/${userId}`, userData);
+      
+      // 映射前端字段到后端字段
+      const mappedData = {
+        ...userData,
+        credits_balance: userData.credits,
+        role: userData.membership,
+        is_active: userData.status === 'true' || userData.status === true
+      };
+      
+      // 删除前端字段
+      delete mappedData.credits;
+      delete mappedData.membership;
+      delete mappedData.status;
+      
+      const response = await apiClient.put(`/api/users/${userId}`, mappedData);
       console.log('✅ 更新用户信息成功:', response);
       return response;
     } catch (error) {
