@@ -15,7 +15,7 @@ const nanobananaIntegration = require('./nanobananaIntegration');
 const USER_ASSET_LIMIT = parseInt(process.env.USER_ASSET_LIMIT || '200', 10);
 const USER_ASSET_SLICE = Number.isFinite(USER_ASSET_LIMIT) && USER_ASSET_LIMIT > 0 ? -USER_ASSET_LIMIT : -200;
 
-// 隐藏姿态变换功能
+// 工具目录配置
 const TOOL_CATALOG = {
   'ai-model': {
     name: 'AI模特生成',
@@ -58,22 +58,6 @@ const TOOL_CATALOG = {
       accessory_category: '眼镜'
     }
   },
-  // 隐藏姿态变换功能
-  /*
-  'pose-variation': {
-    name: '姿态变换',
-    description: '在保持人物特征的基础上调整姿态',
-    type: 'image_generation',
-    category: '创意生成',
-    creditCost: 9,
-    tags: ['pose', 'modeling'],
-    promptTemplate: '模特姿态调整，{pose_description}，稳定构图，真实质感',
-    defaultOptions: {
-      pose_description: '自然动态姿态',
-      pose_type: '站立'
-    }
-  },
-  */
   'shoe-tryon': {
     name: '鞋靴试穿',
     description: '鞋靴电商穿着效果图生成',
@@ -216,8 +200,6 @@ const generateDetailedPrompt = (body, files, catalogConfig, options) => {
     clothing_style: options.clothing_style || defaultOptions.clothing_style || '修身',
     accessory_type: '眼镜', // 固定为眼镜
     accessory_category: '眼镜', // 固定为眼镜
-    pose_description: options.pose_description || defaultOptions.pose_description || '自然动态姿态',
-    pose_type: options.pose_type || defaultOptions.pose_type || '站立',
     shoe_description: options.shoe_description || defaultOptions.shoe_description || '潮流鞋靴',
     shoe_type: options.shoe_type || defaultOptions.shoe_type || '运动鞋',
     scene_description: options.scene_description || defaultOptions.scene_description || '高级商业背景',
@@ -253,16 +235,6 @@ const generateDetailedPrompt = (body, files, catalogConfig, options) => {
       placeholderValues.accessory_type = '眼镜';
       placeholderValues.accessory_category = '眼镜';
       break;
-      
-    // 隐藏姿态变换功能
-    /*
-    case 'pose-variation':
-      // 姿态变换 - 根据姿态类型生成描述
-      if (options.pose_type) {
-        placeholderValues.pose_description = options.pose_type;
-      }
-      break;
-    */
       
     case 'shoe-tryon':
       // 鞋靴试穿 - 根据鞋类生成描述
@@ -586,10 +558,10 @@ const generateAIModelImage = async ({ toolKey, userId, body, files, catalogConfi
       images: [
         {
           index: 0,
-          data: (await fs.readFile(aiResult.filePath)).toString('base64'),
+          data: (await fs.promises.readFile(aiResult.filePath)).toString('base64'),
           mime_type: 'image/png',
-          size_bytes: (await fs.stat(aiResult.filePath)).size,
-          data_url: `data:image/png;base64,${(await fs.readFile(aiResult.filePath)).toString('base64')}`,
+          size_bytes: (await fs.promises.stat(aiResult.filePath)).size,
+          data_url: `data:image/png;base64,${(await fs.promises.readFile(aiResult.filePath)).toString('base64')}`,
           public_url: aiResult.publicUrl,
           file_name: aiResult.fileName
         }

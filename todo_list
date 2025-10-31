@@ -1,1 +1,1 @@
-{"version":1,"todos":[{"id":"1","content":"放宽用户资料更新中的头像字段校验","status":"completed"}]}
+{"version":1,"todos":[{"id":"1","content":"重构AI工作区UI满足六类生图工具","status":"complete"},{"id":"2","content":"同步前端调用逻辑与内置提示词","status":"complete"},{"id":"3","content":"调整后端AI生成接口支持新参数","status":"complete"}]}

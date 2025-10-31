@@ -1,6 +1,6 @@
 import React from 'react'
 import { Layout } from 'antd'
-import { useToolContext } from '../../contexts/ToolContext'
+import { useTool } from '../../contexts/ToolContext' // 改回使用 useTool
 import {
   UserOutlined,
   ShoppingOutlined,
@@ -16,7 +16,7 @@ import {
 const { Sider } = Layout
 
 const Sidebar = () => {
-  const { tools, selectedTool, setSelectedTool } = useToolContext()
+  const { tools, selectedTool, setSelectedTool } = useTool() // 改回使用 useTool
 
   const getToolIcon = (toolId) => {
     const iconMap = {

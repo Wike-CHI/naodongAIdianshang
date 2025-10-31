@@ -2,13 +2,13 @@ import React from 'react'
 import { Card, Typography, Button, Space, Empty, Image, Tooltip, Divider } from 'antd'
 import { DownloadOutlined, RedoOutlined, HeartOutlined, ShareAltOutlined } from '@ant-design/icons'
 import logger from '../../utils/logger'
-import { useToolContext } from '../../contexts/ToolContext'
+import { useTool } from '../../contexts/ToolContext' // 改为 useTool
 import { useAuth } from '../../contexts/AuthContext'
 
 const { Title, Text } = Typography
 
 const ResultPanel = () => {
-  const { generationHistory, isGenerating } = useToolContext()
+  const { generationHistory, isGenerating } = useTool() // 改为 useTool
   const { isAuthenticated } = useAuth()
 
   const handleDownload = (imageUrl, filename) => {

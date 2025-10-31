@@ -1,419 +1,644 @@
-import React, { useState } from 'react'
-import { Card, Typography, Form, Button, message, Select, Slider, Radio, Space, Row, Col, Divider, Input } from 'antd'
-import { ThunderboltOutlined } from '@ant-design/icons'
-import { useToolContext } from '../../contexts/ToolContext'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Card, Typography, Button, Select, Input, Space, Alert, message } from 'antd'
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useTool } from '../../contexts/ToolContext' // 改为 useTool
 import { useAuth } from '../../contexts/AuthContext'
-import ImageUpload from '../Common/ImageUpload'
-import PromptInput from '../Common/PromptInput'
 
-const { Title, Text } = Typography
-const { Option } = Select
+const { Title, Text, Paragraph } = Typography
+const { TextArea } = Input
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024
+
+// 场景预设
+const SCENE_PRESETS = [
+  {
+    value: 'studio-white',
+    label: '高级摄影棚白底',
+    prompt: '高级无影商业摄影棚白色背景，柔光箱补光，地面干净反光 '
+  },
+  {
+    value: 'studio-gradient',
+    label: '渐变炫彩摄影棚',
+    prompt: '高级电商渐变摄影棚背景，冷暖渐层灯光，镜面质感地面'
+  },
+  {
+    value: 'lifestyle-livingroom',
+    label: '现代客厅场景',
+    prompt: '现代简约客厅背景，柔和自然光，家具摆放协调 '
+  },
+  {
+    value: 'street-fashion',
+    label: '街拍时尚',
+    prompt: '黄金时段城市街景背景，柔焦光斑，潮流街拍氛围'
+  },
+  {
+    value: 'outdoor-garden',
+    label: '花园自然光',
+    prompt: '户外花园背景，绿色植被和柔和散射自然光，清新氛围'
+  },
+  {
+    value: 'premium-ecommerce',
+    label: '高级电商布景',
+    prompt: '高级电商布景背景，纯色立体背景板和柔光灯，适合服饰拍摄'
+  }
+]
+
+// 颜色预设
+const COLOR_PRESETS = [
+  {
+    value: 'classic-black',
+    label: '经典黑',
+    prompt: '纯黑色，轻微哑光质感，保持细节高光'
+  },
+  {
+    value: 'pure-white',
+    label: '纯净白',
+    prompt: '纯白色，高亮度电商质感，保留产品阴影与纹理 '
+  },
+  {
+    value: 'ecommerce-red',
+    label: '爆款红',
+    prompt: '电商爆款红，饱和度高，保持材质反光细节'
+  },
+  {
+    value: 'soft-beige',
+    label: '奶油米白',
+    prompt: '温柔米白色，低饱和奶油调，保留材质纹理 '
+  },
+  {
+    value: 'iced-blue',
+    label: '冰川蓝',
+    prompt: '清爽冰川蓝，轻微金属光泽，凸显线条 '
+  },
+  {
+    value: 'emerald-green',
+    label: '翡翠绿',
+    prompt: '高级翡翠绿，丝绒质感，保持高光层次 '
+  }
+]
+
+// 工具工作流配置
+const TOOL_WORKFLOWS = {
+  'ai-model': {
+    mainLabel: '模特主图',
+    mainPlaceholder: '上传需要换脸的模特照片',
+    referenceLabel: '人物参考图',
+    referencePlaceholder: '上传人物面部参考图',
+    requireReference: true,
+    helper: '系统将自动应用专业模特换脸提示词，无需填写额外描述。',
+    requiresPrompt: false,
+    buildPrompt: () => undefined,
+    buildMetadata: ({ promptSource }) => ({ promptSource })
+  },
+  'try-on-clothes': {
+    mainLabel: '人物模特图',
+    mainPlaceholder: '上传需要试衣的人物照片',
+    referenceLabel: '服装商品图',
+    referencePlaceholder: '上传要试穿的服装照片',
+    requireReference: true,
+    helper: '系统会智能融合服装与人物，默认使用内置提示词。',
+    requiresPrompt: false,
+    buildPrompt: () => undefined,
+    buildMetadata: ({ promptSource }) => ({ promptSource })
+  },
+  'glasses-tryon': {
+    mainLabel: '人脸照片',
+    mainPlaceholder: '上传需要试戴的脸部照片',
+    referenceLabel: '配件照片',
+    referencePlaceholder: '上传眼镜或配件照片',
+    requireReference: true,
+    helper: '默认使用眼镜试戴专用提示词，确保佩戴自然真实。',
+    requiresPrompt: false,
+    buildPrompt: () => undefined,
+    buildMetadata: ({ promptSource }) => ({ promptSource })
+  },
+  'shoe-tryon': {
+    mainLabel: '人物全身图',
+    mainPlaceholder: '上传需要试鞋的模特照片',
+    referenceLabel: '鞋靴商品图',
+    referencePlaceholder: '上传鞋靴商品照片',
+    requireReference: true,
+    helper: '将使用默认鞋靴试穿提示词，可直接点击生成。',
+    requiresPrompt: false,
+    buildPrompt: () => undefined,
+    buildMetadata: ({ promptSource }) => ({ promptSource })
+  },
+  'scene-change': {
+    mainLabel: '商品 / 人物主图',
+    mainPlaceholder: '上传需要替换场景的主图',
+    requireReference: false,
+    helper: '可自由输入提示词，或直接选择常用电商背景。若两者都提供，将优先结合。',
+    requiresPrompt: true,
+    buildPrompt: ({ prompt, scenePreset }) => {
+      const manual = prompt?.trim()
+      if (manual && scenePreset) {
+        return `${manual}，背景环境为${scenePreset.prompt}`
+      }
+      if (manual) {
+        return manual
+      }
+      if (scenePreset) {
+        return `将主体置于${scenePreset.prompt}，保持商业光影、高清写实风格`
+      }
+      return ''
+    },
+    buildMetadata: ({ promptSource, scenePreset }) => ({
+      promptSource,
+      scenePreset: scenePreset?.value,
+      scenePresetLabel: scenePreset?.label
+    })
+  },
+  'color-change': {
+    mainLabel: '商品 / 人物主图',
+    mainPlaceholder: '上传需要换色的主图',
+    requireReference: false,
+    helper: '选择常用商品颜色或输入自定义描述。两者皆填时，将在生成指令中结合。',
+    requiresPrompt: true,
+    buildPrompt: ({ prompt, colorPreset }) => {
+      const manual = prompt?.trim()
+      const colorText = colorPreset?.prompt
+      if (manual && colorText) {
+        return `${manual}，目标颜色为${colorText}`
+      }
+      if (manual) {
+        return manual
+      }
+      if (colorText) {
+        return `将商品整体颜色调整为${colorText}，保留原有材质质感与高光细节`
+      }
+      return ''
+    },
+    buildMetadata: ({ promptSource, colorPreset }) => ({
+      promptSource,
+      colorPreset: colorPreset?.value,
+      colorPresetLabel: colorPreset?.label
+    })
+  }
+}
+
+// 默认工作流
+const DEFAULT_WORKFLOW = {
+  mainLabel: '主图',
+  mainPlaceholder: '上传主图',
+  requireReference: false,
+  requiresPrompt: false,
+  buildPrompt: () => undefined,
+  buildMetadata: ({ promptSource }) => ({ promptSource })
+}
 
 const WorkArea = () => {
-  const { selectedTool, generateImage, isGenerating, commonOptions } = useToolContext()
-  const { user, isAuthenticated, updateCredits } = useAuth()
-  const [form] = Form.useForm()
-  const [formData, setFormData] = useState({})
+  const { selectedTool, generateImage, isGenerating } = useTool() // 改为 useTool
+  const { user, isAuthenticated } = useAuth()
 
-  const handleFormChange = (changedValues, allValues) => {
-    setFormData(allValues)
+  const [mainImage, setMainImage] = useState(null)
+  const [referenceImage, setReferenceImage] = useState(null)
+  const [scenePreset, setScenePreset] = useState(null)
+  const [colorPreset, setColorPreset] = useState(null)
+  const [customPrompt, setCustomPrompt] = useState('')
+
+  const mainImageRef = useRef(null)
+  const referenceImageRef = useRef(null)
+  const mainInputRef = useRef(null)
+  const referenceInputRef = useRef(null)
+
+  const mainInputId = useMemo(() => `main-upload-${Math.random().toString(36).slice(2)}`, [])
+  const referenceInputId = useMemo(() => `reference-upload-${Math.random().toString(36).slice(2)}`, [])
+
+  const workflow = useMemo(() => {
+    if (!selectedTool) {
+      return DEFAULT_WORKFLOW
+    }
+    return TOOL_WORKFLOWS[selectedTool.id] || DEFAULT_WORKFLOW
+  }, [selectedTool])
+
+  useEffect(() => {
+    cleanupPreview(mainImageRef.current)
+    cleanupPreview(referenceImageRef.current)
+    setMainImage(null)
+    setReferenceImage(null)
+    setScenePreset(null)
+    setColorPreset(null)
+    setCustomPrompt('')
+    if (mainInputRef.current) {
+      mainInputRef.current.value = ''
+    }
+    if (referenceInputRef.current) {
+      referenceInputRef.current.value = ''
+    }
+  }, [selectedTool?.id])
+
+  useEffect(() => {
+    return () => {
+      cleanupPreview(mainImageRef.current)
+      cleanupPreview(referenceImageRef.current)
+    }
+  }, [])
+
+  const handleFileChange = (event, type) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+
+    if (!file) {
+      return
+    }
+
+    if (!file.type.startsWith('image/')) {
+      message.error('仅支持上传图片文件')
+      return
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      message.error('图片大小不能超过 10MB')
+      return
+    }
+
+    const preview = URL.createObjectURL(file)
+    const payload = { file, preview, name: file.name }
+
+    if (type === 'main') {
+      cleanupPreview(mainImageRef.current)
+      mainImageRef.current = payload
+      setMainImage(payload)
+    } else {
+      cleanupPreview(referenceImageRef.current)
+      referenceImageRef.current = payload
+      setReferenceImage(payload)
+    }
+  }
+
+  const handleClear = (type) => {
+    if (type === 'main') {
+      cleanupPreview(mainImageRef.current)
+      mainImageRef.current = null
+      setMainImage(null)
+      if (mainInputRef.current) {
+        mainInputRef.current.value = ''
+      }
+    } else {
+      cleanupPreview(referenceImageRef.current)
+      referenceImageRef.current = null
+      setReferenceImage(null)
+      if (referenceInputRef.current) {
+        referenceInputRef.current.value = ''
+      }
+    }
   }
 
   const handleGenerate = async () => {
+    if (!selectedTool) {
+      message.error('请选择一个AI工具')
+      return
+    }
+
     if (!isAuthenticated) {
       message.warning('请先登录后再使用生成功能')
       return
     }
 
-    if (user.credits < selectedTool.creditCost) {
-      message.error('积分不足，请充值后再试')
+    if ((user?.credits ?? 0) < selectedTool.creditCost) {
+      message.error('积分不足，请先充值或升级套餐')
       return
     }
 
+    if (!mainImageRef.current?.file) {
+      message.error(`请先上传${workflow.mainLabel}`)
+      return
+    }
+
+    if (workflow.requireReference && !referenceImageRef.current?.file) {
+      message.error(`请先上传${workflow.referenceLabel}`)
+      return
+    }
+
+    const promptSource = determinePromptSource({
+      workflow,
+      customPrompt,
+      scenePreset,
+      colorPreset
+    })
+
+    const finalPrompt = workflow.buildPrompt({
+      prompt: customPrompt,
+      scenePreset,
+      colorPreset
+    })
+
+    if (workflow.requiresPrompt && !finalPrompt) {
+      message.error('请填写提示词或选择预设后再尝试生成')
+      return
+    }
+
+    const metadata = workflow.buildMetadata({
+      promptSource,
+      scenePreset,
+      colorPreset
+    })
+
     try {
-      await form.validateFields()
-      
-      // 准备参数 - 提示词现在是可选的
-      const params = {
-        mainImage: formData.mainImage,
-        referenceImage: formData.referenceImage,
+      await generateImage({
+        mainImage: mainImageRef.current,
+        referenceImage: workflow.requireReference ? referenceImageRef.current : undefined,
+        prompt: finalPrompt,
+        metadata,
         options: {
-          resolution: formData.resolution,
-          quantity: formData.quantity,
-          mode: formData.mode
+          resolution: '1080p',
+          quantity: 1,
+          mode: 'fast'
         }
-      }
-      
-      // 根据工具类型添加特定参数
-      switch (selectedTool.id) {
-        case 'ai-model':
-          if (formData.productType) params.productType = formData.productType;
-          if (formData.style) params.style = formData.style;
-          break;
-        case 'try-on-clothes':
-          if (formData.fabricType) params.fabricType = formData.fabricType;
-          if (formData.clothingStyle) params.clothingStyle = formData.clothingStyle;
-          break;
-        case 'glasses-tryon':
-          // 配件试戴只支持眼镜，固定参数
-          params.accessoryCategory = '眼镜';
-          break;
-        // 隐藏姿态变换功能
-        /*
-        case 'pose-variation':
-          if (formData.poseType) params.poseType = formData.poseType;
-          break;
-        */
-        case 'shoe-tryon':
-          if (formData.shoeType) params.shoeType = formData.shoeType;
-          break;
-        case 'scene-change':
-          if (formData.sceneType) params.sceneType = formData.sceneType;
-          break;
-        case 'color-change':
-          if (formData.targetColorName) params.targetColorName = formData.targetColorName;
-          break;
-      }
-      
-      // 只有在用户提供提示词时才添加
-      if (formData.positivePrompt && formData.positivePrompt.trim().length > 0) {
-        params.prompt = formData.positivePrompt
-      }
-      
-      // 调用真实的生成功能
-      await generateImage(params)
+      })
     } catch (error) {
-      if (error.errorFields) {
-        message.error('请填写必填项')
-      } else {
-        message.error('生成失败，请重试')
-      }
+      // 错误提示已在 generateImage 内部处理
     }
   }
 
   if (!selectedTool) {
     return (
-      <div style={{ 
-        width: '400px',
-        height: '100vh',
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        padding: '40px',
-        background: 'white',
-        borderRight: '1px solid #f0f0f0',
-        flexShrink: 0
-      }}>
+      <div
+        style={{
+          width: 400,
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRight: '1px solid #f0f0f0',
+          background: 'white'
+        }}
+      >
         <Text type="secondary">请选择一个AI工具开始使用</Text>
       </div>
     )
   }
 
-  // 根据工具类型渲染特定选项
-  const renderToolSpecificOptions = () => {
-    switch (selectedTool.id) {
-      case 'ai-model':
-        return (
-          <>
-            <Form.Item
-              name="productType"
-              label="产品类型"
-            >
-              <Select placeholder="选择产品类型">
-                <Option value="连衣裙">连衣裙</Option>
-                <Option value="衬衫">衬衫</Option>
-                <Option value="外套">外套</Option>
-                <Option value="裤子">裤子</Option>
-                <Option value="其他">其他</Option>
-              </Select>
-            </Form.Item>
-            <Form.Item
-              name="style"
-              label="风格"
-            >
-              <Select placeholder="选择风格">
-                <Option value="商务">商务</Option>
-                <Option value="休闲">休闲</Option>
-                <Option value="运动">运动</Option>
-                <Option value="时尚">时尚</Option>
-                <Option value="简约">简约</Option>
-              </Select>
-            </Form.Item>
-          </>
-        );
-        
-      case 'try-on-clothes':
-        return (
-          <>
-            <Form.Item
-              name="fabricType"
-              label="面料类型"
-            >
-              <Select placeholder="选择面料类型">
-                <Option value="棉质">棉质</Option>
-                <Option value="丝绸">丝绸</Option>
-                <Option value="羊毛">羊毛</Option>
-                <Option value="化纤">化纤</Option>
-                <Option value="混纺">混纺</Option>
-              </Select>
-            </Form.Item>
-            <Form.Item
-              name="clothingStyle"
-              label="服装款式"
-            >
-              <Select placeholder="选择服装款式">
-                <Option value="修身">修身</Option>
-                <Option value="宽松">宽松</Option>
-                <Option value="直筒">直筒</Option>
-                <Option value="A字型">A字型</Option>
-                <Option value="其他">其他</Option>
-              </Select>
-            </Form.Item>
-          </>
-        );
-        
-      case 'glasses-tryon':
-        // 配件试戴只支持眼镜，不显示选项
-        return null;
-        
-      // 隐藏姿态变换功能
-      /*
-      case 'pose-variation':
-        return (
-          <Form.Item
-            name="poseType"
-            label="姿态类型"
-          >
-            <Select placeholder="选择姿态类型">
-              <Option value="站立">站立</Option>
-              <Option value="坐姿">坐姿</Option>
-              <Option value="行走">行走</Option>
-              <Option value="运动">运动</Option>
-              <Option value="其他">其他</Option>
-            </Select>
-          </Form.Item>
-        );
-      */
-        
-      case 'shoe-tryon':
-        return (
-          <Form.Item
-            name="shoeType"
-            label="鞋类"
-          >
-            <Select placeholder="选择鞋类">
-              <Option value="运动鞋">运动鞋</Option>
-              <Option value="高跟鞋">高跟鞋</Option>
-              <Option value="休闲鞋">休闲鞋</Option>
-              <Option value="靴子">靴子</Option>
-              <Option value="凉鞋">凉鞋</Option>
-            </Select>
-          </Form.Item>
-        );
-        
-      case 'scene-change':
-        return (
-          <Form.Item
-            name="sceneType"
-            label="场景类型"
-          >
-            <Select placeholder="选择场景类型">
-              <Option value="室内">室内</Option>
-              <Option value="户外">户外</Option>
-              <Option value="街拍">街拍</Option>
-              <Option value=" studio">studio</Option>
-              <Option value="自然风光">自然风光</Option>
-            </Select>
-          </Form.Item>
-        );
-        
-      case 'color-change':
-        return (
-          <Form.Item
-            name="targetColorName"
-            label="目标颜色"
-          >
-            <Input placeholder="输入目标颜色，如：红色、蓝色等" />
-          </Form.Item>
-        );
-        
-      default:
-        return null;
-    }
-  }
+  const showSceneControls = selectedTool.id === 'scene-change'
+  const showColorControls = selectedTool.id === 'color-change'
 
   return (
-    <div style={{ 
-      width: '400px',
-      height: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      background: 'white',
-      borderRight: '1px solid #f0f0f0',
-      flexShrink: 0
-    }}>
-      {/* 工具标题栏 */}
-      <div style={{ 
-        padding: '20px 24px', 
-        borderBottom: '1px solid #f0f0f0',
-        background: 'white',
-        flexShrink: 0
-      }}>
-        <Title level={4} style={{ margin: 0, color: '#1890ff' }}>
-          {selectedTool.name}
-        </Title>
-        {selectedTool.description && selectedTool.description.trim() && (
-          <Text type="secondary" style={{ fontSize: '13px' }}>
-            {selectedTool.description}
-          </Text>
-        )}
-      </div>
+    <div
+      style={{
+        width: 400,
+        height: '100vh',
+        borderRight: '1px solid #e9eff7',
+        background: '#f6f8fb'
+      }}
+    >
+      <Card
+        bordered={false}
+        style={{
+          height: '100%',
+          borderRadius: 0,
+          padding: '24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 24,
+          background: 'rgba(255,255,255,0.9)',
+          backdropFilter: 'blur(6px)'
+        }}
+      >
+        <div>
+          <Title level={4} style={{ marginBottom: 4, color: '#0f1e4d' }}>
+            {selectedTool.name}
+          </Title>
+          {selectedTool.description && (
+            <Text type="secondary" style={{ fontSize: 13 }}>
+              {selectedTool.description}
+            </Text>
+          )}
+        </div>
 
-      {/* 参数配置区域 */}
-      <div style={{ 
-        flex: 1, 
-        padding: '24px',
-        background: 'white',
-        overflow: 'auto'
-      }}>
-        <Form
-          form={form}
-          layout="vertical"
-          onValuesChange={handleFormChange}
-          autoComplete="off"
-        >
-          {/* 图片上传区域 - 垂直布局 */}
-          <div style={{ marginBottom: '32px' }}>
-            <Title level={5} style={{ marginBottom: '16px' }}>图片上传</Title>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* 主图片上传 - 必填 */}
-              <Form.Item
-                name="mainImage"
-                label="主图片上传"
-                rules={[{ required: true, message: '请上传主图片' }]}
-              >
-                <ImageUpload 
-                  placeholder="请上传主图片" 
-                  multiple={false}
-                  maxCount={1}
+        <Space direction="vertical" size={24} style={{ flex: 1, overflowY: 'auto' }}>
+          <section>
+            <Title level={5} style={{ marginBottom: 12 }}>
+              图片上传
+            </Title>
+            <Space direction="vertical" size={18} style={{ width: '100%' }}>
+              <UploadSlot
+                label={workflow.mainLabel}
+                placeholder={workflow.mainPlaceholder}
+                image={mainImage}
+                inputId={mainInputId}
+                inputRef={mainInputRef}
+                onFileChange={(event) => handleFileChange(event, 'main')}
+                onClear={() => handleClear('main')}
+              />
+
+              {workflow.requireReference && (
+                <UploadSlot
+                  label={workflow.referenceLabel}
+                  placeholder={workflow.referencePlaceholder}
+                  image={referenceImage}
+                  inputId={referenceInputId}
+                  inputRef={referenceInputRef}
+                  onFileChange={(event) => handleFileChange(event, 'reference')}
+                  onClear={() => handleClear('reference')}
                 />
-              </Form.Item>
-              
-              {/* 参考图片上传 - 必填 */}
-              <Form.Item
-                name="referenceImage"
-                label="参考图片上传"
-                rules={[{ required: true, message: '请上传参考图片' }]}
-              >
-                <ImageUpload 
-                  placeholder="请上传参考图片" 
-                  multiple={false}
-                  maxCount={1}
-                />
-              </Form.Item>
-            </div>
-          </div>
+              )}
+            </Space>
+          </section>
 
-          <Divider style={{ margin: '8px 0 24px 0' }} />
+          {workflow.helper && (
+            <Alert
+              type="info"
+              showIcon
+              message="提示"
+              description={workflow.helper}
+            />
+          )}
 
-          {/* 可选项区 - 垂直布局 */}
-          <div style={{ marginBottom: '32px' }}>
-            <Title level={5} style={{ marginBottom: '16px' }}>可选项</Title>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              {/* 分辨率选项 */}
-              <Form.Item
-                name="resolution"
-                label={commonOptions.resolution.label}
-                initialValue={commonOptions.resolution.default}
-              >
-                <Select>
-                  {commonOptions.resolution.options.map(option => (
-                    <Option key={option.value} value={option.value}>
-                      {option.label}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-              
-              {/* 生成数量选项 */}
-              <Form.Item
-                name="quantity"
-                label={commonOptions.quantity.label}
-                initialValue={commonOptions.quantity.default}
-              >
-                <Slider
-                  min={commonOptions.quantity.min}
-                  max={commonOptions.quantity.max}
-                  marks={{
-                    [commonOptions.quantity.min]: commonOptions.quantity.min,
-                    [commonOptions.quantity.max]: commonOptions.quantity.max
+          {showSceneControls && (
+            <section>
+              <Title level={5} style={{ marginBottom: 12 }}>
+                场景设定
+              </Title>
+              <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                <Select
+                  allowClear
+                  placeholder="选择常用电商背景"
+                  options={SCENE_PRESETS}
+                  value={scenePreset?.value}
+                  onChange={(value) => {
+                    const preset = SCENE_PRESETS.find((item) => item.value === value)
+                    setScenePreset(preset || null)
                   }}
                 />
-              </Form.Item>
-              
-              {/* 生成模式选项 */}
-              <Form.Item
-                name="mode"
-                label={commonOptions.mode.label}
-                initialValue={commonOptions.mode.default}
-              >
-                <Radio.Group>
-                  <Space direction="vertical">
-                    {commonOptions.mode.options.map(option => (
-                      <Radio key={option.value} value={option.value}>
-                        {option.label}
-                      </Radio>
-                    ))}
-                  </Space>
-                </Radio.Group>
-              </Form.Item>
-              
-              {/* 工具特定选项 */}
-              {renderToolSpecificOptions()}
-            </div>
-          </div>
+                <TextArea
+                  rows={4}
+                  placeholder="可选：输入自定义提示词，描述目标场景与氛围"
+                  value={customPrompt}
+                  onChange={(event) => setCustomPrompt(event.target.value)}
+                  allowClear
+                />
+              </Space>
+            </section>
+          )}
 
-          <Divider style={{ margin: '8px 0 24px 0' }} />
+          {showColorControls && (
+            <section>
+              <Title level={5} style={{ marginBottom: 12 }}>
+                颜色设定
+              </Title>
+              <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                <Select
+                  allowClear
+                  placeholder="选择常用电商商品颜色"
+                  options={COLOR_PRESETS}
+                  value={colorPreset?.value}
+                  onChange={(value) => {
+                    const preset = COLOR_PRESETS.find((item) => item.value === value)
+                    setColorPreset(preset || null)
+                  }}
+                />
+                <TextArea
+                  rows={4}
+                  placeholder="可选：输入自定义提示词，描述换色要求与细节"
+                  value={customPrompt}
+                  onChange={(event) => setCustomPrompt(event.target.value)}
+                  allowClear
+                />
+              </Space>
+            </section>
+          )}
 
-          {/* 提示词区域 - 现在是可选的 */}
-          <div style={{ marginBottom: '32px' }}>
-            <Form.Item
-              name="positivePrompt"
-              label="提示词（可选）"
-            >
-              <PromptInput placeholder="请输入提示词，描述您想要生成的内容（可选）" />
-            </Form.Item>
-          </div>
+          {!showSceneControls && !showColorControls && workflow.requiresPrompt && (
+            <section>
+              <Title level={5} style={{ marginBottom: 12 }}>
+                自定义提示词
+              </Title>
+              <TextArea
+                rows={4}
+                placeholder="输入生成描述"
+                value={customPrompt}
+                onChange={(event) => setCustomPrompt(event.target.value)}
+                allowClear
+              />
+            </section>
+          )}
+        </Space>
 
-          <Form.Item style={{ marginTop: '32px', marginBottom: 0 }}>
-            <Button
-              type="primary"
-              size="large"
-              icon={<ThunderboltOutlined />}
-              loading={isGenerating}
-              onClick={handleGenerate}
-              block
-              style={{ height: '48px', fontSize: '16px' }}
-            >
-              {isGenerating ? '生成中...' : `开始生成 (${selectedTool.creditCost} 积分)`}
-            </Button>
-          </Form.Item>
-        </Form>
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Button
+            type="primary"
+            size="large"
+            block
+            icon={isGenerating ? null : <PlusOutlined />}
+            loading={isGenerating}
+            onClick={handleGenerate}
+            style={{
+              height: 48,
+              fontSize: 16,
+              background: 'linear-gradient(130deg, #3366ff 0%, #5f7bff 50%, #8c9dff 100%)',
+              border: 'none'
+            }}
+          >
+            {isGenerating ? '生成中…' : `开始生成 (${selectedTool.creditCost} 积分)`}
+          </Button>
 
-        {!isAuthenticated && (
-          <div style={{ 
-            marginTop: '16px', 
-            padding: '12px', 
-            background: '#fff7e6', 
-            border: '1px solid #ffd591',
-            borderRadius: '4px' 
-          }}>
-            <Text type="warning">登录后可使用生成功能并保存生成历史</Text>
-          </div>
-        )}
-      </div>
+          {!isAuthenticated && (
+            <Alert
+              type="warning"
+              showIcon
+              message="登录后可保存生成记录"
+            />
+          )}
+        </div>
+      </Card>
     </div>
   )
+}
+
+const UploadSlot = ({
+  label,
+  placeholder,
+  image,
+  inputId,
+  inputRef,
+  onFileChange,
+  onClear
+}) => {
+  return (
+    <div>
+      <Paragraph style={{ marginBottom: 8, color: '#0f1e4d', fontWeight: 500 }}>
+        {label}
+      </Paragraph>
+      <label
+        htmlFor={inputId}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: 220,
+          border: '1px dashed #c5d1f5',
+          borderRadius: 16,
+          cursor: 'pointer',
+          background: image ? '#ffffff' : 'rgba(249, 251, 255, 0.8)',
+          overflow: 'hidden',
+          position: 'relative'
+        }}
+      >
+        {image ? (
+          <img
+            src={image.preview}
+            alt="预览"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : (
+          <Space
+            direction="vertical"
+            align="center"
+            style={{
+              width: '100%',
+              height: '100%',
+              justifyContent: 'center'
+            }}
+          >
+            <PlusOutlined style={{ fontSize: 24, color: '#3a5df5' }} />
+            <Text style={{ color: '#3a5df5', fontWeight: 500 }}>{placeholder}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              支持 JPG / PNG / WEBP，最大 10MB
+            </Text>
+          </Space>
+        )}
+      </label>
+      <input
+        id={inputId}
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={onFileChange}
+      />
+      {image && (
+        <Button
+          type="text"
+          icon={<DeleteOutlined />}
+          onClick={onClear}
+          style={{ marginTop: 8, padding: 0 }}
+        >
+          移除图片
+        </Button>
+      )}
+    </div>
+  )
+}
+
+const cleanupPreview = (image) => {
+  if (image?.preview) {
+    URL.revokeObjectURL(image.preview)
+  }
+}
+
+const determinePromptSource = ({ workflow, customPrompt, scenePreset, colorPreset }) => {
+  if (customPrompt.trim()) {
+    return 'manual'
+  }
+
+  if (workflow.requireReference) {
+    return 'builtin'
+  }
+
+  if (scenePreset || colorPreset) {
+    return 'preset'
+  }
+
+  return workflow.requiresPrompt ? 'manual' : 'builtin'
 }
 
 export default WorkArea

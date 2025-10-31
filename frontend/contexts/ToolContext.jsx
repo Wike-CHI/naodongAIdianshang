@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext'
 
 const ToolContext = createContext()
 
-// 统一的通用选项配置 - 所有AI工具模块都使用相同的三个选项
+// 统一的通用选项配置
 const commonOptions = {
   resolution: {
     id: 'resolution',
@@ -38,104 +38,60 @@ const commonOptions = {
   }
 }
 
-// 硬编码的AI工具列表 - 不允许增删，但允许改查
-// 所有工具都遵循统一的界面布局：2个图片上传窗口，3个可选项窗口，1个提示词窗口
-// 隐藏姿态变换功能
 const hardcodedTools = [
   {
     id: 'ai-model',
     name: 'AI模特生成',
-    description: '上传模特服装图与真人参考照，自动完成无缝换脸生成',
-    category: 'model',
-    icon: '🧍',
+    description: '上传模特图和人物图，自动完成专业换脸',
     creditCost: 15,
-    // 每个工具都有2个图片上传窗口，3个可选项窗口，1个提示词窗口
-    inputConfig: {
-      imageSlots: 2,
-      optionSlots: 3,
-      promptSlot: 1
-    }
+    builtinPrompt: '高清商业摄影模特换脸，面部融合自然，肤质真实，高级灯光，真实穿搭拍摄',
+    requiresReference: true,
+    requiresPromptInput: false
   },
   {
     id: 'try-on-clothes',
     name: '同版型试衣',
-    description: '让模特自动试穿相似版型的服装',
-    category: 'tryon',
-    icon: '👗',
+    description: '人物图与服装图融合，生成专业试衣效果',
     creditCost: 12,
-    inputConfig: {
-      imageSlots: 2,
-      optionSlots: 3,
-      promptSlot: 1
-    }
+    builtinPrompt: '同版型服装自动试穿，服装贴合人物身形，面料纹理清晰，灯光均匀，商业摄影风格',
+    requiresReference: true,
+    requiresPromptInput: false
   },
   {
     id: 'glasses-tryon',
     name: '配件试戴',
-    description: '生成眼镜试戴效果图',
-    category: 'accessory',
-    icon: '🕶️',
+    description: '人脸图与眼镜图结合，智能生成试戴效果',
     creditCost: 10,
-    inputConfig: {
-      imageSlots: 2,
-      optionSlots: 3,
-      promptSlot: 1
-    }
+    builtinPrompt: '眼镜佩戴自然贴合鼻梁耳朵，面部光影匹配，写实风格，高清细节',
+    requiresReference: true,
+    requiresPromptInput: false
   },
-  // 隐藏姿态变换功能
-  /*
-  {
-    id: 'pose-variation',
-    name: '姿态变换',
-    description: '智能调整模特姿态，匹配不同商品角度',
-    category: 'modeling',
-    icon: '🧘',
-    creditCost: 9,
-    inputConfig: {
-      imageSlots: 2,
-      optionSlots: 3,
-      promptSlot: 1
-    }
-  },
-  */
   {
     id: 'shoe-tryon',
     name: '鞋靴试穿',
-    description: '自动合成鞋靴穿着效果图',
-    category: 'product',
-    icon: '👟',
+    description: '人物图与鞋靴图互换脚部穿搭效果',
     creditCost: 11,
-    inputConfig: {
-      imageSlots: 2,
-      optionSlots: 3,
-      promptSlot: 1
-    }
+    builtinPrompt: '鞋靴穿戴贴合脚型，阴影自然，地面接触真实，高级卖场灯光氛围',
+    requiresReference: true,
+    requiresPromptInput: false
   },
   {
     id: 'scene-change',
     name: '场景更换',
-    description: '快速替换电商宣传背景，增强氛围感',
-    category: 'scene',
-    icon: '🏙️',
+    description: '商品/人物主图快速替换电商常用场景',
     creditCost: 10,
-    inputConfig: {
-      imageSlots: 2,
-      optionSlots: 3,
-      promptSlot: 1
-    }
+    builtinPrompt: '',
+    requiresReference: false,
+    requiresPromptInput: true
   },
   {
     id: 'color-change',
     name: '商品换色',
-    description: '一键生成多种颜色组合，提升SKU展示效率',
-    category: 'product',
-    icon: '🎨',
+    description: '商品主图批量生成电商常用颜色方案',
     creditCost: 8,
-    inputConfig: {
-      imageSlots: 2,
-      optionSlots: 3,
-      promptSlot: 1
-    }
+    builtinPrompt: '',
+    requiresReference: false,
+    requiresPromptInput: true
   }
 ]
 
@@ -147,6 +103,7 @@ export const useTool = () => {
   return context
 }
 
+// 确保正确导出 useToolContext
 export const useToolContext = useTool
 
 export const ToolProvider = ({ children }) => {
@@ -156,8 +113,7 @@ export const ToolProvider = ({ children }) => {
   const [isGenerating, setIsGenerating] = useState(false)
   const { user, updateCredits } = useAuth()
 
-  const fetchTools = useCallback(async () => {
-    // 直接使用硬编码工具列表，不再调用后端API
+  const fetchTools = useCallback(() => {
     setTools(hardcodedTools)
     setSelectedTool((currentTool) => currentTool || hardcodedTools[0])
   }, [])
@@ -173,46 +129,79 @@ export const ToolProvider = ({ children }) => {
     }
   }
 
-  const generateImage = async (params) => {
+  const generateImage = async ({
+    mainImage,
+    referenceImage,
+    prompt,
+    metadata = {},
+    options = {}
+  }) => {
     if (!user) {
       message.error('请先登录')
       return
     }
 
-    if (user.credits < selectedTool.creditCost) {
+    if ((user.credits ?? 0) < selectedTool.creditCost) {
       message.error('积分不足，请充值后再试')
+      return
+    }
+
+    if (!mainImage?.file) {
+      message.error('请上传主图片')
+      return
+    }
+
+    if (selectedTool.requiresReference && !referenceImage?.file) {
+      message.error('请上传参考图片')
       return
     }
 
     setIsGenerating(true)
 
     try {
-      // 根据不同的工具类型添加特定的选项参数
-      const enhancedOptions = {
-        resolution: params.resolution || '1080p',
-        quantity: params.quantity || 1,
-        mode: params.mode || 'fast',
-        ...getToolSpecificOptions(selectedTool.id, params)
-      };
+      const formData = new FormData()
+      formData.append('images', mainImage.file)
+      if (referenceImage?.file) {
+        formData.append('images', referenceImage.file)
+      }
 
-      // 调用真实的AI生成服务
+      const mergedOptions = {
+        resolution: options.resolution || '1080p',
+        quantity: options.quantity || 1,
+        mode: options.mode || 'fast',
+        ...options
+      }
+
+      formData.append('options', JSON.stringify(mergedOptions))
+      formData.append(
+        'metadata',
+        JSON.stringify({
+          ...metadata,
+          builtinPromptApplied:
+            !selectedTool.requiresPromptInput && !prompt,
+          promptSource: metadata.promptSource || (prompt ? 'manual' : 'builtin')
+        })
+      )
+      formData.append('prompt', prompt || selectedTool.builtinPrompt || '')
+
       const result = await aiModelService.generateWithTool(selectedTool.id, {
-        ...params,
-        options: enhancedOptions
+        formData,
+        skipFormBuilding: true
       })
 
-      // 更新用户积分
-      const newCredits = user.credits - selectedTool.creditCost
+      const newCredits = (user.credits ?? 0) - selectedTool.creditCost
       updateCredits(newCredits)
 
-      // 将结果添加到生成历史
       const historyItem = {
         id: Date.now().toString(),
         toolId: selectedTool.id,
-        inputParams: params,
-        resultImage: result.images?.[0]?.data_url || result.images?.[0]?.public_url || `https://picsum.photos/400/600?random=${Date.now()}`,
+        resultImage:
+          result.images?.[0]?.data_url ||
+          result.images?.[0]?.public_url ||
+          '',
         createdAt: new Date(),
-        creditsCost: selectedTool.creditCost
+        creditsCost: selectedTool.creditCost,
+        metadata
       }
 
       setGenerationHistory((prevHistory) => [historyItem, ...prevHistory])
@@ -227,66 +216,16 @@ export const ToolProvider = ({ children }) => {
     }
   }
 
-  // 根据工具类型获取特定的选项参数
-  const getToolSpecificOptions = (toolId, params) => {
-    const options = {};
-    
-    switch (toolId) {
-      case 'ai-model':
-        // AI模特生成特定选项
-        if (params.productType) options.product_type = params.productType;
-        if (params.style) options.style = params.style;
-        break;
-        
-      case 'try-on-clothes':
-        // 同版型试衣特定选项
-        if (params.fabricType) options.fabric_type = params.fabricType;
-        if (params.clothingStyle) options.clothing_style = params.clothingStyle;
-        break;
-        
-      case 'glasses-tryon':
-        // 配件试戴只支持眼镜，固定参数
-        options.accessory_category = '眼镜';
-        options.accessory_type = '眼镜';
-        break;
-        
-      // 隐藏姿态变换功能
-      /*
-      case 'pose-variation':
-        // 姿态变换特定选项
-        if (params.poseType) options.pose_type = params.poseType;
-        break;
-      */
-        
-      case 'shoe-tryon':
-        // 鞋靴试穿特定选项
-        if (params.shoeType) options.shoe_type = params.shoeType;
-        break;
-        
-      case 'scene-change':
-        // 场景更换特定选项
-        if (params.sceneType) options.scene_type = params.sceneType;
-        break;
-        
-      case 'color-change':
-        // 商品换色特定选项
-        if (params.targetColorName) options.target_color_name = params.targetColorName;
-        break;
-    }
-    
-    return options;
-  }
-
   const value = {
-    tools: hardcodedTools, // 始终使用硬编码工具列表
-    commonOptions, // 添加通用选项配置
+    tools,
     selectedTool,
     setSelectedTool,
     selectTool,
     generationHistory,
     generateImage,
     isGenerating,
-    reloadTools: fetchTools
+    reloadTools: fetchTools,
+    commonOptions // 添加 commonOptions 到 context value 中
   }
 
   return (
