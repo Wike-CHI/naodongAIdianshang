@@ -2,6 +2,8 @@ const User = require('../models/User');
 const CreditRecord = require('../models/CreditRecord');
 const Subscription = require('../models/Subscription');
 const AIGeneration = require('../models/AIGeneration');
+const path = require('path');
+const fs = require('fs').promises;
 
 // 获取用户列表（管理员）
 const getUsers = async (req, res) => {
@@ -126,9 +128,18 @@ const updateUser = async (req, res) => {
       });
     }
 
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
     // 限制普通用户可以更新的字段
-    const allowedUpdates = ['username', 'avatar_url'];
-    const adminOnlyUpdates = ['is_active', 'role', 'credit_balance'];
+    const allowedUpdates = ['username', 'email', 'phone', 'avatar_url', 'wechat_id', 'business_type'];
+    const adminOnlyUpdates = ['is_active', 'role', 'credits_balance'];
+    const restrictedFields = ['phone', 'email', 'wechat_id', 'business_type']; // 30天限制字段
     
     if (req.userType !== 'admin') {
       // 移除普通用户不能修改的字段
@@ -137,10 +148,29 @@ const updateUser = async (req, res) => {
           delete updates[key];
         }
       });
+
+      // 检查30天修改限制（仅对普通用户）
+      const hasRestrictedUpdates = Object.keys(updates).some(key => 
+        restrictedFields.includes(key) && updates[key] !== user[key]
+      );
+
+      if (hasRestrictedUpdates) {
+        const canUpdateResult = user.canUpdateProfile();
+        if (!canUpdateResult.canUpdate) {
+          return res.status(400).json({
+            success: false,
+            message: canUpdateResult.message,
+            data: {
+              remainingDays: canUpdateResult.remainingDays,
+              lastUpdated: user.profile_last_updated
+            }
+          });
+        }
+      }
     }
 
     // 检查用户名是否已存在
-    if (updates.username) {
+    if (updates.username && updates.username !== user.username) {
       const existingUser = await User.findOne({ 
         username: updates.username,
         _id: { $ne: id }
@@ -154,29 +184,59 @@ const updateUser = async (req, res) => {
       }
     }
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      { $set: updates },
-      { new: true, runValidators: true }
-    ).select('-password_hash -reset_password_token -email_verification_token');
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: '用户不存在'
+    // 检查邮箱是否已存在
+    if (updates.email && updates.email !== user.email) {
+      const existingUser = await User.findOne({ 
+        email: updates.email,
+        _id: { $ne: id }
       });
+      
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: '邮箱已被使用'
+        });
+      }
     }
+
+    // 检查手机号是否已存在
+    if (updates.phone && updates.phone !== user.phone) {
+      const existingUser = await User.findOne({ 
+        phone: updates.phone,
+        _id: { $ne: id }
+      });
+      
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: '手机号已被使用'
+        });
+      }
+    }
+
+    // 使用自定义方法更新用户信息并记录历史
+    const updatedFields = user.updateProfileWithHistory(updates);
+    await user.save();
+
+    // 重新查询用户信息，排除敏感字段
+    const updatedUser = await User.findById(id)
+      .select('-password_hash -reset_password_token -email_verification_token');
 
     res.json({
       success: true,
       message: '用户信息更新成功',
-      data: { user }
+      data: { 
+        user: updatedUser,
+        updatedFields,
+        nextUpdateAvailable: updatedFields.length > 0 ? 
+          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : null
+      }
     });
   } catch (error) {
     console.error('Update user error:', error);
     res.status(500).json({
       success: false,
-      message: '更新用户信息失败'
+      message: error.message || '更新用户信息失败'
     });
   }
 };
@@ -555,6 +615,147 @@ const batchUpdateUsers = async (req, res) => {
   }
 };
 
+// 上传用户头像
+const uploadAvatar = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 检查权限：用户只能上传自己的头像，管理员可以上传任何用户的头像
+    if (req.userType !== 'admin' && req.user._id.toString() !== id) {
+      return res.status(403).json({
+        success: false,
+        message: '无权修改此用户头像'
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: '请选择要上传的头像文件'
+      });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    // 生成文件名
+    const fileExtension = path.extname(req.file.originalname);
+    const fileName = `avatar_${id}_${Date.now()}${fileExtension}`;
+    const uploadDir = path.join(__dirname, '../../uploads/avatars');
+    const filePath = path.join(uploadDir, fileName);
+
+    // 确保上传目录存在
+    try {
+      await fs.access(uploadDir);
+    } catch (error) {
+      await fs.mkdir(uploadDir, { recursive: true });
+    }
+
+    // 保存文件
+    await fs.writeFile(filePath, req.file.buffer);
+
+    // 生成访问URL
+    const avatarUrl = `/uploads/avatars/${fileName}`;
+
+    // 删除旧头像文件（如果存在）
+    if (user.avatar_url && user.avatar_url.startsWith('/uploads/avatars/')) {
+      const oldFilePath = path.join(__dirname, '../../', user.avatar_url);
+      try {
+        await fs.unlink(oldFilePath);
+      } catch (error) {
+        console.warn('删除旧头像文件失败:', error.message);
+      }
+    }
+
+    // 更新用户头像URL
+    user.avatar_url = avatarUrl;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: '头像上传成功',
+      data: {
+        avatar_url: avatarUrl,
+        user: user.toJSON()
+      }
+    });
+  } catch (error) {
+    console.error('Upload avatar error:', error);
+    res.status(500).json({
+      success: false,
+      message: '头像上传失败'
+    });
+  }
+};
+
+// 检查用户是否可以修改资料
+const checkProfileUpdatePermission = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 检查权限：用户只能检查自己的信息，管理员可以检查任何用户
+    let targetUserId = id;
+
+    if (req.userType !== 'admin') {
+      const requesterId = req.user._id?.toString?.() || String(req.user._id);
+      if (requesterId !== id) {
+        return res.status(403).json({
+          success: false,
+          message: '无权查看此用户信息'
+        });
+      }
+
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+          success: false,
+          message: '用户ID格式无效'
+        });
+      }
+
+      targetUserId = requesterId;
+    } else if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: '用户ID格式无效'
+      });
+    }
+
+    const user = await User.findById(targetUserId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
+
+    const canUpdateResult = user.canUpdateProfile();
+
+    res.json({
+      success: true,
+      data: {
+        canUpdate: canUpdateResult.canUpdate,
+        message: canUpdateResult.message,
+        remainingDays: canUpdateResult.remainingDays || 0,
+        lastUpdated: user.profile_last_updated,
+        nextUpdateAvailable: user.profile_last_updated ?
+          new Date(user.profile_last_updated.getTime() + 30 * 24 * 60 * 60 * 1000) : null,
+        updateHistory: user.profile_update_history.slice(-5) // 最近5次修改记录
+      }
+    });
+  } catch (error) {
+    console.error('Check profile update permission error:', error);
+    res.status(500).json({
+      success: false,
+      message: '检查修改权限失败'
+    });
+  }
+};
+
 module.exports = {
   getUsers,
   getUserById,
@@ -565,5 +766,7 @@ module.exports = {
   adjustUserCredits,
   getUserStats,
   getUserSubscription,
-  batchUpdateUsers
+  batchUpdateUsers,
+  uploadAvatar,
+  checkProfileUpdatePermission
 };

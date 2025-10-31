@@ -10,7 +10,7 @@ import creditService from '../../services/creditService'
 
 const { Title, Text } = Typography
 
-const SubscriptionModal = ({ visible, onClose }) => {
+const SubscriptionModal = ({ open, onClose }) => {
   const { user, updateCredits, updateUserInfo } = useAuth()
   const [loading, setLoading] = useState(false)
   const [packagesLoading, setPackagesLoading] = useState(false)
@@ -95,15 +95,15 @@ const SubscriptionModal = ({ visible, onClose }) => {
       }
     }
 
-    if (visible) {
+    if (open) {
       fetchSubscriptionPlans()
     }
-  }, [visible])
+  }, [open])
 
   // 获取积分套餐数据
   useEffect(() => {
     const fetchCreditPackages = async () => {
-      if (!visible || !user) return;
+      if (!open || !user) return;
       
       setPackagesLoading(true)
       try {
@@ -132,7 +132,7 @@ const SubscriptionModal = ({ visible, onClose }) => {
     }
 
     fetchCreditPackages()
-  }, [visible, user])
+  }, [open, user])
 
   const handleSubscribe = async (plan) => {
     if (!user) {
@@ -281,7 +281,7 @@ const SubscriptionModal = ({ visible, onClose }) => {
   return (
     <Modal
       title="会员订阅与积分充值"
-      open={visible}
+      open={open}
       onCancel={onClose}
       footer={null}
       width={1000}

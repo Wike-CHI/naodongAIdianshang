@@ -41,6 +41,26 @@ const schemas = {
     password: Joi.string().required()
   }).or('email', 'phone', 'username'),
 
+  userUpdate: Joi.object({
+    username: Joi.string().min(2).max(50).optional(),
+    email: Joi.string().email().optional(),
+    phone: Joi.string().pattern(/^1[3-9]\d{9}$/).optional(),
+    wechat_id: Joi.string().max(50).optional().allow(''),
+    business_type: Joi.string().valid('个人', '个体工商户', '企业', '事业单位', '政府机关', '其他').optional(),
+    avatar_url: Joi.string().uri().optional(),
+    is_active: Joi.boolean().optional(),
+    role: Joi.string().valid('user', 'premium', 'vip').optional(),
+    credits_balance: Joi.number().min(0).optional()
+  }),
+
+  batchUserUpdate: Joi.object({
+    user_ids: Joi.array().items(Joi.string()).min(1).required(),
+    action: Joi.string().valid('activate', 'deactivate', 'update_role').required(),
+    data: Joi.object({
+      role: Joi.string().valid('user', 'premium', 'vip').optional()
+    }).optional()
+  }),
+
   adminLogin: Joi.object({
     username: Joi.string().required(),
     password: Joi.string().required()
@@ -173,14 +193,14 @@ const schemas = {
 
   // ID参数验证模式
   idParam: Joi.object({
-    id: Joi.string().required()
+    id: Joi.string().hex().length(24).required()
   }),
 
   // 分页验证模式
   pagination: Joi.object({
     page: Joi.number().min(1).optional(),
     limit: Joi.number().min(1).max(100).optional()
-  }),
+  }).unknown(true),
 
   aiGenerate: Joi.object({
     prompt: Joi.string().allow('', null).optional(), // 将提示词设置为可选

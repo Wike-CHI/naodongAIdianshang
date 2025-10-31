@@ -10,7 +10,7 @@ import logger from '../../utils/logger'
 const { Text } = Typography
 
 // 手机验证码弹窗组件
-const PhoneVerificationModal = ({ visible, onCancel, onSuccess, title = "手机号验证" }) => {
+const PhoneVerificationModal = ({ open, onCancel, onSuccess, title = "手机号验证" }) => {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -65,7 +65,7 @@ const PhoneVerificationModal = ({ visible, onCancel, onSuccess, title = "手机�
   return (
     <Modal
       title={title}
-      open={visible}
+      open={open}
       onCancel={onCancel}
       footer={null}
       width={400}
@@ -124,7 +124,7 @@ const PhoneVerificationModal = ({ visible, onCancel, onSuccess, title = "手机�
   )
 }
 
-const LoginModal = ({ visible, onCancel }) => {
+const LoginModal = ({ open, onCancel }) => {
   const { login, register } = useAuth()
   const [phoneForm] = Form.useForm()
   const [emailForm] = Form.useForm()
@@ -658,7 +658,7 @@ const LoginModal = ({ visible, onCancel }) => {
     <>
       <Modal
         title="登录/注册"
-        open={visible}
+        open={open}
         onCancel={onCancel}
         footer={null}
         width={450}
@@ -673,7 +673,7 @@ const LoginModal = ({ visible, onCancel }) => {
       </Modal>
 
       <PhoneVerificationModal
-        visible={phoneVerificationVisible}
+        open={phoneVerificationVisible}
         onCancel={() => {
           setPhoneVerificationVisible(false)
           setPendingUserData(null)

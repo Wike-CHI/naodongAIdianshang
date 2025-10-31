@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Layout, Button, Avatar, Dropdown, Space, Badge, Menu } from 'antd'
-import { UserOutlined, CrownOutlined, WalletOutlined, LogoutOutlined, WechatOutlined, ShoppingOutlined, ToolOutlined, PictureOutlined } from '@ant-design/icons'
+import { UserOutlined, CrownOutlined, WalletOutlined, LogoutOutlined, WechatOutlined, ShoppingOutlined, ToolOutlined, PictureOutlined, HomeOutlined } from '@ant-design/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
 import LoginModal from '../User/LoginModal'
 import SubscriptionModal from '../Common/SubscriptionModal'
 import logger from '../../utils/logger'
@@ -12,6 +12,7 @@ const { Header: AntHeader } = Layout
 const Header = () => {
   const { user, logout, isAuthenticated } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [loginModalVisible, setLoginModalVisible] = useState(false)
   const [subscriptionModalVisible, setSubscriptionModalVisible] = useState(false)
 
@@ -26,6 +27,12 @@ const Header = () => {
   // 导航菜单项
   const navigationItems = [
     {
+      key: 'home',
+      label: 'AI工具',
+      icon: <HomeOutlined />,
+      onClick: () => navigate('/')
+    },
+    {
       key: 'materials',
       label: 'AI商品素材',
       icon: <ShoppingOutlined />,
@@ -35,25 +42,6 @@ const Header = () => {
         // navigate('/materials')
       }
     }
-    // 隐藏工具中心和素材库导航项
-    // {
-    //   key: 'tools',
-    //   label: '工具中心',
-    //   icon: <ToolOutlined />,
-    //   onClick: () => {
-    //     console.log('导航到工具中心')
-    //     // navigate('/tools')
-    //   }
-    // },
-    // {
-    //   key: 'gallery',
-    //   label: '素材库',
-    //   icon: <PictureOutlined />,
-    //   onClick: () => {
-    //     console.log('导航到素材库')
-    //     // navigate('/gallery')
-    //   }
-    // }
   ]
 
   const userMenuItems = [
@@ -67,7 +55,7 @@ const Header = () => {
       key: 'subscription',
       icon: <CrownOutlined />,
       label: '会员中心',
-      onClick: () => navigate('/subscription')
+      onClick: () => setSubscriptionModalVisible(true)
     },
     {
       type: 'divider'
@@ -91,12 +79,15 @@ const Header = () => {
         justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '35px' }}>
-          <div style={{ 
-            fontSize: '20px', 
-            fontWeight: 'bold', 
-            color: '#1890ff',
-            cursor: 'pointer'
-          }} onClick={() => navigate('/')}>
+          <div 
+            style={{ 
+              fontSize: '20px', 
+              fontWeight: 'bold', 
+              color: '#1890ff',
+              cursor: 'pointer'
+            }}
+            onClick={() => navigate('/')}
+          >
             脑洞AI
           </div>
           
@@ -104,6 +95,7 @@ const Header = () => {
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <Menu
               mode="horizontal"
+              selectedKeys={[location.pathname === '/' ? 'home' : location.pathname.slice(1)]}
               items={navigationItems}
               style={{
                 border: 'none',
@@ -175,12 +167,12 @@ const Header = () => {
       </AntHeader>
 
       <LoginModal 
-        visible={loginModalVisible}
+        open={loginModalVisible}
         onCancel={() => setLoginModalVisible(false)}
       />
       
       <SubscriptionModal 
-        visible={subscriptionModalVisible}
+        open={subscriptionModalVisible}
         onClose={() => setSubscriptionModalVisible(false)}
       />
     </>

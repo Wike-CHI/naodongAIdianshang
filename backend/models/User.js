@@ -39,6 +39,17 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  wechat_id: {
+    type: String,
+    default: null,
+    trim: true,
+    maxlength: [50, '微信号不能超过50个字符']
+  },
+  business_type: {
+    type: String,
+    enum: ['个人', '个体工商户', '企业', '事业单位', '政府机关', '其他'],
+    default: '个人'
+  },
   credits_balance: {
     type: Number,
     default: 0,
@@ -73,6 +84,19 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  profile_last_updated: {
+    type: Date,
+    default: null
+  },
+  profile_update_history: [{
+    field: String,
+    old_value: String,
+    new_value: String,
+    updated_at: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   generated_assets: {
     type: [{
       generation_id: {
@@ -156,6 +180,8 @@ userSchema.methods.updateLastLogin = function() {
   return this.save();
 };
 
+
+
 // 扣除积分
 userSchema.methods.deductCredits = async function(amount, options = {}) {
   if (this.credits_balance < amount) {
@@ -178,6 +204,8 @@ userSchema.methods.deductCredits = async function(amount, options = {}) {
   return this.save();
 };
 
+
+
 // 增加积分
 userSchema.methods.addCredits = async function(amount, options = {}) {
   this.credits_balance += amount;
@@ -195,6 +223,58 @@ userSchema.methods.addCredits = async function(amount, options = {}) {
   }
 
   return this.save();
+};
+
+// 检查是否可以修改个人资料（30天限制）
+userSchema.methods.canUpdateProfile = function() {
+  if (!this.profile_last_updated) {
+    return { canUpdate: true, message: '首次修改' };
+  }
+
+  const now = new Date();
+  const lastUpdate = new Date(this.profile_last_updated);
+  const millisecondsInDay = 1000 * 60 * 60 * 24;
+  const daysDiff = Math.floor((now.getTime() - lastUpdate.getTime()) / millisecondsInDay);
+
+  if (daysDiff >= 30) {
+    return { canUpdate: true, message: '可以修改' };
+  }
+
+  const remainingDays = Math.max(30 - daysDiff, 0);
+  return {
+    canUpdate: false,
+    message: `距离上次修改不足30天，还需等待${remainingDays}天`,
+    remainingDays
+  };
+};
+
+// 更新个人资料并记录历史
+userSchema.methods.updateProfileWithHistory = function(updates = {}) {
+  const restrictedFields = ['phone', 'email', 'wechat_id', 'business_type'];
+  const updatedRestrictedFields = [];
+
+  Object.entries(updates).forEach(([field, newValue]) => {
+    const normalizedNewValue = newValue === undefined ? null : newValue;
+    const currentValue = this[field] === undefined ? null : this[field];
+
+    if (restrictedFields.includes(field) && normalizedNewValue !== currentValue) {
+      this.profile_update_history.push({
+        field,
+        old_value: currentValue ?? '',
+        new_value: normalizedNewValue ?? '',
+        updated_at: new Date()
+      });
+      updatedRestrictedFields.push(field);
+    }
+
+    this[field] = normalizedNewValue;
+  });
+
+  if (updatedRestrictedFields.length > 0) {
+    this.profile_last_updated = new Date();
+  }
+
+  return updatedRestrictedFields;
 };
 
 // 隐藏敏感字段

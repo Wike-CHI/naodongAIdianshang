@@ -263,7 +263,7 @@ const ImageUpload = ({ value, onChange, placeholder, multiple = false, maxCount 
       </Upload.Dragger>
       
       <Modal
-        visible={previewVisible}
+        open={previewVisible}
         footer={null}
         onCancel={() => setPreviewVisible(false)}
         width={800}

@@ -19,7 +19,7 @@ const businessCategories = [
   '其他'
 ]
 
-const UserInfoForm = ({ visible, onCancel }) => {
+const UserInfoForm = ({ open, onCancel }) => {
   const { user, updateUserInfo } = useAuth()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
@@ -77,7 +77,7 @@ const UserInfoForm = ({ visible, onCancel }) => {
   return (
     <Modal
       title="编辑个人信息"
-      open={visible}
+      open={open}
       onCancel={onCancel}
       footer={null}
       width={600}

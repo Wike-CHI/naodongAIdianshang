@@ -1,6 +1,1 @@
-todo:
-  - 进行中: 后端 AI 工具列表输出匹配前端字段
-  - 要做: 更新 seedToolPresets 与配置字段
-  - 要做: 改造 ToolContext 远程加载与状态管理
-  - 要做: 更新工具侧边栏与工作区组件消费动态数据
-  - 要做: 验证生成服务映射与共用操作区流程
+{"version":1,"todos":[{"id":"1","content":"修复订阅等弹窗组件使用open属性避免visible未定义","status":"completed"},{"id":"2","content":"恢复用户模型中的资料更新限制方法","status":"completed"},{"id":"3","content":"本地验证资料修改权限接口返回成功","status":"completed"}]}
