@@ -118,7 +118,7 @@ const ImageUpload = ({ value, onChange, placeholder, multiple = false, maxCount 
                     style={{ 
                       width: '100%', 
                       height: '100%', 
-                      objectFit: 'cover',
+                      objectFit: 'cover', // 保持原有行为
                       borderRadius: 4,
                       cursor: 'pointer'
                     }} 
@@ -192,7 +192,8 @@ const ImageUpload = ({ value, onChange, placeholder, multiple = false, maxCount 
             style={{ 
               width: '100%', 
               height: '100%', 
-              objectFit: 'cover',
+              objectFit: 'contain', // 修改为contain以自适应窗口大小
+              objectPosition: 'center', // 居中显示
               borderRadius: 4
             }} 
           />

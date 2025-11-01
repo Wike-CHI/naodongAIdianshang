@@ -41,7 +41,30 @@ router.post(
         return res.status(400).json({ success: false, error: '请至少上传一张主图片' });
       }
 
-      const bodyValidation = schemas.aiGenerate.validate(req.body || {}, { abortEarly: false, stripUnknown: true });
+      // 解析前端发送的字符串化的options和metadata
+      let parsedBody = { ...req.body };
+      
+      // 解析options字符串
+      if (typeof req.body.options === 'string') {
+        try {
+          parsedBody.options = JSON.parse(req.body.options);
+        } catch (error) {
+          console.warn('解析options失败，使用默认值:', error);
+          parsedBody.options = {};
+        }
+      }
+      
+      // 解析metadata字符串
+      if (typeof req.body.metadata === 'string') {
+        try {
+          parsedBody.metadata = JSON.parse(req.body.metadata);
+        } catch (error) {
+          console.warn('解析metadata失败，使用空对象:', error);
+          parsedBody.metadata = {};
+        }
+      }
+
+      const bodyValidation = schemas.aiGenerate.validate(parsedBody || {}, { abortEarly: false, stripUnknown: true });
       if (bodyValidation.error) {
         return res.status(400).json({
           success: false,
@@ -49,21 +72,17 @@ router.post(
         });
       }
 
+      // 保持options和metadata为对象，不要转换为字符串
       const serviceResult = await generateWithTool({
         toolKey,
         userId,
-        body: {
-          ...bodyValidation.value,
-          options: JSON.stringify(bodyValidation.value.options),
-          metadata: JSON.stringify(bodyValidation.value.metadata)
-        },
+        body: bodyValidation.value,
         files: req.files
       });
 
       res.json({
         success: true,
         data: {
-          generationId: serviceResult.record._id,
           images: serviceResult.result.images,
           text_outputs: serviceResult.result.text_outputs,
           timing_ms: serviceResult.result.timing_ms,

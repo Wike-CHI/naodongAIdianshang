@@ -1,4 +1,5 @@
 const AITool = require('../models/AiTool');
+const AdminUser = require('../models/AdminUser');
 
 // 预设工具配置 - 与前端保持一致
 const PRESET_TOOLS = [
@@ -114,7 +115,37 @@ const PRESET_TOOLS = [
   }
 ];
 
+// 创建默认管理员用户
+async function createDefaultAdminUser() {
+  try {
+    // 检查是否已存在管理员用户
+    const existingAdmin = await AdminUser.findOne({ username: 'admin' });
+    if (existingAdmin) {
+      console.log('[startup] 管理员用户已存在');
+      return;
+    }
+
+    // 创建默认管理员用户
+    const adminUser = new AdminUser({
+      username: 'admin',
+      password_hash: 'admin123', // 这将在保存时被加密
+      role: 'super_admin',
+      permissions: ['*'], // 所有权限
+      is_active: true
+    });
+
+    await adminUser.save();
+    console.log('[startup] 默认管理员用户创建成功');
+    console.log('[startup] 用户名: admin, 密码: admin123');
+  } catch (error) {
+    console.error('[startup] 创建默认管理员用户失败:', error.message);
+  }
+}
+
 async function seedToolPresets() {
+  // 创建默认管理员用户
+  await createDefaultAdminUser();
+  
   const existedTools = await AITool.find({ identifier: { $in: PRESET_TOOLS.map((tool) => tool.identifier) } });
   const existedIdentifiers = new Set(existedTools.map((tool) => tool.identifier));
 

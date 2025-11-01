@@ -577,7 +577,12 @@ const UploadSlot = ({
           <img
             src={image.preview}
             alt="预览"
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              objectFit: 'contain', // 修改为contain以自适应窗口大小
+              objectPosition: 'center' // 居中显示
+            }}
           />
         ) : (
           <Space

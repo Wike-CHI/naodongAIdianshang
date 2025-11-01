@@ -1,77 +1,62 @@
-// 用户服务
-import axios from 'axios';
-import { API_ENDPOINTS } from '../config/api';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+import axios from 'axios'
+import { API_ENDPOINTS } from '../config/api'
 
 // 创建axios实例
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
   }
-});
+})
 
 // 请求拦截器 - 添加认证token
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token')
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`
     }
-    console.log('🚀 用户服务请求:', {
-      method: config.method?.toUpperCase(),
-      url: config.url,
-      headers: config.headers,
-      data: config.data
-    });
-    return config;
+    return config
   },
   (error) => {
-    console.error('❌ 用户服务请求拦截器错误:', error);
-    return Promise.reject(error);
+    return Promise.reject(error)
   }
-);
+)
 
-// 响应拦截器 - 处理错误和token过期
+// 响应拦截器
 apiClient.interceptors.response.use(
   (response) => {
-    console.log('✅ 用户服务响应:', {
-      status: response.status,
-      statusText: response.statusText,
-      url: response.config.url,
-      data: response.data
-    });
-    return response.data;
+    return response.data
   },
   (error) => {
-    console.error('❌ 用户服务响应错误:', {
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      url: error.response?.config?.url,
-      message: error.message,
-      data: error.response?.data
-    });
-    
     if (error.response?.status === 401) {
       // Token过期，清除本地存储
-      console.warn('⚠️ Token过期，清除本地存储');
-      localStorage.removeItem('token');
-      localStorage.removeItem('naodong_user');
+      localStorage.removeItem('token')
+      localStorage.removeItem('naodong_user')
     }
-    
-    return Promise.reject(error.response?.data || error);
+    return Promise.reject(error.response?.data || error)
   }
-);
+)
 
-// 用户服务
 const userService = {
+  // 获取当前用户信息
+  getCurrentUser: async () => {
+    try {
+      console.log('👤 获取当前用户信息');
+      const response = await apiClient.get(API_ENDPOINTS.AUTH.CURRENT_USER);
+      console.log('✅ 获取当前用户信息成功:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ 获取当前用户信息失败:', error);
+      throw error;
+    }
+  },
+
   // 获取用户详情
   getUserById: async (userId) => {
     try {
       console.log('👤 获取用户详情:', userId);
-      const response = await apiClient.get(`/api/users/${userId}`);
+      const response = await apiClient.get(API_ENDPOINTS.USERS.GET_BY_ID(userId));
       console.log('✅ 获取用户详情成功:', response);
       return response;
     } catch (error) {
@@ -98,7 +83,7 @@ const userService = {
       delete mappedData.membership;
       delete mappedData.status;
       
-      const response = await apiClient.put(`/api/users/${userId}`, mappedData);
+      const response = await apiClient.put(API_ENDPOINTS.USERS.UPDATE(userId), mappedData);
       console.log('✅ 更新用户信息成功:', response);
       return response;
     } catch (error) {
@@ -114,7 +99,7 @@ const userService = {
       const formData = new FormData();
       formData.append('avatar', file);
       
-      const response = await apiClient.post(`/api/users/${userId}/avatar`, formData, {
+      const response = await apiClient.post(API_ENDPOINTS.USERS.UPLOAD_AVATAR(userId), formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -131,7 +116,7 @@ const userService = {
   getUserCreditRecords: async (userId, params = {}) => {
     try {
       console.log('💳 获取用户积分记录:', { userId, params });
-      const response = await apiClient.get(`/api/users/${userId}/credits`, { params });
+      const response = await apiClient.get(API_ENDPOINTS.USERS.CREDITS(userId), { params });
       console.log('✅ 获取积分记录成功:', response);
       return response;
     } catch (error) {
@@ -144,7 +129,7 @@ const userService = {
   getUserGenerations: async (userId, params = {}) => {
     try {
       console.log('🎨 获取用户生成历史:', { userId, params });
-      const response = await apiClient.get(`/api/users/${userId}/generations`, { params });
+      const response = await apiClient.get(API_ENDPOINTS.USERS.GENERATIONS(userId), { params });
       console.log('✅ 获取生成历史成功:', response);
       return response;
     } catch (error) {
@@ -157,7 +142,7 @@ const userService = {
   getUserSubscription: async (userId) => {
     try {
       console.log('📋 获取用户订阅信息:', userId);
-      const response = await apiClient.get(`/api/users/${userId}/subscription`);
+      const response = await apiClient.get(API_ENDPOINTS.USERS.SUBSCRIPTION(userId));
       console.log('✅ 获取订阅信息成功:', response);
       return response;
     } catch (error) {

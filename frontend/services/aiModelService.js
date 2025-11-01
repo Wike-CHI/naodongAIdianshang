@@ -74,15 +74,29 @@ class AIModelService {
       headers.Authorization = `Bearer ${token}`
     }
 
-    const response = await fetch(`${this.baseUrl}/generate/${mappedToolId}`, {
+    console.log('🚀 发送AI生成请求:', {
+      url: `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}${this.baseUrl}/generate/${mappedToolId}`,
+      method: 'POST',
+      headers,
+      hasToken: !!token
+    })
+
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}${this.baseUrl}/generate/${mappedToolId}`, {
       method: 'POST',
       body: requestFormData,
       headers,
       signal: AbortSignal.timeout(this.timeout)
     })
 
+    console.log('📥 收到AI生成响应:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url
+    })
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
+      console.error('❌ AI生成失败:', errorData)
       throw new Error(errorData.error || errorData.detail || '生成失败')
     }
 
@@ -119,9 +133,17 @@ class AIModelService {
   }
 
   async batchGenerate(requests = []) {
-    const response = await fetch(`${this.baseUrl}/batch-generate`, {
+    const token = localStorage.getItem('token')
+    const headers = {
+      'Content-Type': 'application/json'
+    }
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}${this.baseUrl}/batch-generate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ requests }),
       signal: AbortSignal.timeout(this.timeout * 2)
     })

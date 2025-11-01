@@ -9,6 +9,7 @@ const CreditRecord = require('../models/CreditRecord');
 
 // 导入新的AI模型服务
 const aiModelService = require('./aiModelService');
+const aiHubMixService = require('./aiHubMixService');
 
 const nanobananaIntegration = require('./nanobananaIntegration');
 
@@ -198,8 +199,8 @@ const generateDetailedPrompt = (body, files, catalogConfig, options) => {
     fabric_description: options.fabric_description || defaultOptions.fabric_description || '高品质面料',
     fabric_type: options.fabric_type || defaultOptions.fabric_type || '棉质',
     clothing_style: options.clothing_style || defaultOptions.clothing_style || '修身',
-    accessory_type: '眼镜', // 固定为眼镜
-    accessory_category: '眼镜', // 固定为眼镜
+    accessory_type: options.accessory_type || defaultOptions.accessory_type || '眼镜',
+    accessory_category: options.accessory_category || defaultOptions.accessory_category || '眼镜',
     shoe_description: options.shoe_description || defaultOptions.shoe_description || '潮流鞋靴',
     shoe_type: options.shoe_type || defaultOptions.shoe_type || '运动鞋',
     scene_description: options.scene_description || defaultOptions.scene_description || '高级商业背景',
@@ -208,111 +209,84 @@ const generateDetailedPrompt = (body, files, catalogConfig, options) => {
     target_color_name: options.target_color_name || defaultOptions.target_color_name || '红色'
   };
 
-  // 根据不同的工具类型生成更精细的提示词
-  switch (catalogConfig.identifier) {
-    case 'ai-model':
-      // AI模特生成 - 根据服装类型和风格生成更具体的描述
-      if (options.product_type) {
-        placeholderValues.product_description = `${options.product_type}展示`;
-      }
-      if (options.style) {
-        placeholderValues.product_description += `，${options.style}风格`;
-      }
-      break;
-      
-    case 'try-on-clothes':
-      // 同版型试衣 - 根据面料和款式生成描述
-      if (options.fabric_type) {
-        placeholderValues.fabric_description = `${options.fabric_type}面料`;
-      }
-      if (options.clothing_style) {
-        placeholderValues.fabric_description += `，${options.clothing_style}款式`;
-      }
-      break;
-      
-    case 'glasses-tryon':
-      // 配件试戴 - 固定为眼镜类型
-      placeholderValues.accessory_type = '眼镜';
-      placeholderValues.accessory_category = '眼镜';
-      break;
-      
-    case 'shoe-tryon':
-      // 鞋靴试穿 - 根据鞋类生成描述
-      if (options.shoe_type) {
-        placeholderValues.shoe_description = options.shoe_type;
-      }
-      break;
-      
-    case 'scene-change':
-      // 场景更换 - 根据场景类型生成描述
-      if (options.scene_type) {
-        placeholderValues.scene_description = options.scene_type;
-      }
-      break;
-      
-    case 'color-change':
-      // 商品换色 - 根据颜色生成描述
-      if (options.target_color_name) {
-        placeholderValues.target_color = options.target_color_name;
-      }
-      break;
+  // 使用占位符值替换模板中的变量
+  let prompt = catalogConfig.promptTemplate || '';
+  Object.entries(placeholderValues).forEach(([key, value]) => {
+    const regex = new RegExp(`{${key}}`, 'g');
+    prompt = prompt.replace(regex, value);
+  });
+
+  // 如果有自定义提示词，则追加
+  if (body.prompt && body.prompt.trim()) {
+    prompt += `, ${body.prompt.trim()}`;
   }
 
-  // 当用户传入了提示词就用用户的，当没有提示词就用内置的提示词模板
-  let basePrompt = catalogConfig.promptTemplate; // 默认使用内置模板
-  if (body.prompt && body.prompt.trim().length > 0) {
-    basePrompt = body.prompt; // 使用用户提供的提示词
-  }
-
-  // 替换模板中的占位符
-  const userPrompt = basePrompt.replace(/\{(\w+)_description\}/g, (_, key) => {
-    const descriptorKey = `${key}_description`;
-    return placeholderValues[descriptorKey] || placeholderValues[key] || '';
-  }).replace(/\{(\w+)\}/g, (_, key) => placeholderValues[key] || '');
-
-  return userPrompt;
+  return prompt;
 };
 
-const buildServiceOptions = (body) => {
-  if (!body?.options) {
+// 构建服务选项
+const buildServiceOptions = (body = {}) => {
+  try {
+    const options = typeof body.options === 'string' ? JSON.parse(body.options) : body.options || {};
+    return {
+      resolution: options.resolution || '1080p',
+      quantity: parseInt(options.quantity) || 1,
+      mode: options.mode || 'fast',
+      ...options
+    };
+  } catch (error) {
+    console.warn('解析选项失败，使用默认选项:', error);
+    return {
+      resolution: '1080p',
+      quantity: 1,
+      mode: 'fast'
+    };
+  }
+};
+
+// 构建元数据
+const buildServiceMetadata = (body = {}) => {
+  try {
+    return typeof body.metadata === 'string' ? JSON.parse(body.metadata) : body.metadata || {};
+  } catch (error) {
+    console.warn('解析元数据失败，使用空对象:', error);
     return {};
   }
-
-  try {
-    return typeof body.options === 'string' ? JSON.parse(body.options) : body.options;
-  } catch (error) {
-    throw new Error('选项参数格式错误，必须为JSON字符串');
-  }
 };
 
-const buildServiceMetadata = (body) => {
-  if (!body?.metadata) {
-    return {};
-  }
-
+// 生成AI图片（使用AIHubMix服务）
+const generateAIImage = async ({ toolKey, userId, body, files, catalogConfig, aiToolDoc }) => {
   try {
-    return typeof body.metadata === 'string' ? JSON.parse(body.metadata) : body.metadata;
+    console.log(`开始调用AIHubMix服务生成AI图片... 工具: ${toolKey}`);
+    
+    // 检查用户
+    const userDoc = await User.findById(userId);
+    if (!userDoc) {
+      throw new Error('用户不存在');
+    }
+
+    // 检查积分
+    if (userDoc.credits_balance < catalogConfig.creditCost) {
+      throw new Error('积分不足，请先充值或升级套餐');
+    }
+
+    // 准备图像数据
+    const images = mapFilesToPayload(files);
+    
+    // 调用AIHubMix服务生成图片
+    const result = await aiHubMixService.generateImage(toolKey, images, body.prompt, userId);
+
+    // AIHubMix服务返回的结果结构不同，需要重新组织返回数据
+    return {
+      record: null, // AIHubMix服务内部已处理数据库记录，这里不需要返回记录
+      tool: aiToolDoc,
+      creditsUsed: catalogConfig.creditCost,
+      result: result
+    };
   } catch (error) {
-    throw new Error('metadata 参数格式错误，必须为JSON字符串');
+    console.error('AIHubMix生成失败:', error);
+    throw new Error(`AIHubMix生成失败: ${error.message}`);
   }
-};
-
-const buildUserAssetDocuments = (savedImages, generationRecord, toolKey) => {
-  const now = new Date();
-
-  return savedImages.map((imageMeta, index) => ({
-    generation_id: generationRecord._id,
-    tool_key: toolKey,
-    tool_id: generationRecord.tool_id,
-    public_url: imageMeta.publicUrl,
-    file_name: imageMeta.fileName,
-    mime_type: imageMeta.mimeType || 'image/png',
-    width: imageMeta.width,
-    height: imageMeta.height,
-    index,
-    created_at: now,
-    expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000)
-  }));
 };
 
 const generateWithTool = async ({ toolKey, userId, body, files }) => {
@@ -334,10 +308,11 @@ const generateWithTool = async ({ toolKey, userId, body, files }) => {
 
   const aiToolDoc = await ensureAiToolRecord(toolKey);
 
-  if (toolKey === 'ai-model') {
-    return await generateAIModelImage({ toolKey, userId, body, files, catalogConfig, aiToolDoc });
-  }
+  // 对于所有工具，使用AIHubMix服务
+  return await generateAIImage({ toolKey, userId, body, files, catalogConfig, aiToolDoc });
 
+  // 以下代码已废弃，因为所有工具都使用AIHubMix服务
+  /*
   const options = buildServiceOptions(body);
   const metadata = buildServiceMetadata(body);
   const prompt = generateDetailedPrompt(body, files, catalogConfig, options);
@@ -513,190 +488,32 @@ const generateWithTool = async ({ toolKey, userId, body, files }) => {
       success: true,
       images: savedImages.map((image, index) => ({
         index,
-        mime_type: image.mimeType,
-        data_url: dataUrls[index],
+        mimeType: image.mimeType,
+        data_url: image.dataUrl,
         public_url: image.publicUrl,
-        file_name: image.fileName
+        file_path: image.filePath,
+        file_name: image.fileName,
+        width: image.width,
+        height: image.height
       })),
       text_outputs: providerResult.text_outputs || [],
-      timing_ms: providerResult.timing_ms,
-      metadata: {
-        ...promptMetadata,
-        prompt
-      }
+      timing_ms: providerResult.timing_ms || 0
     }
   };
+  */
 };
 
-// 新增AI模特图片生成函数
-const generateAIModelImage = async ({ toolKey, userId, body, files, catalogConfig, aiToolDoc }) => {
-  try {
-    // 验证输入文件
-    if (!files || files.length < 2) {
-      throw new Error('AI模特生成需要至少两张图片：服装图和真人参考照');
-    }
-
-    // 提取图片数据
-    const clothingImage = files[0]; // 服装图
-    const faceImage = files[1];     // 真人参考照
-
-    // 将图片转换为base64
-    const clothingBase64 = clothingImage.buffer.toString('base64');
-    const faceBase64 = faceImage.buffer.toString('base64');
-
-    // 构建提示词 - 当用户传入了提示词就用用户的，当没有提示词就用内置的提示词模板
-    let prompt = catalogConfig.promptTemplate; // 默认使用内置模板
-    if (body.prompt && body.prompt.trim().length > 0) {
-      prompt = body.prompt; // 使用用户提供的提示词
-    }
-
-    // 调用AI服务生成图片
-    const aiResult = await aiModelService.generateModelImage(clothingBase64, faceBase64, prompt);
-
-    // 构造返回结果
-    const result = {
-      images: [
-        {
-          index: 0,
-          data: (await fs.promises.readFile(aiResult.filePath)).toString('base64'),
-          mime_type: 'image/png',
-          size_bytes: (await fs.promises.stat(aiResult.filePath)).size,
-          data_url: `data:image/png;base64,${(await fs.promises.readFile(aiResult.filePath)).toString('base64')}`,
-          public_url: aiResult.publicUrl,
-          file_name: aiResult.fileName
-        }
-      ],
-      text_outputs: [],
-      timing_ms: 5000, // 模拟处理时间
-      built_prompt: prompt,
-      metadata: {
-        model_id: "gemini-2.5-flash-image",
-        aspect_ratio: "16:9",
-        resolution: "1920x1080",
-        mode: "fast",
-        quantity_request: 1
-      }
-    };
-
-    // 扣除用户积分
-    const session = await mongoose.startSession();
-    let generationRecord;
-
-    try {
-      await session.withTransaction(async () => {
-        const updatedUser = await User.findByIdAndUpdate(
-          userId,
-          {
-            $inc: { credits_balance: -catalogConfig.creditCost }
-          },
-          { new: true, session }
-        );
-
-        if (!updatedUser || updatedUser.credits_balance < 0) {
-          throw new Error('积分扣减失败或积分不足');
-        }
-
-        await CreditRecord.create([
-          {
-            user_id: userId,
-            type: 'consumption',
-            amount: -catalogConfig.creditCost,
-            balance_before: updatedUser.credits_balance + catalogConfig.creditCost,
-            balance_after: updatedUser.credits_balance,
-            description: `${catalogConfig.name} 生成扣减`,
-            metadata: {
-              tool_key: toolKey,
-              credit_cost: catalogConfig.creditCost
-            }
-          }
-        ], { session });
-
-        generationRecord = await AIGeneration.create([{
-          user_id: userId,
-          tool_key: toolKey,
-          tool_id: aiToolDoc._id,
-          input_data: {
-            prompt: prompt,
-            options: body.options || {},
-            files: [
-              { file_name: clothingImage.originalname, role: 'clothing', mime_type: clothingImage.mimetype },
-              { file_name: faceImage.originalname, role: 'face', mime_type: faceImage.mimetype }
-            ]
-          },
-          output_data: {
-            images: [aiResult],
-            data_urls: [result.images[0].data_url],
-            text_outputs: []
-          },
-          status: 'completed',
-          credits_used: catalogConfig.creditCost,
-          processing_time: 5, // 模拟处理时间
-          metadata: {
-            prompt: prompt,
-            model_id: "gemini-2.5-flash-image",
-            aspect_ratio: "16:9",
-            resolution: "1920x1080"
-          },
-          error_message: null
-        }], { session });
-
-        generationRecord = generationRecord[0];
-
-        const userAssets = [{
-          generation_id: generationRecord._id,
-          tool_key: toolKey,
-          tool_id: aiToolDoc._id,
-          public_url: aiResult.publicUrl,
-          file_name: aiResult.fileName,
-          mime_type: 'image/png',
-          width: 1920,
-          height: 1080,
-          index: 0,
-          created_at: new Date(),
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000)
-        }];
-
-        if (userAssets.length) {
-          await User.findByIdAndUpdate(
-            userId,
-            {
-              $push: {
-                generated_assets: {
-                  $each: userAssets,
-                  $slice: USER_ASSET_SLICE
-                }
-              }
-            },
-            { session }
-          );
-        }
-
-        const totalCreditsCharged = catalogConfig.creditCost;
-        await AIGeneration.updateOne(
-          { _id: generationRecord._id },
-          {
-            $set: {
-              total_credits_charged: totalCreditsCharged,
-              expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000)
-            }
-          },
-          { session }
-        );
-      });
-    } finally {
-      await session.endSession();
-    }
-
-    return {
-      record: generationRecord,
-      tool: aiToolDoc,
-      creditsUsed: catalogConfig.creditCost,
-      result: result
-    };
-  } catch (error) {
-    console.error('AI模特图片生成失败:', error);
-    throw new Error(`AI模特图片生成失败: ${error.message}`);
-  }
+// 构建用户资产文档
+const buildUserAssetDocuments = (savedImages, generationRecord, toolKey) => {
+  return savedImages.map((image) => ({
+    generation_id: generationRecord._id,
+    tool_key: toolKey,
+    file_path: image.filePath,
+    file_name: image.fileName,
+    public_url: image.publicUrl,
+    mime_type: image.mimeType,
+    created_at: new Date()
+  }));
 };
 
 const buildToolUsagePipeline = ({ userId, includeAdminView, startDate }) => {
@@ -870,33 +687,93 @@ const getUserCreditStats = async (userId, days = 30) => {
   const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   
   const stats = await CreditRecord.aggregate([
-    { 
-      $match: { 
+    {
+      $match: {
         user_id: mongoose.Types.ObjectId(userId),
         type: 'consumption',
         created_at: { $gte: startDate }
-      } 
+      }
     },
     {
       $group: {
-        _id: '$metadata.tool_key',
-        total: { $sum: 1 },
-        credits: { $sum: { $abs: '$amount' } }
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$created_at" } },
+        total: { $sum: '$amount' },
+        count: { $sum: 1 }
       }
     },
-    { $sort: { credits: -1 } }
+    { $sort: { _id: 1 } }
   ]);
   
   return stats;
 };
 
+// 新增获取用户个人统计信息的函数
+const getUserPersonalStats = async (userId) => {
+  try {
+    // 获取用户总生成次数和累计消耗积分
+    const generationStats = await AIGeneration.aggregate([
+      {
+        $match: {
+          user_id: new mongoose.Types.ObjectId(userId)
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalGenerations: { $sum: 1 },
+          totalCreditsUsed: { $sum: '$credits_used' }
+        }
+      }
+    ]);
+
+    // 获取用户最常用的工具
+    const toolUsageStats = await AIGeneration.aggregate([
+      {
+        $match: {
+          user_id: new mongoose.Types.ObjectId(userId)
+        }
+      },
+      {
+        $group: {
+          _id: '$tool_key',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      },
+      {
+        $limit: 1
+      }
+    ]);
+
+    // 获取用户最近的生成记录
+    const recentRecords = await AIGeneration.find({
+      user_id: userId
+    })
+    .sort({ created_at: -1 })
+    .limit(5)
+    .select('tool_key credits_used created_at')
+    .lean();
+
+    return {
+      totalGenerations: generationStats[0]?.totalGenerations || 0,
+      totalCreditsUsed: Math.abs(generationStats[0]?.totalCreditsUsed || 0),
+      mostUsedTool: toolUsageStats[0]?._id || null,
+      recentRecords: recentRecords
+    };
+  } catch (error) {
+    console.error('获取用户个人统计信息失败:', error);
+    throw error;
+  }
+};
+
 module.exports = {
   generateWithTool,
   getPaginatedHistory,
-  getHistoryRecord,
   getGenerationStats,
+  getHistoryRecord,
   getToolUsageStats,
   getUserCreditStats,
-  TOOL_CATALOG,
-  RESOLUTION_PRESETS
+  getUserPersonalStats
 };

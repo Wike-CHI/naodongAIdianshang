@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
-const { getToolUsageStats, getUserCreditStats } = require('../services/aiGenerationService');
+const { getToolUsageStats, getUserCreditStats, getUserPersonalStats } = require('../services/aiGenerationService');
 
 // 获取工具使用统计（管理员）
 router.get('/tool-usage', authenticateToken, requireAdmin, async (req, res) => {
@@ -57,6 +58,33 @@ router.get('/all-user-credits', authenticateToken, requireAdmin, async (req, res
     });
   } catch (error) {
     console.error('获取所有用户积分消费统计失败:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 获取当前用户个人统计信息
+router.get('/personal', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: '无法识别用户身份'
+      });
+    }
+
+    const stats = await getUserPersonalStats(userId);
+    
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('获取用户个人统计信息失败:', error);
     res.status(500).json({
       success: false,
       error: error.message

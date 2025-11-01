@@ -14,9 +14,23 @@ import {
   EditOutlined
 } from '@ant-design/icons';
 import creditService from '../services/creditService';
+import aiStatsService from '../services/aiStatsService';
 import UserEditForm from '../components/UserEditForm';
 
 const { Title, Text } = Typography;
+
+// 工具中文名称映射
+const getToolChineseName = (toolId) => {
+  const toolNames = {
+    'ai-model': 'AI模特生成',
+    'try-on-clothes': '同版型试衣',
+    'glasses-tryon': '配件试戴',
+    'shoe-tryon': '鞋靴试穿',
+    'scene-change': '场景更换',
+    'color-change': '商品换色'
+  };
+  return toolNames[toolId] || toolId;
+};
 
 const Profile = () => {
   const { user, updateUserInfo } = useAuth();
@@ -53,19 +67,31 @@ const Profile = () => {
         throw new Error(historyResponse?.message || '获取积分历史失败');
       }
 
-      // 获取积分统计
-      console.log('📊 获取积分统计');
-      const statsResponse = await creditService.getStats();
-      if (statsResponse?.success) {
-        const { total_generations = 0, total_credits_used = 0, favorite_tool = '' } = statsResponse.data || {};
-        setStats({
-          totalGenerations: total_generations,
-          totalCreditsUsed: total_credits_used,
-          favoriteTool: favorite_tool
-        });
-        console.log('✅ 获取积分统计成功:', statsResponse.data);
-      } else {
-        console.log('ℹ️ 积分统计接口返回空');
+      // 获取AI使用统计
+      console.log('📊 获取AI使用统计');
+      try {
+        const aiStatsResponse = await aiStatsService.getPersonalStats();
+        console.log('📊 AI使用统计响应:', aiStatsResponse);
+        if (aiStatsResponse?.success) {
+          const { totalGenerations, totalCreditsUsed, mostUsedTool } = aiStatsResponse.data || {};
+          setStats({
+            totalGenerations: totalGenerations || 0,
+            totalCreditsUsed: totalCreditsUsed || 0,
+            favoriteTool: mostUsedTool || ''
+          });
+          console.log('✅ 获取AI使用统计成功:', aiStatsResponse.data);
+        } else {
+          console.log('ℹ️ AI使用统计接口返回空或失败:', aiStatsResponse);
+          // 如果AI统计获取失败，使用默认值
+          setStats({
+            totalGenerations: 0,
+            totalCreditsUsed: 0,
+            favoriteTool: ''
+          });
+        }
+      } catch (aiStatsError) {
+        console.error('❌ 获取AI使用统计失败:', aiStatsError);
+        // 如果AI统计获取失败，使用默认值
         setStats({
           totalGenerations: 0,
           totalCreditsUsed: 0,
@@ -274,7 +300,7 @@ const Profile = () => {
             <Col span={8}>
               <Statistic
                 title="最常用工具"
-                value={stats.favoriteTool || '暂无'}
+                value={getToolChineseName(stats.favoriteTool) || '暂无'}
                 prefix={<ClockCircleOutlined />}
               />
             </Col>

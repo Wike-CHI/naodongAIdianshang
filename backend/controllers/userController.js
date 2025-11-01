@@ -119,7 +119,7 @@ const getUserById = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    let updates = req.body;
     
     // 检查权限：用户只能更新自己的信息，管理员可以更新任何用户
     if (req.userType !== 'admin' && req.user._id.toString() !== id) {
